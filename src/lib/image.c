@@ -1,6 +1,12 @@
 #include "image.h"
+#include "cache.h"
 
-static int pt_image_new (struct pt_image **img_ptr, struct pt_ctx *ctx, const char *png_path)
+#include <stdlib.h>
+#include <limits.h> // for _POSIX_PATH_MAX
+
+#include <png.h>
+
+static int pt_image_new (struct pt_image **img_ptr, struct pt_ctx *ctx, const char *path)
 {
     struct pt_image *img;
 
@@ -8,7 +14,7 @@ static int pt_image_new (struct pt_image **img_ptr, struct pt_ctx *ctx, const ch
     if ((img = calloc(1, sizeof(*img))) == NULL)
         return -1;
 
-    if ((img->png_path = strdup(png_path)) == NULL)
+    if ((img->path = strdup(path)) == NULL)
         goto error;
 
     // init
@@ -33,7 +39,7 @@ static int pt_image_open_file (struct pt_image *img, FILE **file_ptr)
     FILE *fp;
     
     // open
-    if (fopen(img->png_path, "rb") < 0)
+    if (fopen(img->path, "rb") < 0)
         return -1;
 
     // ok
@@ -71,6 +77,7 @@ static int pt_image_open_png (struct pt_image *img, png_structp *png_ptr, png_in
     png_init_io(png, fp);
 
     // ok
+    // XXX: what to do with fp?
     *png_ptr = png;
     *info_ptr = info;
 
@@ -113,40 +120,68 @@ static int pt_image_update_cache (struct pt_image *img)
     png_read_end(png, NULL);
 
     // clean up
-    png_destroy_read_struct(&png, &info);
+    png_destroy_read_struct(&png, &info, NULL);
 
     return 0;
 
 error:
     // clean up
-    png_destroy_read_struct(&png, &info);
+    png_destroy_read_struct(&png, &info, NULL);
 
     return -1;
 }
 
-int pt_image_open (struct pt_image **img_ptr, struct pt_ctx *ctx, const char *png_path, int cache_mode)
+/**
+ * Build a filesystem path representing the appropriate path for this image's cache entry, and store it in the given
+ * buffer.
+ */
+static int pt_image_cache_path (struct pt_image *image, char *buf, size_t len)
 {
-    struct pt_image *img;
+    // TODO: impl
+}
 
-    // XXX: verify that the png_path exists and looks like a PNG file
+int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *path, int cache_mode)
+{
+    struct pt_image *image;
+    char cache_path[_POSIX_PATH_MAX];
+
+    // XXX: verify that the path exists and looks like a PNG file
 
     // alloc
-    if (pt_image_new(&img, ctx, png_path))
+    if (pt_image_new(&image, ctx, path))
         return -1;
+    
+    // compute cache file path
+    if (pt_image_cache_path(image, cache_path, sizeof(cache_path)))
+        goto error;
 
     // open the cache object for this image
-    if (pt_cache_open(&img->cache, img, mode))
+    if (pt_cache_open(&image->cache, cache_path, cache_mode))
         goto error;
     
     // update if not fresh
-    if (!pt_cache_fresh(img->cache))
-        pt_image_update_cache(img);
+    // XXX: check cache_mode
+    // XXX: error handling
+    if (pt_cache_stale(image->cache, image->path))
+        pt_image_update_cache(image);
     
     // ok, ready for access
-    *img_ptr = img;
+    *image_ptr = image;
 
     return 0;
 
 error:
-    pt_image_destroy(img);
+    pt_image_destroy(image);
+
+    return -1;
+}
+
+void pt_image_destroy (struct pt_image *image)
+{
+    free(image->path);
+    
+    if (image->cache)
+        pt_cache_destroy(image->cache);
+
+    free(image);
 }

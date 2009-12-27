@@ -1,0 +1,10 @@
+syntax: regexp
+
+\.[^/]+\.sw[op]$
+
+^build/
+^bin/
+^lib/
+^doc/html
+^dist
+^Learning Diary\.pdf$

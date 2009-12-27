@@ -6,22 +6,17 @@ CFLAGS = -Wall -std=gnu99 -g
 # preprocessor flags
 CPPFLAGS = -Isrc/
 
+# libraries to use
+LOADLIBES = -lpng
+
 # output name
-DIST_NAME = 78949E-as1
+DIST_NAME = 78949E-as2
 DIST_RESOURCES = README "Learning Diary.pdf"
 
-all: depend bin/daemon lib/libnetdaemon.so bin/client
+all: depend lib/libpngtile.so
 
-bin/daemon : lib/libnetdaemon.so \
-	build/obj/daemon/daemon.o build/obj/daemon/service.o build/obj/daemon/client.o build/obj/daemon/commands.o \
-    build/obj/daemon/process.o \
-	build/obj/shared/select.o build/obj/shared/log.o build/obj/shared/util.o build/obj/shared/signal.o
-
-lib/libnetdaemon.so : \
-    build/obj/lib/client.o build/obj/lib/commands.o \
-    build/obj/shared/proto.o
-
-bin/client : lib/libnetdaemon.so build/obj/shared/log.o
+lib/libpngtile.so : \
+	build/obj/lib/image.o build/obj/lib/cache.o
 
 SRC_PATHS = $(wildcard src/*/*.c)
 SRC_NAMES = $(patsubst src/%,%,$(SRC_PATHS))
