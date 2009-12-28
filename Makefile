@@ -16,7 +16,8 @@ DIST_RESOURCES = README "Learning Diary.pdf"
 all: depend lib/libpngtile.so bin/util
 
 lib/libpngtile.so : \
-	build/obj/lib/image.o build/obj/lib/cache.o
+	build/obj/lib/image.o build/obj/lib/cache.o \
+	build/obj/shared/util.o
 
 bin/util: \
 	lib/libpngtile.so \

@@ -1,5 +1,6 @@
 #include "image.h"
 #include "cache.h"
+#include "shared/util.h"
 
 #include <stdlib.h>
 #include <limits.h> // for _POSIX_PATH_MAX
@@ -137,22 +138,7 @@ error:
  */
 static int pt_image_cache_path (struct pt_image *image, char *buf, size_t len)
 {
-    char *ext;
-
-    // XXX: be more careful about buf len
-    
-    // copy filename
-    strncpy(buf, image->path, len);
-
-    // find .ext
-    if ((ext = strrchr(buf, '.')) == NULL)
-        return -1;
-
-    // change to .cache
-    strncpy(ext, ".cache", (buf + len) - ext);
-
-    // hmmk
-    return 0;
+    return path_with_fext(image->path, buf, len, ".cache"); 
 }
 
 int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *path, int cache_mode)

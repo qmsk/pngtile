@@ -1,4 +1,5 @@
 #include "cache.h"
+#include "shared/util.h"
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -92,25 +93,16 @@ static void pt_cache_abort (struct pt_cache *cache)
 }
 
 /**
- * Open the cache file as an fd.
+ * Open the cache file as an fd for reading
  *
  * XXX: needs locking
  */
-static int pt_cache_open_fd (struct pt_cache *cache, int *fd_ptr)
+static int pt_cache_open_read (struct pt_cache *cache, int *fd_ptr)
 {
     int fd;
-    int flags = 0;
-
-    // determine open flags
-    // XXX: O_RDONLY | O_WRONLY == O_RDWR?
-    if (cache->mode & PT_IMG_READ)
-        flags |= O_RDONLY;
-
-    if (cache->mode & PT_IMG_WRITE)
-        flags |= (O_WRONLY | O_CREAT);
-
+    
     // actual open()
-    if ((fd = open(cache->path, flags)) < 0)
+    if ((fd = open(cache->path, O_RDONLY)) < 0)
         return -1;
 
     // ok
@@ -118,6 +110,36 @@ static int pt_cache_open_fd (struct pt_cache *cache, int *fd_ptr)
 
     return 0;
 }
+
+/**
+ * Open the .tmp cache file as an fd for writing
+ */
+static int pt_cache_open_tmp (struct pt_cache *cache, int *fd_ptr)
+{
+    int fd;
+    char tmp_path[1024];
+    
+    // check mode
+    if (!(cache->mode & PT_IMG_WRITE)) {
+        errno = EPERM;
+        return -1;
+    }
+    
+    // get .tmp path
+    if (path_with_fext(cache->path, tmp_path, sizeof(tmp_path), ".tmp"))
+        return -1;
+
+    // open for write, create
+    // XXX: locking?
+    if ((fd = open(tmp_path, O_RDWR | O_CREAT, 0644)) < 0)
+        return -1;
+
+    // ok
+    *fd_ptr = fd;
+
+    return 0;
+}
+
 
 /**
  * Mmap the opened cache file from offset PT_CACHE_PAGE, using the calculated size stored in cache->size
@@ -174,7 +196,7 @@ static int pt_cache_write_header (struct pt_cache *cache, const struct pt_cache_
 }
 
 /**
- * Create a new cache file, open it, and write out the header.
+ * Create a new .tmp cache file, open it, and write out the header.
  */
 static int pt_cache_open_create (struct pt_cache *cache, struct pt_cache_header *header)
 {
@@ -184,8 +206,8 @@ static int pt_cache_open_create (struct pt_cache *cache, struct pt_cache_header 
         return -1;
     }
 
-    // open
-    if (pt_cache_open_fd(cache, &cache->fd))
+    // open as .tmp
+    if (pt_cache_open_tmp(cache, &cache->fd))
         return -1;
 
     // calculate data size
@@ -213,6 +235,25 @@ error:
     return -1;
 }
 
+/**
+ * Rename the opened .tmp to .cache
+ */
+static int pt_cache_create_done (struct pt_cache *cache)
+{
+    char tmp_path[1024];
+    
+    // get .tmp path
+    if (path_with_fext(cache->path, tmp_path, sizeof(tmp_path), ".tmp"))
+        return -1;
+
+    // rename
+    if (rename(tmp_path, cache->path) < 0)
+        return -1;
+
+    // ok
+    return 0;
+}
+
 int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info)
 {
     struct pt_cache_header header;
@@ -231,7 +272,7 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
     // fill in other info
     header.row_bytes = png_get_rowbytes(png, info);
 
-    // create and write out header
+    // create .tmp and write out header
     if (pt_cache_open_create(cache, &header))
         return -1;
 
@@ -242,6 +283,10 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
         // read row data, non-interlaced
         png_read_row(png, cache->mmap + row * header.row_bytes, NULL);
     }
+
+    // move from .tmp to .cache
+    if (pt_cache_create_done(cache))
+        return -1;
 
     // done!
     return 0;
