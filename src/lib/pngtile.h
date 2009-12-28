@@ -6,6 +6,7 @@
  *
  * Tile-based access to large PNG images.
  */
+#include <stddef.h>
 
 /**
  * "Global" context shared between images
@@ -17,9 +18,19 @@ struct pt_ctx;
  */
 struct pt_image;
 
+/** Bitmask for pt_image_open modes */
 enum pt_image_mode {
-    PT_IMG_READ     = 0x01,
-    PT_IMG_WRITE    = 0x02,
+    /** Update cache if needed */
+    PT_IMG_WRITE    = 0x01,
+
+    /** Accept stale cache */
+    PT_IMG_STALE    = 0x02,
+};
+
+/** Metadata info for image */
+struct pt_image_info {
+    /** Dimensions of image */
+    size_t width, height;   
 };
 
 
@@ -36,6 +47,11 @@ int pt_ctx_new (struct pt_ctx **ctx_ptr);
 int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *png_path, int cache_mode);
 
 /**
+ * Get the image's metadata
+ */
+int pt_image_info (struct pt_image *image, struct pt_image_info **info_ptr);
+
+/**
  * Check the given image's cache is stale - in other words, the image needs to be updated.
  */
 int pt_image_stale (struct pt_image *image);
@@ -44,5 +60,10 @@ int pt_image_stale (struct pt_image *image);
  * Update the given image's cache.
  */
 int pt_image_update (struct pt_image *image);
+
+/**
+ * Release the given pt_image without any clean shutdown
+ */
+void pt_image_destroy (struct pt_image *image);
 
 #endif

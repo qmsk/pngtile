@@ -3,7 +3,7 @@
 #include "shared/util.h"
 
 #include <stdlib.h>
-#include <limits.h> // for _POSIX_PATH_MAX
+#include <errno.h>
 
 #include <png.h>
 
@@ -97,13 +97,19 @@ error:
 /**
  * Open the PNG image, and write out to the cache
  */
-static int pt_image_update_cache (struct pt_image *img)
+static int pt_image_update_cache (struct pt_image *image)
 {
     png_structp png;
     png_infop info;
 
+    // pre-check enabled
+    if (!(image->cache->mode & PT_IMG_WRITE)) {
+        errno = EPERM;
+        return -1;
+    }
+
     // open .png
-    if (pt_image_open_png(img, &png, &info))
+    if (pt_image_open_png(image, &png, &info))
         return -1;
     
     // setup error trap
@@ -114,7 +120,7 @@ static int pt_image_update_cache (struct pt_image *img)
     png_read_info(png, info);
 
     // pass to cache object
-    if (pt_cache_update_png(img->cache, png, info))
+    if (pt_cache_update_png(image->cache, png, info))
         goto error;
 
     // finish off, ignore trailing data
@@ -144,7 +150,7 @@ static int pt_image_cache_path (struct pt_image *image, char *buf, size_t len)
 int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *path, int cache_mode)
 {
     struct pt_image *image;
-    char cache_path[_POSIX_PATH_MAX];
+    char cache_path[1024];
 
     // XXX: verify that the path exists and looks like a PNG file
 
@@ -180,7 +186,6 @@ int pt_image_update (struct pt_image *image)
 {
     return pt_image_update_cache(image);
 }
-
 
 void pt_image_destroy (struct pt_image *image)
 {

@@ -9,11 +9,12 @@
  * Command-line options
  */
 static const struct option options[] = {
-    { "help",       false,  NULL,   'h' },
-    { "quiet",      false,  NULL,   'q' },
-    { "verbose",    false,  NULL,   'v' },
-    { "debug",      false,  NULL,   'D' },
-    { 0,            0,      0,      0   }
+    { "help",           false,  NULL,   'h' },
+    { "quiet",          false,  NULL,   'q' },
+    { "verbose",        false,  NULL,   'v' },
+    { "debug",          false,  NULL,   'D' },
+    { "force-update",   false,  NULL,   'U' },
+    { 0,                0,      0,      0   }
 };
 
 /**
@@ -29,15 +30,17 @@ void help (const char *argv0)
         "\t-q, --quiet          supress informational output\n"
         "\t-v, --verbose        display more informational output\n"
         "\t-D, --debug          equivalent to -v\n"
+        "\t-U, --force-update   unconditionally update image caches\n"
     );
 }
 
 int main (int argc, char **argv)
 {
     int opt;
+    bool force_update = false;
     
     // parse arguments
-    while ((opt = getopt_long(argc, argv, "hqvD", options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hqvDU", options, NULL)) != -1) {
         switch (opt) {
             case 'h':
                 // display help
@@ -56,6 +59,12 @@ int main (int argc, char **argv)
                 // display additional output
                 set_log_level(LOG_DEBUG);
 
+                break;
+            
+            case 'U':
+                // force update of image caches
+                force_update = true;
+                
                 break;
 
             case '?':
@@ -78,7 +87,7 @@ int main (int argc, char **argv)
 
     struct pt_ctx *ctx = NULL;
     struct pt_image *image = NULL;
-    int ret;
+    int stale;
 
     log_debug("Processing %d images...", argc - optind);
 
@@ -88,7 +97,7 @@ int main (int argc, char **argv)
         log_debug("Loading image from: %s...", img_path);
 
         // open
-        if (pt_image_open(&image, ctx, img_path, PT_IMG_READ | PT_IMG_WRITE)) {
+        if (pt_image_open(&image, ctx, img_path, PT_IMG_WRITE)) {
             log_errno("pt_image_open: %s", img_path);
             continue;
         }
@@ -96,20 +105,23 @@ int main (int argc, char **argv)
         log_info("Opened image at: %s", img_path);
         
         // check if stale
-        if ((ret = pt_image_stale(image)) < 0) {
+        if ((stale = pt_image_stale(image)) < 0) {
             log_errno("pt_image_stale: %s", img_path);
             goto error;
         }
         
         // update if stale
-        if (ret) {
-            log_info("Image cache is stale, updating...");
+        if (stale || force_update) {
+            if (stale)
+                log_debug("Image cache is stale, updating...");
+            else // force_update
+                log_debug("Updating image cache...");
 
             if (pt_image_update(image)) {
                 log_warn_errno("pt_image_update: %s", img_path);
             }
 
-            log_debug("Image cache updated");
+            log_info("Updated image cache");
         }
 
         // done

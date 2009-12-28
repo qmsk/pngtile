@@ -19,10 +19,5 @@ struct pt_image {
     struct pt_cache *cache;
 };
 
-/**
- * Release the given pt_image without any clean shutdown
- */
-void pt_image_destroy (struct pt_image *image);
-
 
 #endif

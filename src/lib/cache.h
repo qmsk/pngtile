@@ -48,8 +48,14 @@ struct pt_cache_header {
     /** Pixel format */
     uint8_t bit_depth, color_type;
 
+    /** Number of png_color entries that follow */
+    uint16_t num_palette;
+
     /** Convenience field for number of bytes per row */
     uint32_t row_bytes;
+
+    /** Palette entries, up to 256 entries used */
+    png_color palette[PNG_MAX_PALETTE_LENGTH];
 };
 
 /**
