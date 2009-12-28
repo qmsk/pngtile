@@ -67,9 +67,11 @@ struct pt_cache_header {
 int pt_cache_open (struct pt_cache **cache_ptr, const char *path, int mode);
 
 /**
- * Verify if the cached data has become stale compared to the given original file.
+ * Verify if the cached data eixsts, or has become stale compared to the given original file.
+ *
+ * @return one of pt_cache_status; <0 on error, 0 if fresh, >0 otherwise
  */
-int pt_cache_stale (struct pt_cache *cache, const char *img_path);
+int pt_cache_status (struct pt_cache *cache, const char *img_path);
 
 /**
  * Update the cache data from the given PNG image.

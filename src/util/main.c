@@ -87,7 +87,7 @@ int main (int argc, char **argv)
 
     struct pt_ctx *ctx = NULL;
     struct pt_image *image = NULL;
-    int stale;
+    enum pt_cache_status status;
 
     log_debug("Processing %d images...", argc - optind);
 
@@ -105,17 +105,23 @@ int main (int argc, char **argv)
         log_info("Opened image at: %s", img_path);
         
         // check if stale
-        if ((stale = pt_image_stale(image)) < 0) {
-            log_errno("pt_image_stale: %s", img_path);
+        if ((status = pt_image_status(image)) < 0) {
+            log_errno("pt_image_status: %s", img_path);
             goto error;
         }
         
         // update if stale
-        if (stale || force_update) {
-            if (stale)
-                log_debug("Image cache is stale, updating...");
-            else // force_update
-                log_debug("Updating image cache...");
+        if (status != PT_CACHE_FRESH || force_update) {
+            if (status == PT_CACHE_NONE)
+                log_debug("Image cache is missing");
+
+            else if (status == PT_CACHE_STALE)
+                log_debug("Image cache is stale");
+
+            else if (status == PT_CACHE_FRESH)
+                log_debug("Image cache is fresh");
+
+            log_debug("Updating image cache...");
 
             if (pt_image_update(image)) {
                 log_warn_errno("pt_image_update: %s", img_path);

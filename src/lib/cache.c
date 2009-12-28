@@ -55,7 +55,7 @@ int pt_cache_open (struct pt_cache **cache_ptr, const char *path, int mode)
     return 0;
 }
 
-int pt_cache_stale (struct pt_cache *cache, const char *img_path)
+int pt_cache_status (struct pt_cache *cache, const char *img_path)
 {
     struct stat st_img, st_cache;
     
@@ -67,13 +67,17 @@ int pt_cache_stale (struct pt_cache *cache, const char *img_path)
     if (stat(cache->path, &st_cache) < 0) {
         // always stale if it doesn't exist yet
         if (errno == ENOENT)
-            return 1;
+            return PT_CACHE_NONE;
         else
             return -1;
     }
 
     // compare mtime
-    return (st_img.st_mtime > st_cache.st_mtime);
+    if (st_img.st_mtime > st_cache.st_mtime)
+        return PT_CACHE_STALE;
+
+    else
+        return PT_CACHE_FRESH;
 }
 
 /**

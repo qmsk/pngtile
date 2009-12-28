@@ -27,6 +27,23 @@ enum pt_image_mode {
     PT_IMG_STALE    = 0x02,
 };
 
+/**
+ * Values for pt_image_cached
+ */
+enum pt_cache_status {
+    /** Cache status could not be determined */
+    PT_CACHE_ERROR      = -1,
+    
+    /** Cache is fresh */
+    PT_CACHE_FRESH      = 0,
+
+    /** Cache does not exist */
+    PT_CACHE_NONE       = 1,
+
+    /** Cache exists, but is stale */
+    PT_CACHE_STALE      = 2,
+};
+
 /** Metadata info for image */
 struct pt_image_info {
     /** Dimensions of image */
@@ -52,9 +69,11 @@ int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *
 int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr);
 
 /**
- * Check the given image's cache is stale - in other words, the image needs to be updated.
+ * Check the given image's cache is stale - in other words, if the image needs to be update()'d.
+ *
+ * @return one of pt_cache_status
  */
-int pt_image_stale (struct pt_image *image);
+int pt_image_status (struct pt_image *image);
 
 /**
  * Update the given image's cache.

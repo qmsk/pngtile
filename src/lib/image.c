@@ -203,9 +203,9 @@ int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr
     return 0;
 }
 
-int pt_image_stale (struct pt_image *image)
+int pt_image_status (struct pt_image *image)
 {
-    return pt_cache_stale(image->cache, image->path);
+    return pt_cache_status(image->cache, image->path);
 }
 
 int pt_image_update (struct pt_image *image)
