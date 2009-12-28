@@ -175,14 +175,17 @@ int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *
     if (pt_cache_open(&image->cache, cache_path, cache_mode))
         goto error;
     
-    // update if not fresh
+    // compare cache with image
     // XXX: check cache_mode
     if ((stale = pt_cache_stale(image->cache, image->path)) < 0)
         goto error;
 
-    if (stale)
-        pt_image_update_cache(image);
-    
+    // update if not fresh
+    if (stale) {
+        if (pt_image_update_cache(image))
+            goto error;
+    }
+
     // ok, ready for access
     *image_ptr = image;
 

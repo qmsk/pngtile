@@ -10,7 +10,7 @@
 
 
 
-static int pt_cache_new (struct pt_cache **cache_ptr, const char *path)
+static int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode)
 {
     struct pt_cache *cache;
 
@@ -23,6 +23,7 @@ static int pt_cache_new (struct pt_cache **cache_ptr, const char *path)
 
     // init
     cache->fd = -1;
+    cache->mode = mode;
 
     // ok
     *cache_ptr = cache;
@@ -42,7 +43,7 @@ int pt_cache_open (struct pt_cache **cache_ptr, const char *path, int mode)
     struct pt_cache *cache;
     
     // alloc
-    if (pt_cache_new(&cache, path))
+    if (pt_cache_new(&cache, path, mode))
         return -1;
     
     // ok
