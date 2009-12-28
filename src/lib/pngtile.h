@@ -33,8 +33,16 @@ int pt_ctx_new (struct pt_ctx **ctx_ptr);
  * @param path filesystem path to .png file
  * @param mode combination of PT_IMG_* flags
  */
-int pt_image_open (struct pt_image **img_ptr, struct pt_ctx *ctx, const char *png_path, int cache_mode);
+int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *png_path, int cache_mode);
 
+/**
+ * Check the given image's cache is stale - in other words, the image needs to be updated.
+ */
+int pt_image_stale (struct pt_image *image);
 
+/**
+ * Update the given image's cache.
+ */
+int pt_image_update (struct pt_image *image);
 
 #endif

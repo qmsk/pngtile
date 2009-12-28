@@ -77,25 +77,46 @@ int main (int argc, char **argv)
 
 
     struct pt_ctx *ctx = NULL;
-    struct pt_image *image = NULL;;
+    struct pt_image *image = NULL;
+    int ret;
 
     log_debug("Processing %d images...", argc - optind);
 
     for (int i = optind; i < argc; i++) {
         const char *img_path = argv[i];
 
-        log_debug("Load image from: %s", img_path);
+        log_debug("Loading image from: %s...", img_path);
 
         // open
         if (pt_image_open(&image, ctx, img_path, PT_IMG_READ | PT_IMG_WRITE)) {
             log_errno("pt_image_open: %s", img_path);
-
             continue;
-
-        } else {
-            log_info("Opened image at: %s", img_path);
-
         }
+
+        log_info("Opened image at: %s", img_path);
+        
+        // check if stale
+        if ((ret = pt_image_stale(image)) < 0) {
+            log_errno("pt_image_stale: %s", img_path);
+            goto error;
+        }
+        
+        // update if stale
+        if (ret) {
+            log_info("Image cache is stale, updating...");
+
+            if (pt_image_update(image)) {
+                log_warn_errno("pt_image_update: %s", img_path);
+            }
+
+            log_debug("Image cache updated");
+        }
+
+        // done
+
+error:
+        // cleanup
+        pt_image_destroy(image);
     }
 
     // XXX: done

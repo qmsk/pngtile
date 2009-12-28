@@ -145,7 +145,6 @@ int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *
 {
     struct pt_image *image;
     char cache_path[_POSIX_PATH_MAX];
-    int stale;
 
     // XXX: verify that the path exists and looks like a PNG file
 
@@ -161,17 +160,6 @@ int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *
     if (pt_cache_open(&image->cache, cache_path, cache_mode))
         goto error;
     
-    // compare cache with image
-    // XXX: check cache_mode
-    if ((stale = pt_cache_stale(image->cache, image->path)) < 0)
-        goto error;
-
-    // update if not fresh
-    if (stale) {
-        if (pt_image_update_cache(image))
-            goto error;
-    }
-
     // ok, ready for access
     *image_ptr = image;
 
@@ -182,6 +170,17 @@ error:
 
     return -1;
 }
+
+int pt_image_stale (struct pt_image *image)
+{
+    return pt_cache_stale(image->cache, image->path);
+}
+
+int pt_image_update (struct pt_image *image)
+{
+    return pt_image_update_cache(image);
+}
+
 
 void pt_image_destroy (struct pt_image *image)
 {
