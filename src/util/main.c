@@ -14,6 +14,10 @@ static const struct option options[] = {
     { "verbose",        false,  NULL,   'v' },
     { "debug",          false,  NULL,   'D' },
     { "force-update",   false,  NULL,   'U' },
+    { "width",          true,   NULL,   'W' },
+    { "height",         true,   NULL,   'H' },
+    { "x",              true,   NULL,   'x' },
+    { "y",              true,   NULL,   'y' },
     { 0,                0,      0,      0   }
 };
 
@@ -31,6 +35,10 @@ void help (const char *argv0)
         "\t-v, --verbose        display more informational output\n"
         "\t-D, --debug          equivalent to -v\n"
         "\t-U, --force-update   unconditionally update image caches\n"
+        "\t-W, --width          set tile width\n"
+        "\t-H, --height         set tile height\n"
+        "\t-x, --x              set tile x offset\n"
+        "\t-y, --y              set tile z offset\n"
     );
 }
 
@@ -38,9 +46,10 @@ int main (int argc, char **argv)
 {
     int opt;
     bool force_update = false;
+    struct pt_tile_info ti = {0, 0, 0, 0};
     
     // parse arguments
-    while ((opt = getopt_long(argc, argv, "hqvDU", options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hqvDUW:H:x:y:", options, NULL)) != -1) {
         switch (opt) {
             case 'h':
                 // display help
@@ -66,6 +75,18 @@ int main (int argc, char **argv)
                 force_update = true;
                 
                 break;
+
+            case 'W':
+                ti.width = strtol(optarg, NULL, 0); break;
+
+            case 'H':
+                ti.height = strtol(optarg, NULL, 0); break;
+
+            case 'x':
+                ti.x = strtol(optarg, NULL, 0); break;
+
+            case 'y':
+                ti.y = strtol(optarg, NULL, 0); break;
 
             case '?':
                 // useage error
@@ -139,7 +160,13 @@ int main (int argc, char **argv)
         else
             log_info("\tImage dimensions: %zux%zu", img_info->width, img_info->height);
 
-        // done
+        // render tile?
+        if (ti.width && ti.height) {
+            log_debug("Render tile %zux%zu@(%zu,%zu) -> stdout", ti.width, ti.height, ti.x, ti.y);
+
+            if (pt_image_tile(image, &ti, stdout))
+                log_errno("pt_image_tile: %s", img_path);
+        }
 
 error:
         // cleanup

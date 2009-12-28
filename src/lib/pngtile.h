@@ -7,6 +7,7 @@
  * Tile-based access to large PNG images.
  */
 #include <stddef.h>
+#include <stdio.h> // for FILE*
 
 /**
  * "Global" context shared between images
@@ -50,6 +51,18 @@ struct pt_image_info {
     size_t width, height;
 };
 
+/** Info for image tile */
+struct pt_tile_info {
+    /** Dimensions of output image */
+    size_t width, height;
+
+    /** Pixel coordinates of top-left corner */
+    size_t x, y;
+
+    /** Zoom factor (out < zero < in) */
+    // TODO: int zoom;
+};
+
 
 int pt_ctx_new (struct pt_ctx **ctx_ptr);
 
@@ -79,6 +92,13 @@ int pt_image_status (struct pt_image *image);
  * Update the given image's cache.
  */
 int pt_image_update (struct pt_image *image);
+
+/**
+ * Render a PNG tile to a stream.
+ *
+ * The PNG data will be written to the given stream, which will be flushed, but not closed.
+ */
+int pt_image_tile (struct pt_image *image, const struct pt_tile_info *info, FILE *out);
 
 /**
  * Release the given pt_image without any clean shutdown

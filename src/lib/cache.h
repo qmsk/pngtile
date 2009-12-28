@@ -56,6 +56,9 @@ struct pt_cache_header {
 
     /** Convenience field for number of bytes per row */
     uint32_t row_bytes;
+    
+    /** Number of bytes per pixel */
+    uint8_t col_bytes;
 
     /** Palette entries, up to 256 entries used */
     png_color palette[PNG_MAX_PALETTE_LENGTH];
@@ -64,7 +67,7 @@ struct pt_cache_header {
 /**
  * Construct the image cache info object associated with the given image.
  */
-int pt_cache_open (struct pt_cache **cache_ptr, const char *path, int mode);
+int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode);
 
 /**
  * Verify if the cached data eixsts, or has become stale compared to the given original file.
@@ -77,6 +80,18 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path);
  * Update the cache data from the given PNG image.
  */
 int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info);
+
+/**
+ * Actually open the existing .cache for use
+ */
+int pt_cache_open (struct pt_cache *cache);
+
+/**
+ * Render out a PNG tile as given, into the established png object, up to (but not including) the png_write_end.
+ *
+ * If the cache is not yet open, this will open it
+ */
+int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti);
 
 /**
  * Release all resources associated with the given cache object without any cleanup.

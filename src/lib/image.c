@@ -180,8 +180,8 @@ int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *
     if (pt_image_cache_path(image, cache_path, sizeof(cache_path)))
         goto error;
 
-    // open the cache object for this image
-    if (pt_cache_open(&image->cache, cache_path, cache_mode))
+    // create the cache object for this image (doesn't yet open it)
+    if (pt_cache_new(&image->cache, cache_path, cache_mode))
         goto error;
     
     // ok, ready for access
@@ -198,6 +198,7 @@ error:
 int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr)
 {
     // XXX: ensure that this was read?
+    // XXX: get this from image->cache?
     *info_ptr = &image->info;
 
     return 0;
@@ -211,6 +212,44 @@ int pt_image_status (struct pt_image *image)
 int pt_image_update (struct pt_image *image)
 {
     return pt_image_update_cache(image);
+}
+
+int pt_image_tile (struct pt_image *image, const struct pt_tile_info *tile_info, FILE *out)
+{
+    png_structp png = NULL;
+    png_infop info = NULL;
+        
+    // open PNG writer
+    if ((png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL)
+        goto error;
+    
+    if ((info = png_create_info_struct(png)) == NULL)
+        goto error;
+
+    // libpng error trap
+    if (setjmp(png_jmpbuf(png)))
+        goto error;
+    
+    // setup IO
+    png_init_io(png, out);
+    
+    // render tile
+    if (pt_cache_tile_png(image->cache, png, info, tile_info))
+        goto error;
+
+    // done
+    png_write_end(png, info);
+
+    // cleanup
+    png_destroy_write_struct(&png, &info);
+
+    return 0;
+
+error:
+    // cleanup
+    png_destroy_write_struct(&png, &info);
+
+    return -1;
 }
 
 void pt_image_destroy (struct pt_image *image)
