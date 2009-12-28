@@ -30,7 +30,7 @@ enum pt_image_mode {
 /** Metadata info for image */
 struct pt_image_info {
     /** Dimensions of image */
-    size_t width, height;   
+    size_t width, height;
 };
 
 
@@ -49,7 +49,7 @@ int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *
 /**
  * Get the image's metadata
  */
-int pt_image_info (struct pt_image *image, struct pt_image_info **info_ptr);
+int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr);
 
 /**
  * Check the given image's cache is stale - in other words, the image needs to be updated.

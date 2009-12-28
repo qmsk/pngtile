@@ -124,6 +124,15 @@ int main (int argc, char **argv)
             log_info("Updated image cache");
         }
 
+        // show info
+        const struct pt_image_info *img_info;
+        
+        if (pt_image_info(image, &img_info))
+            log_warn_errno("pt_image_info: %s", img_path);
+
+        else
+            log_info("\tImage dimensions: %zux%zu", img_info->width, img_info->height);
+
         // done
 
 error:

@@ -17,6 +17,9 @@ struct pt_image {
     
     /** Cache object */
     struct pt_cache *cache;
+
+    /** Image info */
+    struct pt_image_info info;
 };
 
 

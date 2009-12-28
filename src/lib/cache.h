@@ -26,17 +26,20 @@ struct pt_cache {
     /** Opened file */
     int fd;
 
-    /** Memory-mapped file data, from the second page on */
-    uint8_t *mmap;
+    /** The mmap'd header */
+    struct pt_cache_header *header;
 
-    /** Size of the mmap'd segment in bytes */
+    /** Memory-mapped file data, starting at PT_CACHE_HEADER_SIZE */
+    uint8_t *data;
+
+    /** Size of the data segment in bytes, starting at PT_CACHE_HEADER_SIZE */
     size_t size;
 };
 
 /**
- * Size of a cache file page in bytes
+ * Size used to store the cache header
  */
-#define PT_CACHE_PAGE 4096
+#define PT_CACHE_HEADER_SIZE 4096
 
 /**
  * On-disk header

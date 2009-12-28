@@ -81,10 +81,11 @@ int pt_cache_stale (struct pt_cache *cache, const char *img_path)
  */
 static void pt_cache_abort (struct pt_cache *cache)
 {
-    if (cache->mmap != NULL) {
-        munmap(cache->mmap, cache->size);
+    if (cache->header != NULL) {
+        munmap(cache->header, PT_CACHE_HEADER_SIZE + cache->size);
 
-        cache->mmap = NULL;
+        cache->header = NULL;
+        cache->data = NULL;
     }
 
     if (cache->fd >= 0) {
@@ -144,7 +145,7 @@ static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
 
 
 /**
- * Mmap the opened cache file from offset PT_CACHE_PAGE, using the calculated size stored in cache->size
+ * Mmap the opened cache file using PT_CACHE_HEADER_SIZE plus the calculated size stored in cache->size
  */
 static int pt_cache_open_mmap (struct pt_cache *cache, void **addr_ptr)
 {
@@ -158,7 +159,7 @@ static int pt_cache_open_mmap (struct pt_cache *cache, void **addr_ptr)
         prot |= PROT_WRITE;
 
     // perform mmap() from second page on
-    if ((addr = mmap(NULL, cache->size, prot, MAP_SHARED, cache->fd, PT_CACHE_PAGE)) == MAP_FAILED)
+    if ((addr = mmap(NULL, PT_CACHE_HEADER_SIZE + cache->size, prot, MAP_SHARED, cache->fd, 0)) == MAP_FAILED)
         return -1;
 
     // ok
@@ -201,6 +202,8 @@ static int pt_cache_write_header (struct pt_cache *cache, const struct pt_cache_
  */
 static int pt_cache_open_create (struct pt_cache *cache, struct pt_cache_header *header)
 {
+    void *base;
+
     // no access
     if (!(cache->mode & PT_IMG_WRITE)) {
         errno = EPERM;
@@ -215,14 +218,18 @@ static int pt_cache_open_create (struct pt_cache *cache, struct pt_cache_header 
     cache->size = sizeof(*header) + header->height * header->row_bytes;
 
     // grow file
-    if (ftruncate(cache->fd, PT_CACHE_PAGE + cache->size) < 0)
+    if (ftruncate(cache->fd, PT_CACHE_HEADER_SIZE + cache->size) < 0)
         goto error;
 
-    // open mmap
-    if (pt_cache_open_mmap(cache, (void **) &cache->mmap))
+    // mmap header and data
+    if (pt_cache_open_mmap(cache, &base))
         goto error;
+
+    cache->header = base;
+    cache->data = base + PT_CACHE_HEADER_SIZE;
 
     // write header
+    // XXX: should just mmap...
     if (pt_cache_write_header(cache, header))
         goto error;
 
@@ -288,6 +295,7 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
             // XXX: PLTE chunk not read?
             return -1;
         
+        // should only be 256 of them at most
         assert(num_palette <= PNG_MAX_PALETTE_LENGTH);
     
         // copy
@@ -297,15 +305,18 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
         log_debug("num_palette=%u", num_palette);
     }
 
+
     // create .tmp and write out header
     if (pt_cache_open_create(cache, &header))
         return -1;
 
+
     // write out raw image data a row at a time
     for (size_t row = 0; row < header.height; row++) {
         // read row data, non-interlaced
-        png_read_row(png, cache->mmap + row * header.row_bytes, NULL);
+        png_read_row(png, cache->data + row * header.row_bytes, NULL);
     }
+
 
     // move from .tmp to .cache
     if (pt_cache_create_done(cache))

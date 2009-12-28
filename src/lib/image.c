@@ -95,6 +95,20 @@ error:
 }
 
 /**
+ * Update the image_info field from the given png object.
+ *
+ * Must be called under libpng-error-trap!
+ */
+static int pt_image_update_info (struct pt_image *image, png_structp png, png_infop info)
+{
+    // query png_get_*
+    image->info.width = png_get_image_width(png, info); 
+    image->info.height = png_get_image_height(png, info); 
+
+    return 0;
+}
+
+/**
  * Open the PNG image, and write out to the cache
  */
 static int pt_image_update_cache (struct pt_image *image)
@@ -118,6 +132,10 @@ static int pt_image_update_cache (struct pt_image *image)
 
     // read meta-info
     png_read_info(png, info);
+
+    // update our meta-info
+    if (pt_image_update_info(image, png, info))
+        goto error;
 
     // pass to cache object
     if (pt_cache_update_png(image->cache, png, info))
@@ -175,6 +193,14 @@ error:
     pt_image_destroy(image);
 
     return -1;
+}
+
+int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr)
+{
+    // XXX: ensure that this was read?
+    *info_ptr = &image->info;
+
+    return 0;
 }
 
 int pt_image_stale (struct pt_image *image)
