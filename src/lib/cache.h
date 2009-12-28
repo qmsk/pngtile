@@ -60,7 +60,7 @@ int pt_cache_open (struct pt_cache **cache_ptr, const char *path, int mode);
 /**
  * Verify if the cached data has become stale compared to the given original file.
  */
-int pt_cache_stale (struct pt_cache *cache, const char *orig_path);
+int pt_cache_stale (struct pt_cache *cache, const char *img_path);
 
 /**
  * Update the cache data from the given PNG image.

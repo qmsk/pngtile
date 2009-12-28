@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <errno.h>
 
 
 
@@ -50,10 +51,25 @@ int pt_cache_open (struct pt_cache **cache_ptr, const char *path, int mode)
     return 0;
 }
 
-int pt_cache_stale (struct pt_cache *cache, const char *orig_path)
+int pt_cache_stale (struct pt_cache *cache, const char *img_path)
 {
-    // TODO: stat + mtime
-    return false;
+    struct stat st_img, st_cache;
+    
+    // test original file
+    if (stat(img_path, &st_img) < 0)
+        return -1;
+    
+    // test cache file
+    if (stat(cache->path, &st_cache) < 0) {
+        // always stale if it doesn't exist yet
+        if (errno == ENOENT)
+            return 1;
+        else
+            return -1;
+    }
+
+    // compare mtime
+    return (st_img.st_mtime > st_cache.st_mtime);
 }
 
 /**
@@ -161,6 +177,12 @@ static int pt_cache_write_header (struct pt_cache *cache, const struct pt_cache_
  */
 static int pt_cache_open_create (struct pt_cache *cache, struct pt_cache_header *header)
 {
+    // no access
+    if (!(cache->mode & PT_IMG_WRITE)) {
+        errno = EPERM;
+        return -1;
+    }
+
     // open
     if (pt_cache_open_fd(cache, &cache->fd))
         return -1;

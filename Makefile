@@ -13,10 +13,14 @@ LOADLIBES = -lpng
 DIST_NAME = 78949E-as2
 DIST_RESOURCES = README "Learning Diary.pdf"
 
-all: depend lib/libpngtile.so
+all: depend lib/libpngtile.so bin/util
 
 lib/libpngtile.so : \
 	build/obj/lib/image.o build/obj/lib/cache.o
+
+bin/util: \
+	lib/libpngtile.so \
+	build/obj/shared/log.o
 
 SRC_PATHS = $(wildcard src/*/*.c)
 SRC_NAMES = $(patsubst src/%,%,$(SRC_PATHS))

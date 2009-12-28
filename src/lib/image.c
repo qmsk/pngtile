@@ -39,7 +39,7 @@ static int pt_image_open_file (struct pt_image *img, FILE **file_ptr)
     FILE *fp;
     
     // open
-    if (fopen(img->path, "rb") < 0)
+    if ((fp = fopen(img->path, "rb")) < 0)
         return -1;
 
     // ok
@@ -137,13 +137,29 @@ error:
  */
 static int pt_image_cache_path (struct pt_image *image, char *buf, size_t len)
 {
-    // TODO: impl
+    char *ext;
+
+    // XXX: be more careful about buf len
+    
+    // copy filename
+    strncpy(buf, image->path, len);
+
+    // find .ext
+    if ((ext = strrchr(buf, '.')) == NULL)
+        return -1;
+
+    // change to .cache
+    strncpy(ext, ".cache", (buf + len) - ext);
+
+    // hmmk
+    return 0;
 }
 
 int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *path, int cache_mode)
 {
     struct pt_image *image;
     char cache_path[_POSIX_PATH_MAX];
+    int stale;
 
     // XXX: verify that the path exists and looks like a PNG file
 
@@ -161,8 +177,10 @@ int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *
     
     // update if not fresh
     // XXX: check cache_mode
-    // XXX: error handling
-    if (pt_cache_stale(image->cache, image->path))
+    if ((stale = pt_cache_stale(image->cache, image->path)) < 0)
+        goto error;
+
+    if (stale)
         pt_image_update_cache(image);
     
     // ok, ready for access
