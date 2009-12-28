@@ -77,12 +77,17 @@ int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode);
 int pt_cache_status (struct pt_cache *cache, const char *img_path);
 
 /**
+ * Get info for the cached image, open it if not already open.
+ */
+int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info);
+
+/**
  * Update the cache data from the given PNG image.
  */
 int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info);
 
 /**
- * Actually open the existing .cache for use
+ * Open the existing .cache for use. If already opened, does nothing.
  */
 int pt_cache_open (struct pt_cache *cache);
 

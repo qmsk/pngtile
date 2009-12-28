@@ -197,8 +197,11 @@ error:
 
 int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr)
 {
-    // XXX: ensure that this was read?
-    // XXX: get this from image->cache?
+    // update info
+    if (pt_cache_info(image->cache, &image->info))
+        return -1;
+    
+    // return pointer
     *info_ptr = &image->info;
 
     return 0;

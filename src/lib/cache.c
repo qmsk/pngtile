@@ -65,6 +65,18 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
         return PT_CACHE_FRESH;
 }
 
+int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
+{
+    // ensure open
+    if (pt_cache_open(cache))
+        return -1;
+
+    info->width = cache->header->width;
+    info->height = cache->header->height;
+
+    return 0;
+}
+
 /**
  * Abort any incomplete open operation, cleaning up
  */
@@ -288,6 +300,10 @@ int pt_cache_open (struct pt_cache *cache)
     struct pt_cache_header header;
     void *base;
 
+    // ignore if already open
+    if (cache->header && cache->data)
+        return 0;
+
     // open the .cache
     if (pt_cache_open_read_fd(cache, &cache->fd))
         return -1;
@@ -390,11 +406,9 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
 
 int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
 {
-    if (!cache->data) {
-        // not yet open
-        if (pt_cache_open(cache))
-            return -1;
-    }
+    // ensure open
+    if (pt_cache_open(cache))
+        return -1;
 
     // set basic info
     png_set_IHDR(png, info, ti->width, ti->height, cache->header->bit_depth, cache->header->color_type,
