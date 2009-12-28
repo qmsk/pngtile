@@ -118,7 +118,7 @@ int main (int argc, char **argv)
         log_debug("Loading image from: %s...", img_path);
 
         // open
-        if (pt_image_open(&image, ctx, img_path, PT_IMG_WRITE)) {
+        if (pt_image_open(&image, ctx, img_path, PT_OPEN_UPDATE)) {
             log_errno("pt_image_open: %s", img_path);
             continue;
         }

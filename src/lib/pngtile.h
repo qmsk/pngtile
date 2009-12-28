@@ -22,10 +22,10 @@ struct pt_image;
 /** Bitmask for pt_image_open modes */
 enum pt_image_mode {
     /** Update cache if needed */
-    PT_IMG_WRITE    = 0x01,
+    PT_OPEN_UPDATE   = 0x01,
 
     /** Accept stale cache */
-    PT_IMG_STALE    = 0x02,
+    PT_OPEN_STALE    = 0x02,
 };
 
 /**
@@ -63,7 +63,9 @@ struct pt_tile_info {
     // TODO: int zoom;
 };
 
-
+/**
+ * TODO: impl
+ */
 int pt_ctx_new (struct pt_ctx **ctx_ptr);
 
 /**
@@ -72,7 +74,7 @@ int pt_ctx_new (struct pt_ctx **ctx_ptr);
  * @param img_ptr returned pt_image handle
  * @param ctx global state to use
  * @param path filesystem path to .png file
- * @param mode combination of PT_IMG_* flags
+ * @param mode combination of PT_OPEN_* flags
  */
 int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *png_path, int cache_mode);
 

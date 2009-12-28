@@ -123,12 +123,6 @@ static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
     int fd;
     char tmp_path[1024];
     
-    // check mode
-    if (!(cache->mode & PT_IMG_WRITE)) {
-        errno = EPERM;
-        return -1;
-    }
-    
     // get .tmp path
     if (path_with_fext(cache->path, tmp_path, sizeof(tmp_path), ".tmp"))
         return -1;
@@ -157,7 +151,7 @@ static int pt_cache_open_mmap (struct pt_cache *cache, void **addr_ptr, bool rea
     prot |= PROT_READ;
 
     if (!readonly) {
-        assert(cache->mode & PT_IMG_WRITE);
+        assert(cache->mode & PT_OPEN_UPDATE);
 
         prot |= PROT_WRITE;
     }
@@ -233,12 +227,12 @@ static int pt_cache_write_header (struct pt_cache *cache, const struct pt_cache_
 /**
  * Create a new .tmp cache file, open it, and write out the header.
  */
-static int pt_cache_open_create (struct pt_cache *cache, struct pt_cache_header *header)
+static int pt_cache_create (struct pt_cache *cache, struct pt_cache_header *header)
 {
     void *base;
 
     // no access
-    if (!(cache->mode & PT_IMG_WRITE)) {
+    if (!(cache->mode & PT_OPEN_UPDATE)) {
         errno = EPERM;
         return -1;
     }
@@ -352,7 +346,7 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
             header.width, header.height, header.bit_depth, header.color_type
     );
 
-    // only pack 1 pixel per byte
+    // only pack 1 pixel per byte, changes rowbytes
     if (header.bit_depth < 8)
         png_set_packing(png);
 
@@ -385,7 +379,7 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
     }
 
     // create .tmp and write out header
-    if (pt_cache_open_create(cache, &header))
+    if (pt_cache_create(cache, &header))
         return -1;
 
 
@@ -448,3 +442,4 @@ void pt_cache_destroy (struct pt_cache *cache)
 
     free(cache);
 }
+

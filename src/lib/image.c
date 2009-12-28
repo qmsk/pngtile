@@ -117,7 +117,7 @@ static int pt_image_update_cache (struct pt_image *image)
     png_infop info;
 
     // pre-check enabled
-    if (!(image->cache->mode & PT_IMG_WRITE)) {
+    if (!(image->cache->mode & PT_OPEN_UPDATE)) {
         errno = EPERM;
         return -1;
     }
