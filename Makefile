@@ -4,7 +4,7 @@
 CFLAGS = -Wall -std=gnu99 -g
 
 # preprocessor flags
-CPPFLAGS = -Isrc/
+CPPFLAGS = -Iinclude -Isrc/
 
 # libraries to use
 LOADLIBES = -lpng
@@ -17,7 +17,10 @@ all: depend lib/libpngtile.so bin/util
 
 lib/libpngtile.so : \
 	build/obj/lib/image.o build/obj/lib/cache.o \
-	build/obj/shared/util.o
+	build/obj/shared/util.o build/obj/shared/log.o
+
+lib/pypngtile.so : \
+	lib/libpngtile.so
 
 bin/util: \
 	lib/libpngtile.so \
@@ -68,6 +71,15 @@ bin/% : build/obj/%/main.o
 
 # output libraries
 lib/lib%.so :
+	$(CC) -shared $(LDFLAGS) $+ $(LOADLIBES) $(LDLIBS) -o $@
+
+build/pyx/%.c : src/py/%.pyx
+	cython -o $@ $<
+
+build/obj/py/%.o : build/pyx/%.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+lib/py%.so : build/obj/py/%.o
 	$(CC) -shared $(LDFLAGS) $+ $(LOADLIBES) $(LDLIBS) -o $@
 
 dist:
