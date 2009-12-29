@@ -54,7 +54,7 @@ struct pt_cache_header {
     /** Number of png_color entries that follow */
     uint16_t num_palette;
 
-    /** Convenience field for number of bytes per row */
+    /** Number of bytes per row */
     uint32_t row_bytes;
     
     /** Number of bytes per pixel */

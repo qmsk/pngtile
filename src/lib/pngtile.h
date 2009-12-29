@@ -20,12 +20,12 @@ struct pt_ctx;
 struct pt_image;
 
 /** Bitmask for pt_image_open modes */
-enum pt_image_mode {
+enum pt_open_mode {
     /** Update cache if needed */
     PT_OPEN_UPDATE   = 0x01,
 
     /** Accept stale cache */
-    PT_OPEN_STALE    = 0x02,
+    // TODO: PT_OPEN_STALE    = 0x02,
 };
 
 /**

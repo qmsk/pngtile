@@ -411,8 +411,8 @@ static inline void* tile_row_col (struct pt_cache *cache, size_t row, size_t col
  */
 static inline void tile_row_fill_clip (struct pt_cache *cache, png_byte *row, size_t width_px)
 {
-    // XXX: use a defined background color, or full transparency?
-    memset(row, 0, width_px * cache->header->col_bytes);
+    // XXX: use a configureable background color, or full transparency?
+    memset(row, /* 0xd7 */ 0x00, width_px * cache->header->col_bytes);
 }
 
 /**
