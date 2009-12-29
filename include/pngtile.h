@@ -111,4 +111,40 @@ int pt_image_tile (struct pt_image *image, const struct pt_tile_info *info, FILE
  */
 void pt_image_destroy (struct pt_image *image);
 
+/**
+ * Error codes returned
+ */
+enum pt_error {
+    PT_SUCCESS = 0,
+    PT_ERR_MEM,
+
+    PT_ERR_PATH,
+    PT_ERR_OPEN_MODE,
+    
+    PT_ERR_IMG_STAT,
+    PT_ERR_IMG_FOPEN,
+    
+    PT_ERR_PNG_CREATE,
+    PT_ERR_PNG,
+   
+    PT_ERR_CACHE_STAT,
+    PT_ERR_CACHE_OPEN_READ,
+    PT_ERR_CACHE_OPEN_TMP,
+    PT_ERR_CACHE_SEEK,
+    PT_ERR_CACHE_READ,
+    PT_ERR_CACHE_WRITE,
+    PT_ERR_CACHE_TRUNC,
+    PT_ERR_CACHE_MMAP,
+    PT_ERR_CACHE_RENAME_TMP,
+
+    PT_ERR_TILE_CLIP,
+
+    PT_ERR_MAX,
+};
+
+/**
+ * Translate error code to short description
+ */
+const char *pt_strerror (int err);
+
 #endif

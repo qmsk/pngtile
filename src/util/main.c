@@ -1,5 +1,6 @@
-#include "lib/pngtile.h"
 #include "shared/log.h"
+
+#include "pngtile.h"
 
 #include <getopt.h>
 #include <stdio.h>
@@ -47,6 +48,7 @@ int main (int argc, char **argv)
     int opt;
     bool force_update = false;
     struct pt_tile_info ti = {0, 0, 0, 0};
+    int err;
     
     // parse arguments
     while ((opt = getopt_long(argc, argv, "hqvDUW:H:x:y:", options, NULL)) != -1) {
@@ -118,8 +120,8 @@ int main (int argc, char **argv)
         log_debug("Loading image from: %s...", img_path);
 
         // open
-        if (pt_image_open(&image, ctx, img_path, PT_OPEN_UPDATE)) {
-            log_errno("pt_image_open: %s", img_path);
+        if ((err = pt_image_open(&image, ctx, img_path, PT_OPEN_UPDATE))) {
+            log_errno("pt_image_open: %s: %s", img_path, pt_strerror(err));
             continue;
         }
 
@@ -127,7 +129,7 @@ int main (int argc, char **argv)
         
         // check if stale
         if ((status = pt_image_status(image)) < 0) {
-            log_errno("pt_image_status: %s", img_path);
+            log_errno("pt_image_status: %s: %s", img_path, pt_strerror(status));
             goto error;
         }
         
@@ -144,8 +146,8 @@ int main (int argc, char **argv)
 
             log_debug("Updating image cache...");
 
-            if (pt_image_update(image)) {
-                log_warn_errno("pt_image_update: %s", img_path);
+            if ((err = pt_image_update(image))) {
+                log_warn_errno("pt_image_update: %s: %s", img_path, pt_strerror(err));
             }
 
             log_info("Updated image cache");
@@ -154,8 +156,8 @@ int main (int argc, char **argv)
         // show info
         const struct pt_image_info *img_info;
         
-        if (pt_image_info(image, &img_info))
-            log_warn_errno("pt_image_info: %s", img_path);
+        if ((err = pt_image_info(image, &img_info)))
+            log_warn_errno("pt_image_info: %s: %s", img_path, pt_strerror(err));
 
         else
             log_info("\tImage dimensions: %zux%zu", img_info->width, img_info->height);
@@ -164,8 +166,8 @@ int main (int argc, char **argv)
         if (ti.width && ti.height) {
             log_debug("Render tile %zux%zu@(%zu,%zu) -> stdout", ti.width, ti.height, ti.x, ti.y);
 
-            if (pt_image_tile(image, &ti, stdout))
-                log_errno("pt_image_tile: %s", img_path);
+            if ((err = pt_image_tile(image, &ti, stdout)))
+                log_errno("pt_image_tile: %s: %s", img_path, pt_strerror(err));
         }
 
 error:

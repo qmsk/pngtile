@@ -1,6 +1,7 @@
 #include "cache.h"
 #include "shared/util.h"
 #include "shared/log.h" // only LOG_DEBUG
+#include "error.h"
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -15,13 +16,14 @@
 int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode)
 {
     struct pt_cache *cache;
+    int err;
 
     // alloc
     if ((cache = calloc(1, sizeof(*cache))) == NULL)
-        return -1;
+        RETURN_ERROR(PT_ERR_MEM);
 
     if ((cache->path = strdup(path)) == NULL)
-        goto error;
+        JUMP_SET_ERROR(err, PT_ERR_MEM);
 
     // init
     cache->fd = -1;
@@ -37,7 +39,7 @@ error:
     if (cache)
         pt_cache_destroy(cache);
 
-    return -1;
+    return err;
 }
 
 int pt_cache_status (struct pt_cache *cache, const char *img_path)
@@ -46,7 +48,7 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
     
     // test original file
     if (stat(img_path, &st_img) < 0)
-        return -1;
+        RETURN_ERROR(PT_ERR_IMG_STAT);
     
     // test cache file
     if (stat(cache->path, &st_cache) < 0) {
@@ -54,7 +56,7 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
         if (errno == ENOENT)
             return PT_CACHE_NONE;
         else
-            return -1;
+            RETURN_ERROR(PT_ERR_CACHE_STAT);
     }
 
     // compare mtime
@@ -67,9 +69,11 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
 
 int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
 {
+    int err;
+
     // ensure open
-    if (pt_cache_open(cache))
-        return -1;
+    if ((err = pt_cache_open(cache)))
+        return err;
 
     info->width = cache->header->width;
     info->height = cache->header->height;
@@ -107,7 +111,7 @@ static int pt_cache_open_read_fd (struct pt_cache *cache, int *fd_ptr)
     
     // actual open()
     if ((fd = open(cache->path, O_RDONLY)) < 0)
-        return -1;
+        RETURN_ERROR_ERRNO(PT_ERR_OPEN_MODE, EACCES);
 
     // ok
     *fd_ptr = fd;
@@ -125,12 +129,12 @@ static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
     
     // get .tmp path
     if (path_with_fext(cache->path, tmp_path, sizeof(tmp_path), ".tmp"))
-        return -1;
+        RETURN_ERROR(PT_ERR_PATH);
 
     // open for write, create
     // XXX: locking?
     if ((fd = open(tmp_path, O_RDWR | O_CREAT, 0644)) < 0)
-        return -1;
+        RETURN_ERROR(PT_ERR_CACHE_OPEN_TMP);
 
     // ok
     *fd_ptr = fd;
@@ -158,7 +162,7 @@ static int pt_cache_open_mmap (struct pt_cache *cache, void **addr_ptr, bool rea
 
     // perform mmap() from second page on
     if ((addr = mmap(NULL, PT_CACHE_HEADER_SIZE + cache->size, prot, MAP_SHARED, cache->fd, 0)) == MAP_FAILED)
-        return -1;
+        RETURN_ERROR(PT_ERR_CACHE_MMAP);
 
     // ok
     *addr_ptr = addr;
@@ -176,15 +180,15 @@ static int pt_cache_read_header (struct pt_cache *cache, struct pt_cache_header 
 
     // seek to start
     if (lseek(cache->fd, 0, SEEK_SET) != 0)
-        return -1;
+        RETURN_ERROR(PT_ERR_CACHE_SEEK);
 
     // write out full header
     while (len) {
         ssize_t ret;
         
         // try and write out the header
-        if ((ret = read(cache->fd, buf, len)) < 0)
-            return -1;
+        if ((ret = read(cache->fd, buf, len)) <= 0)
+            RETURN_ERROR(PT_ERR_CACHE_READ);
 
         // update offset
         buf += ret;
@@ -205,15 +209,15 @@ static int pt_cache_write_header (struct pt_cache *cache, const struct pt_cache_
 
     // seek to start
     if (lseek(cache->fd, 0, SEEK_SET) != 0)
-        return -1;
+        RETURN_ERROR(PT_ERR_CACHE_SEEK);
 
     // write out full header
     while (len) {
         ssize_t ret;
         
         // try and write out the header
-        if ((ret = write(cache->fd, buf, len)) < 0)
-            return -1;
+        if ((ret = write(cache->fd, buf, len)) <= 0)
+            RETURN_ERROR(PT_ERR_CACHE_WRITE);
 
         // update offset
         buf += ret;
@@ -230,35 +234,34 @@ static int pt_cache_write_header (struct pt_cache *cache, const struct pt_cache_
 static int pt_cache_create (struct pt_cache *cache, struct pt_cache_header *header)
 {
     void *base;
+    int err;
 
     // no access
-    if (!(cache->mode & PT_OPEN_UPDATE)) {
-        errno = EPERM;
-        return -1;
-    }
+    if (!(cache->mode & PT_OPEN_UPDATE))
+        RETURN_ERROR(PT_ERR_OPEN_MODE);
 
     // open as .tmp
-    if (pt_cache_open_tmp_fd(cache, &cache->fd))
-        return -1;
+    if ((err = pt_cache_open_tmp_fd(cache, &cache->fd)))
+        return err;
 
     // calculate data size
     cache->size = sizeof(*header) + header->height * header->row_bytes;
 
     // grow file
     if (ftruncate(cache->fd, PT_CACHE_HEADER_SIZE + cache->size) < 0)
-        goto error;
+        JUMP_SET_ERROR(err, PT_ERR_CACHE_TRUNC);
 
     // mmap header and data
-    if (pt_cache_open_mmap(cache, &base, false))
-        goto error;
+    if ((err = pt_cache_open_mmap(cache, &base, false)))
+        JUMP_ERROR(err);
 
     cache->header = base;
     cache->data = base + PT_CACHE_HEADER_SIZE;
 
     // write header
     // XXX: should just mmap...
-    if (pt_cache_write_header(cache, header))
-        goto error;
+    if ((err = pt_cache_write_header(cache, header)))
+        JUMP_ERROR(err);
 
     // done
     return 0;
@@ -267,7 +270,7 @@ error:
     // cleanup
     pt_cache_abort(cache);
 
-    return -1;
+    return err;
 }
 
 /**
@@ -279,11 +282,11 @@ static int pt_cache_create_done (struct pt_cache *cache)
     
     // get .tmp path
     if (path_with_fext(cache->path, tmp_path, sizeof(tmp_path), ".tmp"))
-        return -1;
+        RETURN_ERROR(PT_ERR_PATH);
 
     // rename
     if (rename(tmp_path, cache->path) < 0)
-        return -1;
+        RETURN_ERROR(PT_ERR_CACHE_RENAME_TMP);
 
     // ok
     return 0;
@@ -293,25 +296,26 @@ int pt_cache_open (struct pt_cache *cache)
 {
     struct pt_cache_header header;
     void *base;
+    int err;
 
     // ignore if already open
     if (cache->header && cache->data)
         return 0;
 
     // open the .cache
-    if (pt_cache_open_read_fd(cache, &cache->fd))
-        return -1;
+    if ((err = pt_cache_open_read_fd(cache, &cache->fd)))
+        return err;
 
     // read in header
-    if (pt_cache_read_header(cache, &header))
-        return -1;
+    if ((err = pt_cache_read_header(cache, &header)))
+        JUMP_ERROR(err);
 
     // calculate data size
     cache->size = sizeof(header) + header.height * header.row_bytes;
 
     // mmap header and data
-    if (pt_cache_open_mmap(cache, &base, true))
-        goto error;
+    if ((err = pt_cache_open_mmap(cache, &base, true)))
+        JUMP_ERROR(err);
 
     cache->header = base;
     cache->data = base + PT_CACHE_HEADER_SIZE;
@@ -323,12 +327,13 @@ error:
     // cleanup
     pt_cache_abort(cache);
 
-    return -1;
+    return err;
 }
 
 int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info)
 {
     struct pt_cache_header header;
+    int err;
     
     // XXX: check cache_mode
     // XXX: check image doesn't use any options we don't handle
@@ -366,7 +371,7 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
 
         if (png_get_PLTE(png, info, &palette, &num_palette) == 0)
             // XXX: PLTE chunk not read?
-            return -1;
+            RETURN_ERROR(PT_ERR_PNG);
         
         // should only be 256 of them at most
         assert(num_palette <= PNG_MAX_PALETTE_LENGTH);
@@ -379,8 +384,8 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
     }
 
     // create .tmp and write out header
-    if (pt_cache_create(cache, &header))
-        return -1;
+    if ((err = pt_cache_create(cache, &header)))
+        return err;
 
 
     // write out raw image data a row at a time
@@ -391,8 +396,8 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
 
 
     // move from .tmp to .cache
-    if (pt_cache_create_done(cache))
-        return -1;
+    if ((err = pt_cache_create_done(cache)))
+        return err;
 
     // done!
     return 0;
@@ -456,7 +461,7 @@ static int write_png_data_clipped (struct pt_cache *cache, png_structp png, png_
 
     // allocate buffer for a single row of image data
     if ((rowbuf = malloc(ti->width * cache->header->col_bytes)) == NULL)
-        return -1;
+        RETURN_ERROR(PT_ERR_MEM);
 
     // how much data we actually have for each row, in px and bytes
     // from [(tile x)---](clip x)
@@ -492,15 +497,13 @@ int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, 
     int err;
 
     // check within bounds
-    if (ti->x >= cache->header->width || ti->y >= cache->header->height) {
+    if (ti->x >= cache->header->width || ti->y >= cache->header->height)
         // completely outside
-        errno = EINVAL;
-        return -1;
-    }
+        RETURN_ERROR(PT_ERR_TILE_CLIP);
 
     // ensure open
-    if (pt_cache_open(cache))
-        return -1;
+    if ((err = pt_cache_open(cache)))
+        return err;
 
     // set basic info
     png_set_IHDR(png, info, ti->width, ti->height, cache->header->bit_depth, cache->header->color_type,
@@ -527,7 +530,7 @@ int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, 
         err = write_png_data_clipped(cache, png, info, ti);
 
     if (err)
-        return -1;
+        return err;
     
     // done, flush remaining output
     png_write_flush(png);
