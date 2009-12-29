@@ -51,7 +51,11 @@ struct pt_image_info {
     size_t width, height;
 };
 
-/** Info for image tile */
+/**
+ * Info for image tile 
+ *
+ * The tile may safely overlap with the edge of the image, but it should not be entirely outside of the image
+ */
 struct pt_tile_info {
     /** Dimensions of output image */
     size_t width, height;

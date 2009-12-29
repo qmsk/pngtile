@@ -444,7 +444,7 @@ static int write_png_data_clipped (struct pt_cache *cache, png_structp png, png_
     if (ti->x + ti->width > cache->header->width)
         clip_x = cache->header->width;
     else
-        clip_y = ti->x + ti->width;
+        clip_x = ti->x + ti->width;
     
     // figure out if the tile clips over the bottom edge
     // XXX: use min()
@@ -490,6 +490,13 @@ static int write_png_data_clipped (struct pt_cache *cache, png_structp png, png_
 int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
 {
     int err;
+
+    // check within bounds
+    if (ti->x >= cache->header->width || ti->y >= cache->header->height) {
+        // completely outside
+        errno = EINVAL;
+        return -1;
+    }
 
     // ensure open
     if (pt_cache_open(cache))
