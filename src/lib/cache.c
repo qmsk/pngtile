@@ -398,8 +398,99 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
     return 0;
 }
 
+/**
+ * Return a pointer to the pixel data on \a row, starting at \a col.
+ */
+static inline void* tile_row_col (struct pt_cache *cache, size_t row, size_t col)
+{
+    return cache->data + (row * cache->header->row_bytes) + (col * cache->header->col_bytes);
+}
+
+/**
+ * Fill in a clipped region of \a width_px pixels at the given row segment
+ */
+static inline void tile_row_fill_clip (struct pt_cache *cache, png_byte *row, size_t width_px)
+{
+    // XXX: use a defined background color, or full transparency?
+    memset(row, 0, width_px * cache->header->col_bytes);
+}
+
+/**
+ * Write raw tile image data, directly from the cache
+ */
+static int write_png_data_direct (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
+{
+    for (size_t row = ti->y; row < ti->y + ti->height; row++)
+        // write data directly
+        png_write_row(png, tile_row_col(cache, row, ti->x));
+
+    return 0;
+}
+
+/**
+ * Write clipped tile image data (a tile that goes over the edge of the actual image) by aligning the data from the cache as needed
+ */
+static int write_png_data_clipped (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
+{
+    png_byte *rowbuf;
+    size_t row;
+    
+    // image data goes from (ti->x ... clip_x, ti->y ... clip_y), remaining region is filled
+    size_t clip_x, clip_y;
+
+
+    // figure out if the tile clips over the right edge
+    // XXX: use min()
+    if (ti->x + ti->width > cache->header->width)
+        clip_x = cache->header->width;
+    else
+        clip_y = ti->x + ti->width;
+    
+    // figure out if the tile clips over the bottom edge
+    // XXX: use min()
+    if (ti->y + ti->height > cache->header->height)
+        clip_y = cache->header->height;
+    else
+        clip_y = ti->y + ti->height;
+
+
+    // allocate buffer for a single row of image data
+    if ((rowbuf = malloc(ti->width * cache->header->col_bytes)) == NULL)
+        return -1;
+
+    // how much data we actually have for each row, in px and bytes
+    // from [(tile x)---](clip x)
+    size_t row_px = clip_x - ti->x;
+    size_t row_bytes = row_px * cache->header->col_bytes;
+
+    // write the rows that we have
+    // from [(tile y]---](clip y)
+    for (row = ti->y; row < clip_y; row++) {
+        // copy in the actual tile data...
+        memcpy(rowbuf, tile_row_col(cache, row, ti->x), row_bytes);
+
+        // generate the data for the remaining, clipped, columns
+        tile_row_fill_clip(cache, rowbuf + row_bytes, (ti->width - row_px));
+
+        // write
+        png_write_row(png, rowbuf);
+    }
+
+    // generate the data for the remaining, clipped, rows
+    tile_row_fill_clip(cache, rowbuf, ti->width);
+    
+    // write out the remaining rows as clipped data
+    for (; row < ti->y + ti->height; row++)
+        png_write_row(png, rowbuf);
+
+    // ok
+    return 0;
+}
+
 int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
 {
+    int err;
+
     // ensure open
     if (pt_cache_open(cache))
         return -1;
@@ -416,17 +507,21 @@ int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, 
     // write meta-info
     png_write_info(png, info);
 
-    // pixel data is packed into 1 pixel per byte
+    // our pixel data is packed into 1 pixel per byte (8bpp or 16bpp)
     png_set_packing(png);
     
-    // write image data
-    for (size_t row = ti->y; row < ti->y + ti->height; row++) {
-        size_t col = ti->x;
-        
-        // XXX: fill out-of-range regions in some background color
-        png_write_row(png, cache->data + (row * cache->header->row_bytes) + (col * cache->header->col_bytes));
-    }
+    // figure out if the tile clips
+    if (ti->x + ti->width <= cache->header->width && ti->y + ti->height <= cache->header->height)
+        // doesn't clip, just use the raw data
+        err = write_png_data_direct(cache, png, info, ti);
 
+    else
+        // fill in clipped regions
+        err = write_png_data_clipped(cache, png, info, ti);
+
+    if (err)
+        return -1;
+    
     // done, flush remaining output
     png_write_flush(png);
 
