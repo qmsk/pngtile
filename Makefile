@@ -85,7 +85,7 @@ lib/py%.so : build/obj/py/%.o
 
 dist:
 	mkdir -p dist/$(DIST_NAME)
-	cp -rv Makefile $(DIST_RESOURCES) src/ dist/$(DIST_NAME)/
+	cp -rv Makefile $(DIST_RESOURCES) src/ include/ dist/$(DIST_NAME)/
 	rm dist/$(DIST_NAME)/src/*/.*.sw[op]
 	make -C dist/$(DIST_NAME) dirs
 	tar -C dist -czvf dist/$(DIST_NAME).tar.gz $(DIST_NAME)

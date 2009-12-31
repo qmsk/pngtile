@@ -20,17 +20,23 @@ NOTES:
     There is a separate project that provides a web-based tile viewer using Javascript (implemented in Python as a
     WSGI application).
 
+    The .cache files are not portable across different architectures.
+
+
 COMPILING:
     The library depends on libpng and pthreads. The code was developed and tested using:
 
         * libpng 1.2.15~beta5-3ubuntu0.1
         * NPTL 2.7 (glibc 2.7-10ubuntu5)
 
+    The code was verified to compile and run on cc.hut.fi's Ubuntu computers, e.g. asterix.hut.fi.
+
     To compile, simply execute
 
         make
 
     The libpngtile.so will be placed under lib/, and the 'util' binary under bin/.
+
 
 USAGE:
     Store the .png data files in a directory. You must have write access to the directory when updating the caches,
