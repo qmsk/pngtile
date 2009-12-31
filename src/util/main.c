@@ -54,7 +54,7 @@ int main (int argc, char **argv)
     int tmp, err;
     
     // parse arguments
-    while ((opt = getopt_long(argc, argv, "hqvDUW:H:x:y:", options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hqvDUW:H:x:y:j:", options, NULL)) != -1) {
         switch (opt) {
             case 'h':
                 // display help
