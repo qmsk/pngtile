@@ -6,6 +6,9 @@
 #include <assert.h>
 #include <stdio.h> // for perror
 
+/**
+ * Wrapper around pthread_mutex_unlock for use with pthread_cleanup_push
+ */
 static void pt_mutex_unlock (void *arg)
 {
     pthread_mutex_t *mutex = arg;
@@ -226,10 +229,11 @@ int pt_ctx_work (struct pt_ctx *ctx, pt_work_func func, void *arg)
     struct pt_work *work;
 
     // check state
+    // XXX: this is kind of retarded, because pt_ctx_shutdown/work should only be called from the same thread...
     if (!ctx->running)
         RETURN_ERROR(PT_ERR_CTX_SHUTDOWN);
 
-    // construct
+    // alloc
     if ((work = calloc(1, sizeof(*work))) == NULL)
         RETURN_ERROR(PT_ERR_MEM);
 
