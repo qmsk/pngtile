@@ -11,7 +11,7 @@ LOADLIBES = -lpng -lpthread
 
 # output name
 DIST_NAME = 78949E-as2
-DIST_RESOURCES = README "Learning Diary.pdf"
+DIST_RESOURCES = README "Learning Diary.pdf" $(shell "echo python/*.{py,pyx}")
 
 all: depend lib/libpngtile.so bin/util
 
