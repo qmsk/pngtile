@@ -153,24 +153,24 @@ int main (int argc, char **argv)
         // update if stale
         if (status != PT_CACHE_FRESH || force_update) {
             if (status == PT_CACHE_NONE)
-                log_debug("Image cache is missing");
+                log_debug("\tImage cache is missing");
 
             else if (status == PT_CACHE_STALE)
-                log_debug("Image cache is stale");
+                log_debug("\tImage cache is stale");
 
             else if (status == PT_CACHE_FRESH)
-                log_debug("Image cache is fresh");
+                log_debug("\tImage cache is fresh");
 
-            log_debug("Updating image cache...");
+            log_debug("\tUpdating image cache...");
 
             if ((err = pt_image_update(image))) {
                 log_warn_errno("pt_image_update: %s: %s", img_path, pt_strerror(err));
             }
 
-            log_info("Updated image cache");
+            log_info("\tUpdated image cache");
 
         } else {
-            log_debug("Image cache is fresh");
+            log_debug("\tImage cache is fresh");
         }
 
         // show info
@@ -201,9 +201,16 @@ int main (int argc, char **argv)
 
                 continue;
             }
+            
+            // ensure it's loaded
+            log_debug("\tLoad image cache...");
+
+            if ((err = pt_image_load(image)))
+                log_errno("pt_image_load: %s", pt_strerror(err));
 
             // render
-            log_debug("Async render tile %zux%zu@(%zu,%zu) -> %s", ti.width, ti.height, ti.x, ti.y, tmp_name);
+            log_info("\tAsync render tile %zux%zu@(%zu,%zu) -> %s", ti.width, ti.height, ti.x, ti.y, tmp_name);
+
 
             if ((err = pt_image_tile_async(image, &ti, out)))
                 log_errno("pt_image_tile: %s: %s", img_path, pt_strerror(err));
