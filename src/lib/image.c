@@ -285,6 +285,9 @@ static void _pt_image_tile_async (void *arg)
     // signal done
     if (fclose(tile->out.file))
         log_warn_errno("fclose");
+
+    // cleanup
+    pt_tile_destroy(tile);
 }
 
 int pt_image_tile_async (struct pt_image *image, const struct pt_tile_info *info, FILE *out)
