@@ -184,9 +184,28 @@ int main (int argc, char **argv)
 
         // render tile?
         if (ti.width && ti.height) {
-            log_debug("Async render tile %zux%zu@(%zu,%zu) -> stdout", ti.width, ti.height, ti.x, ti.y);
+            char tmp_name[] = "pt-tile-XXXXXX";
+            int fd;
+            FILE *out;
+            
+            // temporary file for output
+            if ((fd = mkstemp(tmp_name)) < 0) {
+                log_errno("mkstemp");
+                
+                continue;
+            }
 
-            if ((err = pt_image_tile_async(image, &ti, stdout)))
+            // open out
+            if ((out = fdopen(fd, "w")) == NULL) {
+                log_errno("fdopen");
+
+                continue;
+            }
+
+            // render
+            log_debug("Async render tile %zux%zu@(%zu,%zu) -> %s", ti.width, ti.height, ti.x, ti.y, tmp_name);
+
+            if ((err = pt_image_tile_async(image, &ti, out)))
                 log_errno("pt_image_tile: %s: %s", img_path, pt_strerror(err));
         }
 
