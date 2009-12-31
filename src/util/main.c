@@ -19,6 +19,7 @@ static const struct option options[] = {
     { "height",         true,   NULL,   'H' },
     { "x",              true,   NULL,   'x' },
     { "y",              true,   NULL,   'y' },
+    { "threads",        true,   NULL,   'j' },
     { 0,                0,      0,      0   }
 };
 
@@ -40,6 +41,7 @@ void help (const char *argv0)
         "\t-H, --height         set tile height\n"
         "\t-x, --x              set tile x offset\n"
         "\t-y, --y              set tile z offset\n"
+        "\t-j, --threads        number of threads\n"
     );
 }
 
@@ -48,7 +50,8 @@ int main (int argc, char **argv)
     int opt;
     bool force_update = false;
     struct pt_tile_info ti = {0, 0, 0, 0};
-    int err;
+    int threads = 2;
+    int tmp, err;
     
     // parse arguments
     while ((opt = getopt_long(argc, argv, "hqvDUW:H:x:y:", options, NULL)) != -1) {
@@ -90,6 +93,12 @@ int main (int argc, char **argv)
             case 'y':
                 ti.y = strtol(optarg, NULL, 0); break;
 
+            case 'j':
+                if ((tmp = strtol(optarg, NULL, 0)) < 1)
+                    FATAL("Invalid value for -j/--threads");
+
+                threads = tmp; break;
+
             case '?':
                 // useage error
                 help(argv[0]);
@@ -112,6 +121,14 @@ int main (int argc, char **argv)
     struct pt_image *image = NULL;
     enum pt_cache_status status;
 
+    // build ctx
+    log_debug("Construct pt_ctx with %d threads", threads);
+
+    if ((err = pt_ctx_new(&ctx, threads)))
+        EXIT_ERROR(EXIT_FAILURE, "pt_ctx_new: threads=%d", threads);
+
+    
+    // process each image in turn
     log_debug("Processing %d images...", argc - optind);
 
     for (int i = optind; i < argc; i++) {
@@ -167,18 +184,25 @@ int main (int argc, char **argv)
 
         // render tile?
         if (ti.width && ti.height) {
-            log_debug("Render tile %zux%zu@(%zu,%zu) -> stdout", ti.width, ti.height, ti.x, ti.y);
+            log_debug("Async render tile %zux%zu@(%zu,%zu) -> stdout", ti.width, ti.height, ti.x, ti.y);
 
-            if ((err = pt_image_tile_file(image, &ti, stdout)))
+            if ((err = pt_image_tile_async(image, &ti, stdout)))
                 log_errno("pt_image_tile: %s: %s", img_path, pt_strerror(err));
         }
 
 error:
         // cleanup
-        pt_image_destroy(image);
+        // XXX: leak because of async: pt_image_destroy(image);
+        ;
     }
 
-    // XXX: done
+    log_info("Waiting for images to finish...");
+
+    // wait for tile operations to finish...
+    pt_ctx_shutdown(ctx);
+
+    log_info("Done");
+
     return 0;
 }
 

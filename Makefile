@@ -7,7 +7,7 @@ CFLAGS = -Wall -std=gnu99 -g
 CPPFLAGS = -Iinclude -Isrc/
 
 # libraries to use
-LOADLIBES = -lpng
+LOADLIBES = -lpng -lpthread
 
 # output name
 DIST_NAME = 78949E-as2
@@ -16,7 +16,7 @@ DIST_RESOURCES = README "Learning Diary.pdf"
 all: depend lib/libpngtile.so bin/util
 
 lib/libpngtile.so : \
-	build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/error.o \
+	build/obj/lib/ctx.o build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/error.o \
 	build/obj/shared/util.o build/obj/shared/log.o
 
 lib/pypngtile.so : \
@@ -58,8 +58,9 @@ include $(wildcard build/deps/*/*.d)
 build/obj/shared/%.o : src/shared/%.c
 	$(CC) -c -fPIC $(CPPFLAGS) $(CFLAGS) $< -o $@
 
+# XXX: hax in -pthread
 build/obj/lib/%.o : src/lib/%.c
-	$(CC) -c -fPIC $(CPPFLAGS) $(CFLAGS) $< -o $@
+	$(CC) -c -fPIC -pthread $(CPPFLAGS) $(CFLAGS) $< -o $@
 
 # general binary objects
 build/obj/%.o : src/%.c

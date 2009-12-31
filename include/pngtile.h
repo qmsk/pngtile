@@ -68,9 +68,22 @@ struct pt_tile_info {
 };
 
 /**
- * TODO: impl
+ * Construct a new pt_ctx for use with further pt_image's.
+ *
+ * @param ctx_ptr returned pt_ctx handle
+ * @param threads number of worker threads to use for parralel operations, or zero to disable
  */
-int pt_ctx_new (struct pt_ctx **ctx_ptr);
+int pt_ctx_new (struct pt_ctx **ctx_ptr, int threads);
+
+/**
+ * Shut down the given pt_ctx, waiting for any ongoing/pending operations to finish.
+ */
+int pt_ctx_shutdown (struct pt_ctx *ctx);
+
+/**
+ * Release the given pt_ctx without waiting for any ongoing operations to finish.
+ */
+void pt_ctx_destroy (struct pt_ctx *ctx);
 
 /**
  * Open a new pt_image for use.
@@ -100,6 +113,12 @@ int pt_image_status (struct pt_image *image);
 int pt_image_update (struct pt_image *image);
 
 /**
+ * Load the image's cache in read-only mode without trying to update it.
+ */
+// XXX: rename to pt_image_open?
+// TODO: int pt_image_load (struct pt_image *image);
+
+/**
  * Render a PNG tile to a FILE*.
  *
  * The PNG data will be written to the given stream, which will be flushed, but not closed.
@@ -117,6 +136,19 @@ int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info,
  * @param len_ptr returned buffer length
  */
 int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, char **buf_ptr, size_t *len_ptr);
+
+/**
+ * Render a PNG tile to FILE* in a parralel manner.
+ *
+ * The PNG data will be written to \a out, which will be fclose()'d once done.
+ *
+ * This function may return before the PNG has been rendered.
+ *
+ * @param image render from image's cache. The cache must have been opened previously!
+ * @param info tile parameters
+ * @param out IO stream to write PNG data to, and close once done
+ */
+int pt_image_tile_async (struct pt_image *image, const struct pt_tile_info *info, FILE *out);
 
 /**
  * Release the given pt_image without any clean shutdown
@@ -150,6 +182,9 @@ enum pt_error {
     PT_ERR_CACHE_RENAME_TMP,
 
     PT_ERR_TILE_CLIP,
+
+    PT_ERR_PTHREAD_CREATE,
+    PT_ERR_CTX_SHUTDOWN,
 
     PT_ERR_MAX,
 };

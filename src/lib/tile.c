@@ -4,28 +4,38 @@
 
 #include <stdlib.h>
 
-static void pt_tile_init (struct pt_tile *tile, const struct pt_tile_info *info, enum pt_tile_output out_type)
+int pt_tile_new (struct pt_tile **tile_ptr)
 {
-    memset(tile, 0, sizeof(*tile));
-    
+    struct pt_tile *tile;
+
+    if ((tile = calloc(1, sizeof(*tile))) == NULL)
+        return -PT_ERR_MEM;
+
+    *tile_ptr = tile;
+
+    return 0;
+}
+
+static void pt_tile_init (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_info *info, enum pt_tile_output out_type)
+{
     // init
+    tile->cache = cache;
     tile->info = *info;
     tile->out_type = out_type;
 }
 
-
-int pt_tile_init_file (struct pt_tile *tile, const struct pt_tile_info *info, FILE *out)
+int pt_tile_init_file (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_info *info, FILE *out)
 {
-    pt_tile_init(tile, info, PT_TILE_OUT_FILE);
+    pt_tile_init(tile, cache, info, PT_TILE_OUT_FILE);
 
     tile->out.file = out;
 
     return 0;
 }
 
-int pt_tile_init_mem (struct pt_tile *tile, const struct pt_tile_info *info)
+int pt_tile_init_mem (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_info *info)
 {
-    pt_tile_init(tile, info, PT_TILE_OUT_MEM);
+    pt_tile_init(tile, cache, info, PT_TILE_OUT_MEM);
     
     // init buffer
     if ((tile->out.mem.base = malloc(PT_TILE_BUF_SIZE)) == NULL)
@@ -68,7 +78,7 @@ static void pt_tile_mem_flush (png_structp png_ptr)
 }
 
 
-int pt_tile_render (struct pt_tile *tile, struct pt_cache *cache)
+int pt_tile_render (struct pt_tile *tile)
 {
     png_structp png = NULL;
     png_infop info = NULL;
@@ -104,7 +114,7 @@ int pt_tile_render (struct pt_tile *tile, struct pt_cache *cache)
     }
 
     // render tile
-    if ((err = pt_cache_tile_png(cache, png, info, &tile->info)))
+    if ((err = pt_cache_tile_png(tile->cache, png, info, &tile->info)))
         JUMP_ERROR(err);
 
     // done
@@ -133,3 +143,9 @@ void pt_tile_abort (struct pt_tile *tile)
     }
 }
 
+void pt_tile_destroy (struct pt_tile *tile)
+{
+    pt_tile_abort(tile);
+
+    free(tile);
+}

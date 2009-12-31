@@ -20,6 +20,9 @@ enum pt_tile_output {
 
 /** Per-tile-render state */
 struct pt_tile {
+    /** Cache to render from */
+    struct pt_cache *cache;
+
     /** Render spec */
     struct pt_tile_info info;
 
@@ -39,23 +42,33 @@ struct pt_tile {
 };
 
 /**
+ * Alloc a new pt_tile, which must be initialized using pt_tile_init_*
+ */
+int pt_tile_new (struct pt_tile **tile_ptr);
+
+/**
  * Initialize to render with given params, writing output to given FILE*
  */
-int pt_tile_init_file (struct pt_tile *tile, const struct pt_tile_info *info, FILE *out);
+int pt_tile_init_file (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_info *info, FILE *out);
 
 /**
  * Initialize to render with given params, writing output to a memory buffer
  */
-int pt_tile_init_mem (struct pt_tile *tile, const struct pt_tile_info *info);
+int pt_tile_init_mem (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_info *info);
 
 /**
  * Render PNG data from given cache according to parameters given to pt_tile_init_*
  */
-int pt_tile_render (struct pt_tile *tile, struct pt_cache *cache);
+int pt_tile_render (struct pt_tile *tile);
 
 /**
  * Abort any failed render process, cleaning up.
  */
 void pt_tile_abort (struct pt_tile *tile);
+
+/**
+ * Destroy given pt_tile, aborting it and freeing it
+ */
+void pt_tile_destroy (struct pt_tile *tile);
 
 #endif

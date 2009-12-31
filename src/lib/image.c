@@ -1,8 +1,10 @@
 #include "image.h"
+#include "ctx.h"
 #include "cache.h"
 #include "tile.h"
 #include "error.h"
 #include "shared/util.h"
+#include "shared/log.h"
 
 #include <stdlib.h>
 #include <errno.h>
@@ -230,11 +232,11 @@ int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info,
     int err;
 
     // init
-    if ((err = pt_tile_init_file(&tile, info, out)))
+    if ((err = pt_tile_init_file(&tile, image->cache, info, out)))
         return err;
 
     // render
-    if ((err = pt_tile_render(&tile, image->cache)))
+    if ((err = pt_tile_render(&tile)))
         JUMP_ERROR(err);
 
     // ok
@@ -252,11 +254,11 @@ int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, 
     int err;
 
     // init
-    if ((err = pt_tile_init_mem(&tile, info)))
+    if ((err = pt_tile_init_mem(&tile, image->cache, info)))
         return err;
 
     // render
-    if ((err = pt_tile_render(&tile, image->cache)))
+    if ((err = pt_tile_render(&tile)))
         JUMP_ERROR(err);
 
     // ok
@@ -271,6 +273,46 @@ error:
     return err;
 }
 
+static void _pt_image_tile_async (void *arg)
+{
+    struct pt_tile *tile = arg;
+    int err;
+
+    // do render op
+    if ((err = pt_tile_render(tile)))
+        log_warn_errno("pt_tile_render: %s", pt_strerror(err));
+
+    // signal done
+    if (fclose(tile->out.file))
+        log_warn_errno("fclose");
+}
+
+int pt_image_tile_async (struct pt_image *image, const struct pt_tile_info *info, FILE *out)
+{
+    struct pt_tile *tile;
+    int err;
+
+    // alloc
+    if ((err = pt_tile_new(&tile)))
+        return err;
+
+    // init
+    if ((err = pt_tile_init_file(tile, image->cache, info, out)))
+        JUMP_ERROR(err);
+    
+    // enqueue work
+    if ((err = pt_ctx_work(image->ctx, _pt_image_tile_async, tile)))
+        JUMP_ERROR(err);
+
+    // ok, running
+    return 0;
+
+error:
+    pt_tile_destroy(tile);
+
+    return err;
+}
+
 void pt_image_destroy (struct pt_image *image)
 {
     free(image->path);
@@ -280,3 +322,4 @@ void pt_image_destroy (struct pt_image *image)
 
     free(image);
 }
+
