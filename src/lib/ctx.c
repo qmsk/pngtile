@@ -6,6 +6,13 @@
 #include <assert.h>
 #include <stdio.h> // for perror
 
+static void pt_mutex_unlock (void *arg)
+{
+    pthread_mutex_t *mutex = arg;
+
+    assert(!pthread_mutex_unlock(mutex));
+}
+
 /**
  * Enqueue the given piece of work
  *
@@ -31,7 +38,8 @@ static void pt_work_enqueue (struct pt_ctx *ctx, struct pt_work *work)
  */
 static void pt_work_dequeue (struct pt_ctx *ctx, struct pt_work **work_ptr)
 {
-    // acquire
+    // acquire, cancel-safe
+    pthread_cleanup_push(pt_mutex_unlock, &ctx->work_mutex);
     assert(!pthread_mutex_lock(&ctx->work_mutex));
 
     // idle?
@@ -40,6 +48,7 @@ static void pt_work_dequeue (struct pt_ctx *ctx, struct pt_work **work_ptr)
 
     // wait for work
     while (TAILQ_EMPTY(&ctx->work))
+        // we can expect to get pthread_cancel'd here
         assert(!pthread_cond_wait(&ctx->work_cond, &ctx->work_mutex));
 
     // pop work
@@ -47,7 +56,7 @@ static void pt_work_dequeue (struct pt_ctx *ctx, struct pt_work **work_ptr)
     TAILQ_REMOVE(&ctx->work, *work_ptr, ctx_work);
 
     // release
-    assert(!pthread_mutex_unlock(&ctx->work_mutex));
+    pthread_cleanup_pop(true);
 }
 
 /**
