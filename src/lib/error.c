@@ -1,5 +1,8 @@
 #include "error.h"
 
+/*
+ * Mapping for error codes
+ */
 const char *error_names[PT_ERR_MAX] = {
     [PT_SUCCESS]                = "Success",
     [PT_ERR_MEM]                = "malloc()",

@@ -100,11 +100,23 @@ int pt_image_status (struct pt_image *image);
 int pt_image_update (struct pt_image *image);
 
 /**
- * Render a PNG tile to a stream.
+ * Render a PNG tile to a FILE*.
  *
  * The PNG data will be written to the given stream, which will be flushed, but not closed.
  */
-int pt_image_tile (struct pt_image *image, const struct pt_tile_info *info, FILE *out);
+int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info, FILE *out);
+
+/**
+ * Render a PNG tile to memory.
+ *
+ * The PNG data will be written to a malloc'd buffer.
+ *
+ * @param image render from image's cache
+ * @param info tile parameters
+ * @param buf_ptr returned heap buffer
+ * @param len_ptr returned buffer length
+ */
+int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, char **buf_ptr, size_t *len_ptr);
 
 /**
  * Release the given pt_image without any clean shutdown

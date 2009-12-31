@@ -397,6 +397,7 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
 
     // move from .tmp to .cache
     if ((err = pt_cache_create_done(cache)))
+        // XXX: pt_cache_abort?
         return err;
 
     // done!
@@ -496,14 +497,14 @@ int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, 
 {
     int err;
 
+    // ensure open
+    if ((err = pt_cache_open(cache)))
+        return err;
+
     // check within bounds
     if (ti->x >= cache->header->width || ti->y >= cache->header->height)
         // completely outside
         RETURN_ERROR(PT_ERR_TILE_CLIP);
-
-    // ensure open
-    if ((err = pt_cache_open(cache)))
-        return err;
 
     // set basic info
     png_set_IHDR(png, info, ti->width, ti->height, cache->header->bit_depth, cache->header->color_type,

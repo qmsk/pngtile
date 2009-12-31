@@ -1,5 +1,6 @@
 #include "image.h"
 #include "cache.h"
+#include "tile.h"
 #include "error.h"
 #include "shared/util.h"
 
@@ -101,6 +102,8 @@ error:
  * Update the image_info field from the given png object.
  *
  * Must be called under libpng-error-trap!
+ *
+ * XXX: currently this info is not used, pulled from the cache instead
  */
 static int pt_image_update_info (struct pt_image *image, png_structp png, png_infop info)
 {
@@ -221,36 +224,49 @@ int pt_image_update (struct pt_image *image)
     return pt_image_update_cache(image);
 }
 
-int pt_image_tile (struct pt_image *image, const struct pt_tile_info *tile_info, FILE *out)
+int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info, FILE *out)
 {
-    png_structp png = NULL;
-    png_infop info = NULL;
-    int err = 0;
-        
-    // open PNG writer
-    if ((png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL)
-        JUMP_SET_ERROR(err, PT_ERR_PNG_CREATE);
-    
-    if ((info = png_create_info_struct(png)) == NULL)
-        JUMP_SET_ERROR(err, PT_ERR_PNG_CREATE);
+    struct pt_tile tile;
+    int err;
 
-    // libpng error trap
-    if (setjmp(png_jmpbuf(png)))
-        JUMP_SET_ERROR(err, PT_ERR_PNG);
-    
-    // setup IO
-    png_init_io(png, out);
-    
-    // render tile
-    if ((err = pt_cache_tile_png(image->cache, png, info, tile_info)))
+    // init
+    if ((err = pt_tile_init_file(&tile, info, out)))
+        return err;
+
+    // render
+    if ((err = pt_tile_render(&tile, image->cache)))
         JUMP_ERROR(err);
 
-    // done
-    png_write_end(png, info);
+    // ok
+    return 0;
 
 error:
-    // cleanup
-    png_destroy_write_struct(&png, &info);
+    pt_tile_abort(&tile);
+
+    return err;
+}
+
+int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, char **buf_ptr, size_t *len_ptr)
+{
+    struct pt_tile tile;
+    int err;
+
+    // init
+    if ((err = pt_tile_init_mem(&tile, info)))
+        return err;
+
+    // render
+    if ((err = pt_tile_render(&tile, image->cache)))
+        JUMP_ERROR(err);
+
+    // ok
+    *buf_ptr = tile.out.mem.base;
+    *len_ptr = tile.out.mem.len;
+
+    return 0;
+
+error:
+    pt_tile_abort(&tile);
 
     return err;
 }

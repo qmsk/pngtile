@@ -1,6 +1,11 @@
 #ifndef PNGTILE_ERROR_H
 #define PNGTILE_ERROR_H
 
+/**
+ * @file
+ *
+ * Obtuse error handling
+ */
 #include "pngtile.h"
 #include <errno.h>
 

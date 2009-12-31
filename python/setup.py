@@ -6,7 +6,7 @@ setup(
     name = 'pngtiles',
     cmdclass = {'build_ext': build_ext},
     ext_modules = [
-        Extension("pngtile", ["pngtile.pyx"],
+        Extension("pypngtile", ["pngtile.pyx"],
             include_dirs = ['../include'],
             library_dirs = ['../lib'],
             libraries = ['pngtile'],

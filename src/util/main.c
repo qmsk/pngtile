@@ -151,6 +151,9 @@ int main (int argc, char **argv)
             }
 
             log_info("Updated image cache");
+
+        } else {
+            log_debug("Image cache is fresh");
         }
 
         // show info
@@ -166,7 +169,7 @@ int main (int argc, char **argv)
         if (ti.width && ti.height) {
             log_debug("Render tile %zux%zu@(%zu,%zu) -> stdout", ti.width, ti.height, ti.x, ti.y);
 
-            if ((err = pt_image_tile(image, &ti, stdout)))
+            if ((err = pt_image_tile_file(image, &ti, stdout)))
                 log_errno("pt_image_tile: %s: %s", img_path, pt_strerror(err));
         }
 

@@ -1,16 +1,16 @@
-cdef extern from "stdio.h" :
-    struct FILE :
-        pass
-
 cdef extern from "errno.h" :
     extern int errno
 
 cdef extern from "string.h" :
     char* strerror (int err)
 
+cimport stdio
+cimport stdlib
+cimport python_string
+
 cdef extern from "Python.h" :
     int PyFile_Check (object p)
-    FILE* PyFile_AsFile (object p)
+    stdio.FILE* PyFile_AsFile (object p)
     void PyFile_IncUseCount (object p)
     void PyFile_DecUseCount (object p)
 
@@ -41,7 +41,8 @@ cdef extern from "pngtile.h" :
     int pt_image_info_func "pt_image_info" (pt_image *image, pt_image_info **info_ptr)
     int pt_image_status (pt_image *image)
     int pt_image_update (pt_image *image)
-    int pt_image_tile (pt_image *image, pt_tile_info *info, FILE *out)
+    int pt_image_tile_file (pt_image *image, pt_tile_info *info, stdio.FILE *out)
+    int pt_image_tile_mem (pt_image *image, pt_tile_info *info, char **buf_ptr, size_t *len_ptr)
     void pt_image_destroy (pt_image *image)
 
     char* pt_strerror (int err)
@@ -89,8 +90,8 @@ cdef class Image :
             pt_image_update(self.image)
         )
 
-    def tile (self, size_t width, size_t height, size_t x, size_t y, object out) :
-        cdef FILE *outf
+    def tile_file (self, size_t width, size_t height, size_t x, size_t y, object out) :
+        cdef stdio.FILE *outf
         cdef pt_tile_info ti
 
         if not PyFile_Check(out) :
@@ -106,9 +107,32 @@ cdef class Image :
         ti.x = x
         ti.y = y
         
-        trap_err("pt_image_tile", 
-            pt_image_tile(self.image, &ti, outf)
+        trap_err("pt_image_tile_file", 
+            pt_image_tile_file(self.image, &ti, outf)
         )
+
+    def tile_mem (self, size_t width, size_t height, size_t x, size_t y) :
+        cdef pt_tile_info ti
+        cdef char *buf
+        cdef size_t len
+
+        ti.width = width
+        ti.height = height
+        ti.x = x
+        ti.y = y
+        
+        # render and return ptr to buffer
+        trap_err("pt_image_tile_mem", 
+            pt_image_tile_mem(self.image, &ti, &buf, &len)
+        )
+        
+        # copy buffer as str...
+        data = python_string.PyString_FromStringAndSize(buf, len)
+
+        # drop buffer...
+        stdlib.free(buf)
+
+        return data
 
     def __dealloc__ (self) :
         if self.image :
