@@ -226,6 +226,11 @@ int pt_image_update (struct pt_image *image)
     return pt_image_update_cache(image);
 }
 
+int pt_image_load (struct pt_image *image)
+{
+    return pt_cache_open(image->cache);
+}
+
 int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info, FILE *out)
 {
     struct pt_tile tile;

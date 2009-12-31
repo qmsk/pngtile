@@ -116,7 +116,7 @@ int pt_image_update (struct pt_image *image);
  * Load the image's cache in read-only mode without trying to update it.
  */
 // XXX: rename to pt_image_open?
-// TODO: int pt_image_load (struct pt_image *image);
+int pt_image_load (struct pt_image *image);
 
 /**
  * Render a PNG tile to a FILE*.
