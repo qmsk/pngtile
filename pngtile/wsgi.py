@@ -4,11 +4,11 @@
 
 from werkzeug import Request, Response, responder
 from werkzeug import exceptions
-import os.path
+import os.path, os
 
 import pypngtile as pt
 
-DATA_ROOT = os.path.abspath('data')
+DATA_ROOT = os.environ.get("PNGTILE_DATA_PATH") or os.path.abspath('data/')
 
 IMAGE_CACHE = {}
 
@@ -17,6 +17,7 @@ TILE_HEIGHT = 256
 
 def dir_view (req, name, path) :
     prefix = os.path.dirname(req.script_root).rstrip('/')
+    script_prefix = req.script_root
     name = name.rstrip('/')
 
 
@@ -39,9 +40,9 @@ def dir_view (req, name, path) :
         
         listing         = "\n".join(
             """<li><a href="%(url)s">%(name)s</a></li>""" % dict(
-                url         = '/'.join((prefix, name, item)),
+                url         = '/'.join((script_prefix, name, item)),
                 name        = item,
-            ) for item in ['..'] + os.listdir(path)
+            ) for item in ['..'] + [i for i in os.listdir(path) if i.endswith('.png') or os.path.isdir(os.path.join(path, i))]
         ),
     )
 
@@ -118,6 +119,7 @@ def handle_main (req) :
     
     # build absolute path
     image_path = os.path.abspath(os.path.join(DATA_ROOT, image_name))
+
     
     # ensure the path points inside the data root
     if not image_path.startswith(DATA_ROOT) :

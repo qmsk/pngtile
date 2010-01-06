@@ -1,3 +1,5 @@
+#!/usr/bin/env python2.5
+
 import flup.server.fcgi
 
 def main (app, bind=None) :
