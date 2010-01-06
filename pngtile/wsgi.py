@@ -102,8 +102,6 @@ def handle_main (req) :
     
     # build absolute path
     image_path = os.path.abspath(os.path.join(DATA_ROOT, image_name))
-
-    print image_name, image_path
     
     # ensure the path points inside the data root
     if not image_path.startswith(DATA_ROOT) :
@@ -112,9 +110,12 @@ def handle_main (req) :
 
     if os.path.isdir(image_path) :
         return Response(dir_view(req, image_name, image_path), content_type="text/html")
+    
+    elif not os.path.exists(image_path) :
+        raise exceptions.NotFound(image_name)
 
     elif not image_name or not image_name.endswith('.png') :
-        raise exceptions.BadRequest("no .png path given")
+        raise exceptions.BadRequest("Not a PNG file")
     
 
     # get Image object
