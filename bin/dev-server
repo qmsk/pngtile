@@ -1,0 +1,25 @@
+#!/usr/bin/python
+
+import wsgiref.simple_server
+import werkzeug
+from werkzeug.exceptions import NotFound
+
+import pngtile.wsgi
+
+# dispatch on URL
+app = werkzeug.DispatcherMiddleware(pngtile.wsgi.application, {
+    '/static':      werkzeug.SharedDataMiddleware(NotFound(), {
+        '/':            'static',
+    }),
+})
+
+def main (host='127.0.0.1', port=8000) :
+    httpd = wsgiref.simple_server.make_server(host, port, app)
+
+    print "Listening on %s:%d" % (host, port)
+
+    httpd.serve_forever()
+
+if __name__ == '__main__' :
+    main()
+
