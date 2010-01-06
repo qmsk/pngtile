@@ -87,7 +87,11 @@ var Viewport = Class.create({
             if (pt.length) z = parseInt(pt.shift());
 
             // initial view
-            this.zoom_center_to(cx, cy, z);
+            this.zoom_scaled(
+                cx - this.center_offset_x, 
+                cy - this.center_offset_y, 
+                z
+            );
 
         } else {
             // this sets the scroll offsets, zoom level, and loads the tiles
