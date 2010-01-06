@@ -61,6 +61,11 @@ def image_view (req, image_path, image) :
     <body>
         <div id="wrapper">
             <div id="viewport" style="width: 100%%; height: 100%%">
+                <div class="overlay">
+                    <input type="button" id="btn-zoom-in" value="Zoom In" />
+                    <input type="button" id="btn-zoom-out" value="Zoom Out" />
+                </div>
+
                 <div class="substrate"></div>
             </div>
         </div>

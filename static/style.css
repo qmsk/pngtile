@@ -18,13 +18,23 @@ body {
     background-color: #E5E3DF;
 }
 
-#substrate {
-    position: absolute;
-    top: 0px; left: 0px;
-}
-
 #viewport img {
     position: absolute;
     border: none;
+}
+
+/** XXX: doesn't apply? * /
+#substrate {
+    position: absolute;
+    top: 0px; left: 0px;
+} */
+
+
+.overlay {
+    position: absolute;
+
+    padding: 15px;
+
+    z-index: 1000;
 }
 

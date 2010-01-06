@@ -70,6 +70,16 @@ var Viewport = Class.create({
         Event.observe(this.substrate, "mousewheel", this.on_mousewheel.bindAsEventListener(this));
         Event.observe(this.substrate, "DOMMouseScroll", this.on_mousewheel.bindAsEventListener(this));     // mozilla
         Event.observe(document, "resize", this.on_resize.bindAsEventListener(this));
+        
+        // zoom buttons
+        this.btn_zoom_in = $("btn-zoom-in");
+        this.btn_zoom_out = $("btn-zoom-out");
+
+        if (this.btn_zoom_in)
+            Event.observe(this.btn_zoom_in, "click", this.zoom_in.bindAsEventListener(this));
+        
+        if (this.btn_zoom_out)
+            Event.observe(this.btn_zoom_out, "click", this.zoom_out.bindAsEventListener(this));
     
         // set viewport size
         this.update_size();
@@ -244,6 +254,24 @@ var Viewport = Class.create({
         );
     },
 
+    // zoom à la delta, keeping the view centered
+    zoom_centered: function (delta) {
+        return this.zoom_center_to(
+            this.scroll_x + this.center_offset_x,
+            this.scroll_y + this.center_offset_y,
+            delta
+        );
+    },
+
+    // zoom in one level, keeping the view centered
+    zoom_in: function () {
+        return this.zoom_centered(+1);
+    },
+    
+    // zoom out one leve, keeping the view centered
+    zoom_out: function () {
+        return this.zoom_centered(-1);
+    },
 
     /* update view/state to reflect reality */
 
@@ -313,7 +341,19 @@ var Viewport = Class.create({
             this.zoom_timer = setTimeout(function () { zoom_old.disable()}, 1000);
         }
 
+        // update UI
+        this.update_zoom_ui();
+
         return true;
+    },
+
+    // keep the zoom buttons, if any, updated
+    update_zoom_ui: function () {
+        if (this.btn_zoom_in)
+            (this.zoom_layer.level >= this.source.zoom_max) ? this.btn_zoom_in.disable() : this.btn_zoom_in.enable();
+        
+        if (this.btn_zoom_out)
+            (this.zoom_layer.level <= this.source.zoom_min) ? this.btn_zoom_out.disable() : this.btn_zoom_out.enable();
     },
     
     // ensure that all tiles that are currently visible are loaded
