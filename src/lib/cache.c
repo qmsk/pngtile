@@ -493,18 +493,50 @@ static int write_png_data_clipped (struct pt_cache *cache, png_structp png, png_
     return 0;
 }
 
-int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
+static size_t scale_by_zoom_factor (size_t value, int z)
+{
+    if (z > 0)
+        return value << z;
+
+    else if (z < 0)
+        return value >> -z;
+
+    else
+        return value;
+}
+
+#define ADD_AVG(l, r) (l) = ((l) + (r)) / 2
+
+static int png_pixel_data (png_color *out, struct pt_cache *cache, size_t row, size_t col)
+{
+    if (cache->header->color_type == PNG_COLOR_TYPE_PALETTE) {
+        // palette entry number
+        int p;
+
+        if (cache->header->bit_depth == 8)
+            p = *((uint8_t *) tile_row_col(cache, row, col));
+        else
+            return -1;
+
+        if (p >= cache->header->num_palette)
+            return -1;
+        
+        // reference data from palette
+        *out = cache->header->palette[p];
+
+        return 0;
+
+    } else {
+        return -1;
+    }
+}
+
+/**
+ * Write unscaled tile data
+ */
+static int write_png_data_unzoomed (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
 {
     int err;
-
-    // ensure open
-    if ((err = pt_cache_open(cache)))
-        return err;
-
-    // check within bounds
-    if (ti->x >= cache->header->width || ti->y >= cache->header->height)
-        // completely outside
-        RETURN_ERROR(PT_ERR_TILE_CLIP);
 
     // set basic info
     png_set_IHDR(png, info, ti->width, ti->height, cache->header->bit_depth, cache->header->color_type,
@@ -529,6 +561,104 @@ int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, 
     else
         // fill in clipped regions
         err = write_png_data_clipped(cache, png, info, ti);
+    
+    return err;
+}
+
+/**
+ * Write scaled tile data
+ */
+static int write_png_data_zoomed (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
+{
+    // size of the image data in px
+    size_t data_width = scale_by_zoom_factor(ti->width, -ti->zoom);
+    size_t data_height = scale_by_zoom_factor(ti->height, -ti->zoom);
+
+    // input pixels per output pixel
+    size_t pixel_size = scale_by_zoom_factor(1, -ti->zoom);
+
+    // bytes per output pixel
+    size_t pixel_bytes = 3;
+
+    // size of the output tile in px
+    size_t row_width = ti->width;
+
+    // size of an output row in bytes (RGB)
+    size_t row_bytes = row_width * 3;
+
+    // buffer to hold output rows
+    uint8_t *row_buf;
+    
+    // XXX: only supports zooming out...
+    if (ti->zoom >= 0)
+        RETURN_ERROR(PT_ERR_ZOOM);
+
+    if ((row_buf = malloc(row_bytes)) == NULL)
+        RETURN_ERROR(PT_ERR_MEM);
+
+
+    // define pixel format: 8bpp RGB
+    png_set_IHDR(png, info, ti->width, ti->height, 8, PNG_COLOR_TYPE_RGB,
+            PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT
+    );
+    
+    // write meta-info
+    png_write_info(png, info);
+
+    // ...each output row
+    for (size_t out_row = 0; out_row < ti->height; out_row++) {
+        memset(row_buf, 0, row_bytes);
+
+        // ...includes pixels starting from this row.
+        size_t in_row_offset = ti->y + scale_by_zoom_factor(out_row, -ti->zoom);
+        
+        // ...each out row includes pixel_size in rows
+        for (size_t in_row = in_row_offset; in_row < in_row_offset + pixel_size && in_row < cache->header->height; in_row++) {
+            // and includes each input pixel
+            for (size_t in_col = ti->x; in_col < ti->x + data_width && in_col < cache->header->width; in_col++) {
+                png_color c;
+
+                // ...for this output pixel
+                size_t out_col = scale_by_zoom_factor(in_col - ti->x, ti->zoom);
+                
+                // get pixel RGB data
+                if (png_pixel_data(&c, cache, in_row, in_col))
+                    return -1;
+                
+                // average the RGB data        
+                ADD_AVG(row_buf[out_col * pixel_bytes + 0], c.red);
+                ADD_AVG(row_buf[out_col * pixel_bytes + 1], c.green);
+                ADD_AVG(row_buf[out_col * pixel_bytes + 2], c.blue);
+            }
+        }
+
+        // output
+        png_write_row(png, row_buf);
+    }
+
+    // done
+    return 0;
+}
+
+int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
+{
+    int err;
+
+    // ensure open
+    if ((err = pt_cache_open(cache)))
+        return err;
+
+    // check within bounds
+    if (ti->x >= cache->header->width || ti->y >= cache->header->height)
+        // completely outside
+        RETURN_ERROR(PT_ERR_TILE_CLIP);
+   
+    // unscaled or scaled?
+    if (ti->zoom)
+        err = write_png_data_zoomed(cache, png, info, ti);
+
+    else
+        err = write_png_data_unzoomed(cache, png, info, ti);
 
     if (err)
         return err;

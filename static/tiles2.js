@@ -26,7 +26,7 @@ var Source = Class.create({
         var x = col * this.tile_width;
         var y = row * this.tile_height;
 
-        var url = this.path + "?x=" + x + "&y=" + y + "&z=" + zl + "&sw=" + sw + "&sh=" + sh;
+        var url = this.path + "?x=" + x + "&y=" + y + "&zoom=" + zl + "&sw=" + sw + "&sh=" + sh;
 
         if (this.refresh)
             url += "&ts=" + new Date().getTime();

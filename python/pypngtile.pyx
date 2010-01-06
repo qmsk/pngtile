@@ -36,6 +36,7 @@ cdef extern from "pngtile.h" :
     struct pt_tile_info :
         size_t width, height
         size_t x, y
+        int zoom
         
     int pt_image_open (pt_image **image_ptr, pt_ctx *ctx, char *png_path, int cache_mode)
     int pt_image_info_func "pt_image_info" (pt_image *image, pt_image_info **info_ptr)
@@ -90,7 +91,7 @@ cdef class Image :
             pt_image_update(self.image)
         )
 
-    def tile_file (self, size_t width, size_t height, size_t x, size_t y, object out) :
+    def tile_file (self, size_t width, size_t height, size_t x, size_t y, int zoom, object out) :
         cdef stdio.FILE *outf
         cdef pt_tile_info ti
 
@@ -106,12 +107,13 @@ cdef class Image :
         ti.height = height
         ti.x = x
         ti.y = y
+        ti.zoom = zoom
         
         trap_err("pt_image_tile_file", 
             pt_image_tile_file(self.image, &ti, outf)
         )
 
-    def tile_mem (self, size_t width, size_t height, size_t x, size_t y) :
+    def tile_mem (self, size_t width, size_t height, size_t x, size_t y, int zoom) :
         cdef pt_tile_info ti
         cdef char *buf
         cdef size_t len
@@ -120,6 +122,7 @@ cdef class Image :
         ti.height = height
         ti.x = x
         ti.y = y
+        ti.zoom = zoom
         
         # render and return ptr to buffer
         trap_err("pt_image_tile_mem", 

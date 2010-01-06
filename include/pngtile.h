@@ -63,8 +63,8 @@ struct pt_tile_info {
     /** Pixel coordinates of top-left corner */
     size_t x, y;
 
-    /** Zoom factor (out < zero < in) */
-    // TODO: int zoom;
+    /** Zoom factor of 2^z (out < zero < in) */
+    int zoom;
 };
 
 /**
@@ -185,6 +185,8 @@ enum pt_error {
 
     PT_ERR_PTHREAD_CREATE,
     PT_ERR_CTX_SHUTDOWN,
+
+    PT_ERR_ZOOM,
 
     PT_ERR_MAX,
 };

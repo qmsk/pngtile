@@ -66,7 +66,7 @@ def image_view (req, image_path, image) :
         </div>
 
         <script type="text/javascript">
-            var tile_source = new Source("%(tile_url)s", %(tile_width)d, %(tile_height)d, 0, 0);
+            var tile_source = new Source("%(tile_url)s", %(tile_width)d, %(tile_height)d, -4, 0);
             var main = new Viewport(tile_source, "viewport");
         </script>
     </body>
@@ -79,8 +79,22 @@ def image_view (req, image_path, image) :
         tile_height     = TILE_HEIGHT,
     )
 
-def render_tile (image, x, y) :
-    return image.tile_mem(TILE_WIDTH, TILE_HEIGHT, x, y)
+def scale_by_zoom (val, zoom) :
+    if zoom > 0 :
+        return val << zoom
+
+    elif zoom > 0 :
+        return val >> -zoom
+
+    else :
+        return val
+
+def render_tile (image, x, y, zoom) :
+    return image.tile_mem(
+        TILE_WIDTH, TILE_HEIGHT, 
+        scale_by_zoom(x, -zoom), scale_by_zoom(y, -zoom), 
+        zoom
+    )
 
 def handle_main (req) :
     # path to image
@@ -128,9 +142,10 @@ def handle_main (req) :
         # tile
         x = int(req.args['x'])
         y = int(req.args['y'])
+        zoom = int(req.args.get('zoom', "0"))
         
         # yay render
-        return Response(render_tile(image, x, y), content_type="image/png")
+        return Response(render_tile(image, x, y, zoom), content_type="image/png")
    
     else :
         raise exceptions.BadRequest("Unknown args")

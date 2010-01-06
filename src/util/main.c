@@ -19,6 +19,7 @@ static const struct option options[] = {
     { "height",         true,   NULL,   'H' },
     { "x",              true,   NULL,   'x' },
     { "y",              true,   NULL,   'y' },
+    { "zoom",           true,   NULL,   'z' },
     { "threads",        true,   NULL,   'j' },
     { 0,                0,      0,      0   }
 };
@@ -41,6 +42,7 @@ void help (const char *argv0)
         "\t-H, --height         set tile height\n"
         "\t-x, --x              set tile x offset\n"
         "\t-y, --y              set tile z offset\n"
+        "\t-z, --zoom           set zoom factor (<0)\n"
         "\t-j, --threads        number of threads\n"
     );
 }
@@ -49,12 +51,12 @@ int main (int argc, char **argv)
 {
     int opt;
     bool force_update = false;
-    struct pt_tile_info ti = {0, 0, 0, 0};
+    struct pt_tile_info ti = {0, 0, 0, 0, 0};
     int threads = 2;
     int tmp, err;
     
     // parse arguments
-    while ((opt = getopt_long(argc, argv, "hqvDUW:H:x:y:j:", options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hqvDUW:H:x:y:z:j:", options, NULL)) != -1) {
         switch (opt) {
             case 'h':
                 // display help
@@ -92,6 +94,9 @@ int main (int argc, char **argv)
 
             case 'y':
                 ti.y = strtol(optarg, NULL, 0); break;
+
+            case 'z':
+                ti.zoom = strtol(optarg, NULL, 0); break;
 
             case 'j':
                 if ((tmp = strtol(optarg, NULL, 0)) < 1)

@@ -30,6 +30,7 @@ const char *error_names[PT_ERR_MAX] = {
     [PT_ERR_CTX_SHUTDOWN]       = "pt_ctx is shutting down",
 
     [PT_ERR_TILE_CLIP]          = "Tile outside of image",
+    [PT_ERR_ZOOM]               = "Invalid zoom level",
 };
 
 const char *pt_strerror (int err)
