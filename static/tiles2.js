@@ -70,12 +70,29 @@ var Viewport = Class.create({
         Event.observe(this.substrate, "mousewheel", this.on_mousewheel.bindAsEventListener(this));
         Event.observe(this.substrate, "DOMMouseScroll", this.on_mousewheel.bindAsEventListener(this));     // mozilla
         Event.observe(document, "resize", this.on_resize.bindAsEventListener(this));
-
-        // load initial view
+    
+        // set viewport size
         this.update_size();
+        
+        // initial location?    
+        if (document.location.hash) {
+            // x:y:z tuple
+            var pt = document.location.hash.substr(1).split(":");
+            
+            // unpack
+            var cx = 0, cy = 0, z = 0;
+            
+            if (pt.length) cx = parseInt(pt.shift());
+            if (pt.length) cy = parseInt(pt.shift());
+            if (pt.length) z = parseInt(pt.shift());
 
-        // this sets the scroll offsets, zoom level, and loads the tiles
-        this.zoom_to(0, 0, 0);
+            // initial view
+            this.zoom_center_to(cx, cy, z);
+
+        } else {
+            // this sets the scroll offsets, zoom level, and loads the tiles
+            this.zoom_to(0, 0, 0);
+        }
     },
     
     /* event handlers */
@@ -354,11 +371,8 @@ var Viewport = Class.create({
             }
         }
 
-/* XXX: fixme
         // update the link-to-this-page thing
-        document.location.hash = "#goto_" + (x + g_w_half) + ":" + g_w + "_" + (y + g_h_half) + ":" + g_h + "_" + g_z;
-*/
-
+        document.location.hash = "#" + (this.scroll_x + this.center_offset_x) + ":" + (this.scroll_y + this.center_offset_y) + ":" + this.zoom_layer.level;
     }, 
 
     // do update_tiles after 100ms, unless we are called again
