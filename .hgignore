@@ -1,6 +1,7 @@
 syntax: regexp
 
 \.[^/]+\.sw[op]$
+\.pyc$
 
 ^build/
 ^bin/

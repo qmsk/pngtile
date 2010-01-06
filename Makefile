@@ -33,7 +33,7 @@ SRC_DIRS = $(dir $(SRC_NAMES))
 .PHONY : dirs clean depend dist
 
 dirs: 
-	mkdir -p bin lib run dist
+	mkdir -p bin lib dist
 	mkdir -p $(SRC_DIRS:%=build/deps/%)
 	mkdir -p $(SRC_DIRS:%=build/obj/%)
 
