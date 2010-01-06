@@ -15,6 +15,36 @@ IMAGE_CACHE = {}
 TILE_WIDTH = 256
 TILE_HEIGHT = 256
 
+def dir_view (req, name, path) :
+    prefix = os.path.dirname(req.script_root).rstrip('/')
+    name = name.rstrip('/')
+
+
+    return """\
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+    <head>
+        <title>Index of %(dir)s</title>
+        <link rel="Stylesheet" type="text/css" href="%(prefix)s/static/style.css">
+    </head>
+    <body>
+        <h1>Index of %(dir)s</h1>
+
+        <ul>
+%(listing)s
+        </ul>
+    </body>
+</html>""" % dict(
+        prefix          = prefix,
+        dir             = name,
+        
+        listing         = "\n".join(
+            """<li><a href="%(url)s">%(name)s</a></li>""" % dict(
+                url         = '/'.join((prefix, name, item)),
+                name        = item,
+            ) for item in ['..'] + os.listdir(path)
+        ),
+    )
+
 def image_view (req, image_path, image) :
     image_name = os.path.basename(image_path)
 
@@ -54,19 +84,25 @@ def render_tile (image, x, y) :
 
 def handle_main (req) :
     # path to image
-    image = req.path.lstrip('/')
-    
-    # check a .png filename was given
-    if not image or not image.endswith('.png') :
-        raise exceptions.BadRequest("no .png path given")
+    image_name = req.path.lstrip('/')
     
     # build absolute path
-    image_path = os.path.abspath(os.path.join(DATA_ROOT, image))
+    image_path = os.path.abspath(os.path.join(DATA_ROOT, image_name))
+
+    print image_name, image_path
     
     # ensure the path points inside the data root
     if not image_path.startswith(DATA_ROOT) :
-        raise exceptions.NotFound(image)
+        raise exceptions.NotFound(image_name)
+
+
+    if os.path.isdir(image_path) :
+        return Response(dir_view(req, image_name, image_path), content_type="text/html")
+
+    elif not image_name or not image_name.endswith('.png') :
+        raise exceptions.BadRequest("no .png path given")
     
+
     # get Image object
     if image_path in IMAGE_CACHE :
         # get from cache
@@ -75,10 +111,13 @@ def handle_main (req) :
     else :
         # ensure exists
         if not os.path.exists(image_path) :
-            raise exceptions.NotFound(image)
+            raise exceptions.NotFound(image_name)
 
         # cache
         image = IMAGE_CACHE[image_path] = pt.Image(image_path)
+    
+    if image.status() == pt.CACHE_NONE :
+        raise exceptions.InternalServerError("Image not cached: " + image_name)
 
     # what view?
     if not req.args :
