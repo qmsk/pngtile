@@ -26,7 +26,7 @@ var Source = Class.create({
         var x = col * this.tile_width;
         var y = row * this.tile_height;
 
-        var url = this.path + "?x=" + x + "&y=" + y + "&zoom=" + zl + "&sw=" + sw + "&sh=" + sh;
+        var url = this.path + "?x=" + x + "&y=" + y + "&zl=" + zl; // + "&sw=" + sw + "&sh=" + sh;
 
         if (this.refresh)
             url += "&ts=" + new Date().getTime();
@@ -36,6 +36,11 @@ var Source = Class.create({
 
         return url;
     },
+
+    // build an URL for a full image
+    build_image_url: function (cx, cy, w, h, zl) {
+        return (this.path + "?cx=" + cx + "&cy=" + cy + "&w=" + w + "&h=" + h + "&zl=" + zl);
+    }
 });
 
 // a viewport that contains a substrate which contains several zoom layers which contain many tiles
@@ -83,6 +88,9 @@ var Viewport = Class.create({
     
         // set viewport size
         this.update_size();
+        
+        // this comes after update_size, since it must be updated once we have the size and zoom layer...
+        this.image_link = $("lnk-image");
         
         // initial location?    
         if (document.location.hash) {
@@ -282,6 +290,8 @@ var Viewport = Class.create({
 
         this.center_offset_x = Math.floor(this.view_width / 2);
         this.center_offset_y = Math.floor(this.view_height / 2);
+
+        this.update_image_link();
     },
     
     // figure out the scroll offset as absolute pixel co-ordinates at the top left
@@ -354,6 +364,8 @@ var Viewport = Class.create({
         
         if (this.btn_zoom_out)
             (this.zoom_layer.level <= this.source.zoom_min) ? this.btn_zoom_out.disable() : this.btn_zoom_out.enable();
+        
+        this.update_image_link();
     },
     
     // ensure that all tiles that are currently visible are loaded
@@ -414,10 +426,33 @@ var Viewport = Class.create({
                 }
             }
         }
+        
+        this.update_scroll_ui();
+    }, 
+    
+    // update scroll-dependant UI elements
+    update_scroll_ui: function () {
+        // update link-to-image
+        this.update_image_link();
 
         // update the link-to-this-page thing
         document.location.hash = "#" + (this.scroll_x + this.center_offset_x) + ":" + (this.scroll_y + this.center_offset_y) + ":" + this.zoom_layer.level;
-    }, 
+    },
+    
+    // update image link with size, zoom, pos
+    update_image_link: function () {
+        if (!this.image_link)
+            return;
+
+        this.image_link.href = this.source.build_image_url(
+            this.scroll_x + this.center_offset_x,
+            this.scroll_y + this.center_offset_y,
+            this.view_width, this.view_height,
+            this.zoom_layer.level
+        );
+
+        this.image_link.innerHTML = this.view_width + "x" + this.view_height + "@" + this.zoom_layer.level;
+    },
 
     // do update_tiles after 100ms, unless we are called again
     update_after_timeout: function () {

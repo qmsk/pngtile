@@ -64,6 +64,7 @@ def image_view (req, image_path, image) :
                 <div class="overlay">
                     <input type="button" id="btn-zoom-in" value="Zoom In" />
                     <input type="button" id="btn-zoom-out" value="Zoom Out" />
+                    <a class="link" id="lnk-image" href="#"></a>
                 </div>
 
                 <div class="substrate"></div>
@@ -94,12 +95,22 @@ def scale_by_zoom (val, zoom) :
     else :
         return val
 
-def render_tile (image, x, y, zoom) :
+def render_tile (image, x, y, zoom, width=TILE_WIDTH, height=TILE_HEIGHT) :
     return image.tile_mem(
-        TILE_WIDTH, TILE_HEIGHT, 
+        width, height, 
         scale_by_zoom(x, -zoom), scale_by_zoom(y, -zoom), 
         zoom
     )
+
+def render_image (image, cx, cy, zoom, width, height) :
+    x = scale_by_zoom(cx - width / 2, -zoom)
+    y = scale_by_zoom(cy - height / 2, -zoom)
+
+    return image.tile_mem(
+        width, height,
+        x, y,
+        zoom
+   )
 
 def handle_main (req) :
     # path to image
@@ -144,11 +155,22 @@ def handle_main (req) :
         # viewport
         return Response(image_view(req, image_path, image), content_type="text/html")
 
+    elif 'w' in req.args and 'h' in req.args and 'cx' in req.args and 'cy' in req.args :
+        # specific image
+        width = int(req.args['w'])
+        height = int(req.args['h'])
+        cx = int(req.args['cx'])
+        cy = int(req.args['cy'])
+        zoom = int(req.args.get('zl', "0"))
+
+        # yay full render
+        return Response(render_image(image, cx, cy, zoom, width, height), content_type="image/png")
+
     elif 'x' in req.args and 'y' in req.args :
         # tile
         x = int(req.args['x'])
         y = int(req.args['y'])
-        zoom = int(req.args.get('zoom', "0"))
+        zoom = int(req.args.get('zl', "0"))
         
         # yay render
         return Response(render_tile(image, x, y, zoom), content_type="image/png")
