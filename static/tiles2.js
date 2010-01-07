@@ -1,11 +1,13 @@
 // A source of tile images of a specific width/height, zoom level range, and some other attributes
 var Source = Class.create({
-    initialize: function (path, tile_width, tile_height, zoom_min, zoom_max) {
+    initialize: function (path, tile_width, tile_height, zoom_min, zoom_max, img_width, img_height) {
         this.path = path;
         this.tile_width = tile_width;
         this.tile_height = tile_height;
         this.zoom_min = zoom_min;
         this.zoom_max = zoom_max;
+        this.img_width = img_width;
+        this.img_height = img_height;
 
         this.refresh = false;
         this.opt_key = this.opt_value = null;
@@ -91,30 +93,33 @@ var Viewport = Class.create({
         
         // this comes after update_size, since it must be updated once we have the size and zoom layer...
         this.image_link = $("lnk-image");
+            
+        // initial location
+        var cx = 0, cy = 0, z = 0;
         
         // initial location?    
         if (document.location.hash) {
             // x:y:z tuple
             var pt = document.location.hash.substr(1).split(":");
             
-            // unpack
-            var cx = 0, cy = 0, z = 0;
-            
+            // unpack    
             if (pt.length) cx = parseInt(pt.shift());
             if (pt.length) cy = parseInt(pt.shift());
             if (pt.length) z = parseInt(pt.shift());
 
-            // initial view
-            this.zoom_scaled(
-                cx - this.center_offset_x, 
-                cy - this.center_offset_y, 
-                z
-            );
-
         } else {
-            // this sets the scroll offsets, zoom level, and loads the tiles
-            this.zoom_to(0, 0, 0);
+            // start in the center
+            cx = this.source.img_width / 2;
+            cy = this.source.img_height / 2;
+            z = 0; // XXX: xy unscaled: (this.source.zoom_min + this.source.zoom_max) / 2;
         }
+
+        // initial view
+        this.zoom_scaled(
+            cx - this.center_offset_x, 
+            cy - this.center_offset_y, 
+            z
+        );
     },
     
     /* event handlers */

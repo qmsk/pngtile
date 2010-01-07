@@ -15,6 +15,9 @@ IMAGE_CACHE = {}
 TILE_WIDTH = 256
 TILE_HEIGHT = 256
 
+# max. output resolution to allow
+MAX_PIXELS = 1920 * 1200
+
 def dir_view (req, name, path) :
     prefix = os.path.dirname(req.script_root).rstrip('/')
     name = name.rstrip('/')
@@ -48,6 +51,8 @@ def dir_view (req, name, path) :
 def image_view (req, image_path, image) :
     image_name = os.path.basename(image_path)
 
+    img_width, img_height = image.info()
+
     return """\
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
     <head>
@@ -72,7 +77,7 @@ def image_view (req, image_path, image) :
         </div>
 
         <script type="text/javascript">
-            var tile_source = new Source("%(tile_url)s", %(tile_width)d, %(tile_height)d, -4, 0);
+            var tile_source = new Source("%(tile_url)s", %(tile_width)d, %(tile_height)d, -4, 0, %(img_width)d, %(img_height)d);
             var main = new Viewport(tile_source, "viewport");
         </script>
     </body>
@@ -83,6 +88,9 @@ def image_view (req, image_path, image) :
 
         tile_width      = TILE_WIDTH,
         tile_height     = TILE_HEIGHT,
+
+        img_width       = img_width,
+        img_height      = img_height,
     )
 
 def scale_by_zoom (val, zoom) :
@@ -106,11 +114,15 @@ def render_image (image, cx, cy, zoom, width, height) :
     x = scale_by_zoom(cx - width / 2, -zoom)
     y = scale_by_zoom(cy - height / 2, -zoom)
 
+    # safely limit
+    if width * height > MAX_PIXELS :
+        raise exceptions.Forbidden("Image too large: %d * %d > %d" % (width, height, MAX_PIXELS))
+
     return image.tile_mem(
         width, height,
         x, y,
         zoom
-   )
+    )
 
 def handle_main (req) :
     # path to image
