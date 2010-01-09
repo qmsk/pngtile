@@ -87,7 +87,9 @@ var Viewport = Class.create({
         this.draggable = new Draggable(this.substrate, {
             onStart: this.on_scroll_start.bind(this),
             onDrag: this.on_scroll_move.bind(this),
-            onEnd: this.on_scroll_end.bind(this)
+            onEnd: this.on_scroll_end.bind(this),
+
+            zindex: false
         });
 
         // register event handlers for other UI functions
