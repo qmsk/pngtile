@@ -87,7 +87,7 @@ var Viewport = Class.create({
         this.draggable = new Draggable(this.substrate, {
             onStart: this.on_scroll_start.bind(this),
             onDrag: this.on_scroll_move.bind(this),
-            onEnd: this.on_scroll_end.bind(this),
+            onEnd: this.on_scroll_end.bind(this)
         });
 
         // register event handlers for other UI functions
@@ -499,7 +499,7 @@ var Viewport = Class.create({
                     // build a new tile
                     t = Builder.node("img", {
                             src:    this.source.build_url(col, row, zl /* , sw, sh */),
-                            id:     id,
+                            id:     id //,
                             // title:  "(" + col + ", " + row + ")",
                             // style set later
                         }
@@ -607,12 +607,15 @@ var ZoomLayer = Class.create({
     /** Make this zoom layer visible with the given z-index */
     enable: function (z_index) {
         this.div.style.zIndex = z_index;
-        this.div.show();
+
+        // XXX: IE8 needs this for some reason
+        $(this.div).show();
     },
    
     /** Hide this zoom layer */
     disable: function () {
-        this.div.hide();
+        // XXX: IE8
+        $(this.div).hide();
     },
     
     /** 

@@ -240,8 +240,7 @@ var Draggable = Class.create({
       style.top  = p[1] + "px";
     
     if(style.visibility=="hidden") style.visibility = ""; // fix gecko rendering
-  },
-   
+  }
 });
 
 Draggable._dragging = { };
