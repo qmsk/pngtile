@@ -45,3 +45,13 @@ body {
 
     background-color: #FFFFFF;
 }
+
+.background {
+    z-index: 1;
+
+    font-size: xx-large;
+
+    text-align: center;
+
+    margin: 30%;
+}

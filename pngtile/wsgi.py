@@ -74,6 +74,10 @@ def image_view (req, image_path, image) :
                 </div>
 
                 <div class="substrate"></div>
+
+                <div class="background">
+                    Loading...
+                </div>
             </div>
         </div>
 
