@@ -556,7 +556,7 @@ var Viewport = Class.create({
      */ 
     update_scroll_ui: function () {
         // update the link-to-this-page thing
-        document.location.hash = "#" + (this.scroll_x + this.center_offset_x) + ":" + (this.scroll_y + this.center_offset_y) + ":" + this.zoom_layer.level;
+        document.location.hash = (this.scroll_x + this.center_offset_x) + ":" + (this.scroll_y + this.center_offset_y) + ":" + this.zoom_layer.level;
         
         // update link-to-image
         this.update_image_link();
