@@ -109,7 +109,9 @@ var Viewport = Class.create({
             Event.observe(this.btn_zoom_out, "click", this.zoom_out.bindAsEventListener(this));
            
         // initial view location (centered)
-        var cx = 0, cy = 0, zl = 0;
+        var cx = this.source.img_width / 2;
+        var cy = this.source.img_height / 2;
+        var zl = 0; // XXX: would need to scale x/y for this: (this.source.zoom_min + this.source.zoom_max) / 2;
         
         // from link?
         if (document.location.hash) {
@@ -117,15 +119,9 @@ var Viewport = Class.create({
             var pt = document.location.hash.substr(1).split(":");
             
             // unpack    
-            if (pt.length) cx = parseInt(pt.shift());
-            if (pt.length) cy = parseInt(pt.shift());
-            if (pt.length) zl = parseInt(pt.shift());
-
-        } else {
-            // start in the center
-            cx = this.source.img_width / 2;
-            cy = this.source.img_height / 2;
-            zl = 0; // XXX: need to scale x/y for this: (this.source.zoom_min + this.source.zoom_max) / 2;
+            if (pt.length) cx = parseInt(pt.shift()) || cx;
+            if (pt.length) cy = parseInt(pt.shift()) || cy;
+            if (pt.length) zl = parseInt(pt.shift()) || zl;
         }
 
         // initialize zoom state to given zl
