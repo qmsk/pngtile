@@ -254,7 +254,9 @@ var Viewport = Class.create({
     /** Substrate was scrolled, update scroll_{x,y}, and then update tiles after 100ms */
     on_scroll_move: function (ev) {
         this.update_scroll();
-        this.update_after_timeout();
+
+        // fast-update at 100ms intervals
+        this.update_after_timeout(true);
     },
     
     /** Substrate scroll was ended, update tiles now */
@@ -430,20 +432,25 @@ var Viewport = Class.create({
         return true;
     },
 
-    /** Schedule an update_tiles() after a 100ms interval */
-    update_after_timeout: function () {
+    /** Run update_tiles() at 500ms intervals */
+    update_after_timeout: function (fast) {
         // have not called update_tiles() yet
         this._update_idle = false;
         
         // cancel old timeout
-        if (this._update_timeout)
+        if (!fast && this._update_timeout) {
             clearTimeout(this._update_timeout);
-        
-        // trigger in 100ms
-        this._update_timeout = setTimeout(this._update_timeout_trigger.bind(this), 100);  
+            this._update_timeout = null;
+        }
+
+        if (!this._update_timeout)
+            // trigger after delay
+            this._update_timeout = setTimeout(this._update_timeout_trigger.bind(this), fast ? 500 : 100);
     },
     
     _update_timeout_trigger: function () {
+        this._update_timeout = null;
+
         // have called update_tiles()
         this._update_idle = true;
         
@@ -456,9 +463,11 @@ var Viewport = Class.create({
      */
     update_now: function () {
         // abort trigger if active
-        if (this._update_timeout)
+        if (this._update_timeout) {
             clearTimeout(this._update_timeout);
-        
+            this._update_timeout = null;
+        }
+
         // update now unless already done
         if (!this._update_idle)
             this.update_tiles();
