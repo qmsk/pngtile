@@ -201,11 +201,16 @@ int main (int argc, char **argv)
         // show info
         const struct pt_image_info *img_info;
         
-        if ((err = pt_image_info(image, &img_info)))
+        if ((err = pt_image_info(image, &img_info))) {
             log_warn_errno("pt_image_info: %s: %s", img_path, pt_strerror(err));
 
-        else
+        } else {
             log_info("\tImage dimensions: %zux%zu", img_info->width, img_info->height);
+            log_info("\tImage mtime=%u, bytes=%zu", img_info->image_mtime, img_info->image_bytes);
+            log_info("\tCache mtime=%u, bytes=%zu, blocks=%zu (%zu bytes)", 
+                    img_info->cache_mtime, img_info->cache_bytes, img_info->cache_blocks, img_info->cache_blocks * 512,
+            );
+        }
 
         // render tile?
         if (ti.width && ti.height) {

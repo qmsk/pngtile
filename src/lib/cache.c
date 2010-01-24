@@ -69,6 +69,7 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
 
 int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
 {
+    struct stat st;
     int err;
 
     // ensure open
@@ -77,6 +78,20 @@ int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
 
     info->width = cache->header->width;
     info->height = cache->header->height;
+
+    // stat
+    if (stat(cache->path, &st) < 0) {
+        // unknown
+        info->cache_mtime = 0;
+        info->cache_bytes = 0;
+        info->cache_blocks = 0;
+
+    } else {
+        // store
+        info->cache_mtime = st.st_mtime;
+        info->cache_bytes = st.st_size;
+        info->cache_blocks = st.st_blocks;
+    }
 
     return 0;
 }

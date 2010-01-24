@@ -7,6 +7,8 @@
 #include "shared/log.h"
 
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <errno.h>
 
 #include <png.h>
@@ -204,11 +206,24 @@ error:
 
 int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr)
 {
+    struct stat st;
     int err;
 
     // update info
     if ((err = pt_cache_info(image->cache, &image->info)))
         return err;
+
+    // stat our info
+    if (stat(image->path, &st) < 0) {
+        // unknown
+        image->info.image_mtime = 0;
+        image->info.image_bytes = 0;
+
+    } else {
+        // store
+        image->info.image_mtime = st.st_mtime;
+        image->info.image_bytes = st.st_size;
+    }
     
     // return pointer
     *info_ptr = &image->info;

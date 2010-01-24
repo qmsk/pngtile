@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <stdio.h> // for FILE*
 #include <stdint.h>
+#include <sys/types.h> // for time_t
 
 /**
  * "Global" context shared between images
@@ -46,18 +47,24 @@ enum pt_cache_status {
     PT_CACHE_STALE      = 2,
 };
 
-/** Metadata info for image */
+/** Metadata info for image. Values will be set to zero if not available */
 struct pt_image_info {
     /** Dimensions of image */
     size_t width, height;
 
+    /** Last update of image file */
+    time_t image_mtime;
+
     /** Size of image file in bytes */
     size_t image_bytes;
+
+    /** Last update of cache file */
+    time_t cache_mtime;
 
     /** Size of cache file in bytes */
     size_t cache_bytes;
 
-    /** Size of cache file in blocks (for sparse cache files) */
+    /** Size of cache file in blocks (for sparse cache files) - 512 bytes / block? */
     size_t cache_blocks;
 };
 
