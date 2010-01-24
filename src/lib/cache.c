@@ -42,9 +42,89 @@ error:
     return err;
 }
 
+/**
+ * Open the cache file as an fd for reading
+ *
+ * XXX: use some kind of locking?
+ */
+static int pt_cache_open_read_fd (struct pt_cache *cache, int *fd_ptr)
+{
+    int fd;
+    
+    // actual open()
+    if ((fd = open(cache->path, O_RDONLY)) < 0)
+        RETURN_ERROR_ERRNO(PT_ERR_OPEN_MODE, EACCES);
+
+    // ok
+    *fd_ptr = fd;
+
+    return 0;
+}
+
+/**
+ * Read in the cache header from the open file
+ */
+static int pt_cache_read_header (int fd, struct pt_cache_header *header)
+{
+    size_t len = sizeof(*header);
+    char *buf = (char *) header;
+
+    // seek to start
+    if (lseek(fd, 0, SEEK_SET) != 0)
+        RETURN_ERROR(PT_ERR_CACHE_SEEK);
+
+    // write out full header
+    while (len) {
+        ssize_t ret;
+        
+        // try and write out the header
+        if ((ret = read(fd, buf, len)) <= 0)
+            RETURN_ERROR(PT_ERR_CACHE_READ);
+
+        // update offset
+        buf += ret;
+        len -= ret;
+    }
+
+    // done
+    return 0;
+}
+
+/**
+ * Read and return the version number from the cache file, temporarily opening it if needed
+ */
+static int pt_cache_version (struct pt_cache *cache)
+{
+    int fd;
+    struct pt_cache_header header;
+    int ret;
+
+    // already open?
+    if (cache->file)
+        return cache->file->header.version;
+
+    // temp. open
+    if ((ret = pt_cache_open_read_fd(cache, &fd)))
+        return ret;
+
+    // read header
+    if ((ret = pt_cache_read_header(fd, &header)))
+        JUMP_ERROR(ret);
+
+    // ok
+    ret = header.version;
+    
+error:
+    // close
+    close(fd);
+    
+    return ret;
+}
+
 int pt_cache_status (struct pt_cache *cache, const char *img_path)
 {
     struct stat st_img, st_cache;
+    int ver;
     
     // test original file
     if (stat(img_path, &st_img) < 0)
@@ -62,22 +142,27 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
     // compare mtime
     if (st_img.st_mtime > st_cache.st_mtime)
         return PT_CACHE_STALE;
+    
+    // read version
+    if ((ver = pt_cache_version(cache)) < 0)
+        // fail
+        return ver;
 
-    else
-        return PT_CACHE_FRESH;
+    // compare version
+    if (ver != PT_CACHE_VERSION)
+        return PT_CACHE_INCOMPAT;
+    
+    // ok, should be in order
+    return PT_CACHE_FRESH;
 }
 
-int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
+void pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
 {
     struct stat st;
-    int err;
 
-    // ensure open
-    if ((err = pt_cache_open(cache)))
-        return err;
-
-    info->width = cache->header->width;
-    info->height = cache->header->height;
+    if (cache->file)
+        // img info
+        pt_png_info(&cache->file->header.png, info);
 
     // stat
     if (stat(cache->path, &st) < 0) {
@@ -88,12 +173,11 @@ int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
 
     } else {
         // store
+        info->cache_version = pt_cache_version(cache);
         info->cache_mtime = st.st_mtime;
         info->cache_bytes = st.st_size;
         info->cache_blocks = st.st_blocks;
     }
-
-    return 0;
 }
 
 /**
@@ -101,11 +185,10 @@ int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
  */
 static void pt_cache_abort (struct pt_cache *cache)
 {
-    if (cache->header != NULL) {
-        munmap(cache->header, PT_CACHE_HEADER_SIZE + cache->size);
+    if (cache->file != NULL) {
+        munmap(cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size);
 
-        cache->header = NULL;
-        cache->data = NULL;
+        cache->file = NULL;
     }
 
     if (cache->fd >= 0) {
@@ -113,25 +196,6 @@ static void pt_cache_abort (struct pt_cache *cache)
 
         cache->fd = -1;
     }
-}
-
-/**
- * Open the cache file as an fd for reading
- *
- * XXX: needs locking
- */
-static int pt_cache_open_read_fd (struct pt_cache *cache, int *fd_ptr)
-{
-    int fd;
-    
-    // actual open()
-    if ((fd = open(cache->path, O_RDONLY)) < 0)
-        RETURN_ERROR_ERRNO(PT_ERR_OPEN_MODE, EACCES);
-
-    // ok
-    *fd_ptr = fd;
-
-    return 0;
 }
 
 /**
@@ -147,7 +211,7 @@ static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
         RETURN_ERROR(PT_ERR_PATH);
 
     // open for write, create
-    // XXX: locking?
+    // XXX: locking? At least O_EXCL...
     if ((fd = open(tmp_path, O_RDWR | O_CREAT, 0644)) < 0)
         RETURN_ERROR(PT_ERR_CACHE_OPEN_TMP);
 
@@ -159,9 +223,9 @@ static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
 
 
 /**
- * Mmap the opened cache file using PT_CACHE_HEADER_SIZE plus the calculated size stored in cache->size
+ * Mmap the pt_cache_file using sizeof(struct pt_cache_file) + data_size
  */
-static int pt_cache_open_mmap (struct pt_cache *cache, void **addr_ptr, bool readonly)
+static int pt_cache_open_mmap (struct pt_cache *cache, void **addr_ptr, size_t data_size, bool readonly)
 {
     int prot = 0;
     void *addr;
@@ -176,7 +240,7 @@ static int pt_cache_open_mmap (struct pt_cache *cache, void **addr_ptr, bool rea
     }
 
     // mmap() the full file including header
-    if ((addr = mmap(NULL, PT_CACHE_HEADER_SIZE + cache->size, prot, MAP_SHARED, cache->fd, 0)) == MAP_FAILED)
+    if ((addr = mmap(NULL, sizeof(struct pt_cache_file) + data_size, prot, MAP_SHARED, cache->fd, 0)) == MAP_FAILED)
         RETURN_ERROR(PT_ERR_CACHE_MMAP);
 
     // ok
@@ -185,33 +249,39 @@ static int pt_cache_open_mmap (struct pt_cache *cache, void **addr_ptr, bool rea
     return 0;
 }
 
-/**
- * Read in the cache header from the open file
- */
-static int pt_cache_read_header (struct pt_cache *cache, struct pt_cache_header *header)
+int pt_cache_open (struct pt_cache *cache)
 {
-    size_t len = sizeof(*header);
-    char *buf = (char *) header;
+    struct pt_cache_header header;
+    int err;
 
-    // seek to start
-    if (lseek(cache->fd, 0, SEEK_SET) != 0)
-        RETURN_ERROR(PT_ERR_CACHE_SEEK);
+    // ignore if already open
+    if (cache->file)
+        return 0;
 
-    // write out full header
-    while (len) {
-        ssize_t ret;
-        
-        // try and write out the header
-        if ((ret = read(cache->fd, buf, len)) <= 0)
-            RETURN_ERROR(PT_ERR_CACHE_READ);
+    // open the .cache in readonly mode
+    if ((err = pt_cache_open_read_fd(cache, &cache->fd)))
+        return err;
 
-        // update offset
-        buf += ret;
-        len -= ret;
-    }
+    // read in header
+    if ((err = pt_cache_read_header(cache->fd, &header)))
+        JUMP_ERROR(err);
+
+    // check version
+    if (header.version != PT_CACHE_VERSION)
+        JUMP_SET_ERROR(err, PT_ERR_CACHE_VERSION);
+
+    // mmap the header + data
+    if ((err = pt_cache_open_mmap(cache, (void **) &cache->file, header.data_size, true)))
+        JUMP_ERROR(err);
 
     // done
     return 0;
+
+error:
+    // cleanup
+    pt_cache_abort(cache);
+
+    return err;
 }
 
 /**
@@ -248,7 +318,6 @@ static int pt_cache_write_header (struct pt_cache *cache, const struct pt_cache_
  */
 static int pt_cache_create (struct pt_cache *cache, struct pt_cache_header *header)
 {
-    void *base;
     int err;
 
     // no access
@@ -259,23 +328,16 @@ static int pt_cache_create (struct pt_cache *cache, struct pt_cache_header *head
     if ((err = pt_cache_open_tmp_fd(cache, &cache->fd)))
         return err;
 
-    // calculate data size
-    cache->size = header->height * header->row_bytes;
+    // write header
+    if ((err = pt_cache_write_header(cache, header)))
+        JUMP_ERROR(err);
 
     // grow file
-    if (ftruncate(cache->fd, PT_CACHE_HEADER_SIZE + cache->size) < 0)
+    if (ftruncate(cache->fd, sizeof(struct pt_cache_file) + header->data_size) < 0)
         JUMP_SET_ERROR(err, PT_ERR_CACHE_TRUNC);
 
     // mmap header and data
-    if ((err = pt_cache_open_mmap(cache, &base, false)))
-        JUMP_ERROR(err);
-
-    cache->header = base;
-    cache->data = base + PT_CACHE_HEADER_SIZE;
-
-    // write header
-    // XXX: should just mmap...
-    if ((err = pt_cache_write_header(cache, header)))
+    if ((err = pt_cache_open_mmap(cache, (void **) &cache->file, header->data_size, false)))
         JUMP_ERROR(err);
 
     // done
@@ -307,422 +369,43 @@ static int pt_cache_create_done (struct pt_cache *cache)
     return 0;
 }
 
-int pt_cache_open (struct pt_cache *cache)
-{
-    struct pt_cache_header header;
-    void *base;
-    int err;
-
-    // ignore if already open
-    if (cache->header && cache->data)
-        return 0;
-
-    // open the .cache
-    if ((err = pt_cache_open_read_fd(cache, &cache->fd)))
-        return err;
-
-    // read in header
-    if ((err = pt_cache_read_header(cache, &header)))
-        JUMP_ERROR(err);
-
-    // calculate data size
-    cache->size = header.height * header.row_bytes;
-
-    // mmap header and data
-    if ((err = pt_cache_open_mmap(cache, &base, true)))
-        JUMP_ERROR(err);
-
-    cache->header = base;
-    cache->data = base + PT_CACHE_HEADER_SIZE;
-
-    // done
-    return 0;
-
-error:
-    // cleanup
-    pt_cache_abort(cache);
-
-    return err;
-}
-
-#define min(a, b) (((a) < (b)) ? (a) : (b))
-
-/**
- * Decode the PNG data directly to mmap() - not good for sparse backgrounds
- */
-static int decode_png_raw (struct pt_cache *cache, png_structp png, png_infop info)
-{
-    // write out raw image data a row at a time
-    for (size_t row = 0; row < cache->header->height; row++) {
-        // read row data, non-interlaced
-        png_read_row(png, cache->data + row * cache->header->row_bytes, NULL);
-    }
-
-    return 0;
-}
-
-static int decode_png_sparse (struct pt_cache *cache, png_structp png, png_infop info)
-{
-    // one row of pixel data
-    uint8_t *row_buf;
-
-    // alloc
-    if ((row_buf = malloc(cache->header->row_bytes)) == NULL)
-        RETURN_ERROR(PT_ERR_MEM);
-
-    // decode each row at a time
-    for (size_t row = 0; row < cache->header->height; row++) {
-        // read row data, non-interlaced
-        png_read_row(png, row_buf, NULL);
-        
-        // skip background-colored regions to keep the cache file sparse
-        // ...in blocks of PT_CACHE_BLOCK_SIZE bytes
-        for (size_t col_base = 0; col_base < cache->header->width; col_base += PT_CACHE_BLOCK_SIZE) {
-            // size of this block in bytes
-            size_t block_size = min(PT_CACHE_BLOCK_SIZE * cache->header->col_bytes, cache->header->row_bytes - col_base);
-
-            // ...each pixel
-            for (
-                    size_t col = col_base;
-
-                    // BLOCK_SIZE * col_bytes wide, don't go over the edge
-                    col < col_base + block_size; 
-
-                    col += cache->header->col_bytes
-            ) {
-                // test this pixel
-                if (bcmp(row_buf + col, cache->header->params.background_color, cache->header->col_bytes)) {
-                    // differs
-                    memcpy(
-                            cache->data + row * cache->header->row_bytes + col_base, 
-                            row_buf + col_base,
-                            block_size
-                    );
-                    
-                    // skip to next block
-                    break;
-                }
-            }
-
-            // skip this block
-            continue;
-        }
-    }
-
-    return 0;
-}
-
-int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_image_params *params)
+int pt_cache_update (struct pt_cache *cache, struct pt_png_img *img, const struct pt_image_params *params)
 {
     struct pt_cache_header header;
     int err;
     
     // XXX: check cache_mode
-    // XXX: check image doesn't use any options we don't handle
     // XXX: close any already-opened cache file
-
-    memset(&header, 0, sizeof(header));
-
-    // fill in basic info
-    header.width = png_get_image_width(png, info);
-    header.height = png_get_image_height(png, info);
-    header.bit_depth = png_get_bit_depth(png, info);
-    header.color_type = png_get_color_type(png, info);
-
-    log_debug("width=%u, height=%u, bit_depth=%u, color_type=%u", 
-            header.width, header.height, header.bit_depth, header.color_type
-    );
-
-    // only pack 1 pixel per byte, changes rowbytes
-    if (header.bit_depth < 8)
-        png_set_packing(png);
-
-    // fill in other info
-    header.row_bytes = png_get_rowbytes(png, info);
-
-    // calculate bpp as num_channels * bpc
-    // XXX: this assumes the packed bit depth will be either 8 or 16
-    header.col_bytes = png_get_channels(png, info) * (header.bit_depth == 16 ? 2 : 1);
-
-    log_debug("row_bytes=%u, col_bytes=%u", header.row_bytes, header.col_bytes);
     
-    // palette etc.
-    if (header.color_type == PNG_COLOR_TYPE_PALETTE) {
-        int num_palette;
-        png_colorp palette;
+    // prep header
+    header.version = PT_CACHE_VERSION;
+    header.format = PT_IMG_PNG;
 
-        if (png_get_PLTE(png, info, &palette, &num_palette) == 0)
-            // XXX: PLTE chunk not read?
-            RETURN_ERROR(PT_ERR_PNG);
-        
-        // should only be 256 of them at most
-        assert(num_palette <= PNG_MAX_PALETTE_LENGTH);
-    
-        // copy
-        header.num_palette = num_palette;
-        memcpy(&header.palette, palette, num_palette * sizeof(*palette));
-        
-        log_debug("num_palette=%u", num_palette);
-    }
+    // read img header
+    if ((err = pt_png_read_header(img, &header.png, &header.data_size)))
+        return err;
 
-    // any params
+    // save any params
     if (params)
         header.params = *params;
 
-    // create .tmp and write out header
+    // create/open .tmp and write out header
     if ((err = pt_cache_create(cache, &header)))
         return err;
-    
-    // decode
-    if ((err = decode_png_sparse(cache, png, info)))
+
+    // decode to disk
+    if ((err = pt_png_decode(img, &cache->file->header.png, &cache->file->header.params, cache->file->data)))
         return err;
 
-    // move from .tmp to .cache
+    // done, commit .tmp
     if ((err = pt_cache_create_done(cache)))
         // XXX: pt_cache_abort?
         return err;
 
-    // done!
     return 0;
 }
 
-/**
- * Return a pointer to the pixel data on \a row, starting at \a col.
- */
-static inline void* tile_row_col (struct pt_cache *cache, size_t row, size_t col)
-{
-    return cache->data + (row * cache->header->row_bytes) + (col * cache->header->col_bytes);
-}
-
-/**
- * Fill in a clipped region of \a width_px pixels at the given row segment
- */
-static inline void tile_row_fill_clip (struct pt_cache *cache, png_byte *row, size_t width_px)
-{
-    // XXX: use a configureable background color, or full transparency?
-    memset(row, /* 0xd7 */ 0x00, width_px * cache->header->col_bytes);
-}
-
-/**
- * Write raw tile image data, directly from the cache
- */
-static int write_png_data_direct (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
-{
-    for (size_t row = ti->y; row < ti->y + ti->height; row++)
-        // write data directly
-        png_write_row(png, tile_row_col(cache, row, ti->x));
-
-    return 0;
-}
-
-/**
- * Write clipped tile image data (a tile that goes over the edge of the actual image) by aligning the data from the cache as needed
- */
-static int write_png_data_clipped (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
-{
-    png_byte *rowbuf;
-    size_t row;
-    
-    // image data goes from (ti->x ... clip_x, ti->y ... clip_y), remaining region is filled
-    size_t clip_x, clip_y;
-
-
-    // figure out if the tile clips over the right edge
-    // XXX: use min()
-    if (ti->x + ti->width > cache->header->width)
-        clip_x = cache->header->width;
-    else
-        clip_x = ti->x + ti->width;
-    
-    // figure out if the tile clips over the bottom edge
-    // XXX: use min()
-    if (ti->y + ti->height > cache->header->height)
-        clip_y = cache->header->height;
-    else
-        clip_y = ti->y + ti->height;
-
-
-    // allocate buffer for a single row of image data
-    if ((rowbuf = malloc(ti->width * cache->header->col_bytes)) == NULL)
-        RETURN_ERROR(PT_ERR_MEM);
-
-    // how much data we actually have for each row, in px and bytes
-    // from [(tile x)---](clip x)
-    size_t row_px = clip_x - ti->x;
-    size_t row_bytes = row_px * cache->header->col_bytes;
-
-    // write the rows that we have
-    // from [(tile y]---](clip y)
-    for (row = ti->y; row < clip_y; row++) {
-        // copy in the actual tile data...
-        memcpy(rowbuf, tile_row_col(cache, row, ti->x), row_bytes);
-
-        // generate the data for the remaining, clipped, columns
-        tile_row_fill_clip(cache, rowbuf + row_bytes, (ti->width - row_px));
-
-        // write
-        png_write_row(png, rowbuf);
-    }
-
-    // generate the data for the remaining, clipped, rows
-    tile_row_fill_clip(cache, rowbuf, ti->width);
-    
-    // write out the remaining rows as clipped data
-    for (; row < ti->y + ti->height; row++)
-        png_write_row(png, rowbuf);
-
-    // ok
-    return 0;
-}
-
-static size_t scale_by_zoom_factor (size_t value, int z)
-{
-    if (z > 0)
-        return value << z;
-
-    else if (z < 0)
-        return value >> -z;
-
-    else
-        return value;
-}
-
-#define ADD_AVG(l, r) (l) = ((l) + (r)) / 2
-
-static int png_pixel_data (png_color *out, struct pt_cache *cache, size_t row, size_t col)
-{
-    if (cache->header->color_type == PNG_COLOR_TYPE_PALETTE) {
-        // palette entry number
-        int p;
-
-        if (cache->header->bit_depth == 8)
-            p = *((uint8_t *) tile_row_col(cache, row, col));
-        else
-            return -1;
-
-        if (p >= cache->header->num_palette)
-            return -1;
-        
-        // reference data from palette
-        *out = cache->header->palette[p];
-
-        return 0;
-
-    } else {
-        return -1;
-    }
-}
-
-/**
- * Write unscaled tile data
- */
-static int write_png_data_unzoomed (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
-{
-    int err;
-
-    // set basic info
-    png_set_IHDR(png, info, ti->width, ti->height, cache->header->bit_depth, cache->header->color_type,
-            PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT
-    );
-
-    // set palette?
-    if (cache->header->color_type == PNG_COLOR_TYPE_PALETTE)
-        png_set_PLTE(png, info, cache->header->palette, cache->header->num_palette);
-
-    // write meta-info
-    png_write_info(png, info);
-
-    // our pixel data is packed into 1 pixel per byte (8bpp or 16bpp)
-    png_set_packing(png);
-    
-    // figure out if the tile clips
-    if (ti->x + ti->width <= cache->header->width && ti->y + ti->height <= cache->header->height)
-        // doesn't clip, just use the raw data
-        err = write_png_data_direct(cache, png, info, ti);
-
-    else
-        // fill in clipped regions
-        err = write_png_data_clipped(cache, png, info, ti);
-    
-    return err;
-}
-
-/**
- * Write scaled tile data
- */
-static int write_png_data_zoomed (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
-{
-    // size of the image data in px
-    size_t data_width = scale_by_zoom_factor(ti->width, -ti->zoom);
-    size_t data_height = scale_by_zoom_factor(ti->height, -ti->zoom);
-
-    // input pixels per output pixel
-    size_t pixel_size = scale_by_zoom_factor(1, -ti->zoom);
-
-    // bytes per output pixel
-    size_t pixel_bytes = 3;
-
-    // size of the output tile in px
-    size_t row_width = ti->width;
-
-    // size of an output row in bytes (RGB)
-    size_t row_bytes = row_width * 3;
-
-    // buffer to hold output rows
-    uint8_t *row_buf;
-    
-    // XXX: only supports zooming out...
-    if (ti->zoom >= 0)
-        RETURN_ERROR(PT_ERR_ZOOM);
-
-    if ((row_buf = malloc(row_bytes)) == NULL)
-        RETURN_ERROR(PT_ERR_MEM);
-
-
-    // define pixel format: 8bpp RGB
-    png_set_IHDR(png, info, ti->width, ti->height, 8, PNG_COLOR_TYPE_RGB,
-            PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT
-    );
-    
-    // write meta-info
-    png_write_info(png, info);
-
-    // ...each output row
-    for (size_t out_row = 0; out_row < ti->height; out_row++) {
-        memset(row_buf, 0, row_bytes);
-
-        // ...includes pixels starting from this row.
-        size_t in_row_offset = ti->y + scale_by_zoom_factor(out_row, -ti->zoom);
-        
-        // ...each out row includes pixel_size in rows
-        for (size_t in_row = in_row_offset; in_row < in_row_offset + pixel_size && in_row < cache->header->height; in_row++) {
-            // and includes each input pixel
-            for (size_t in_col = ti->x; in_col < ti->x + data_width && in_col < cache->header->width; in_col++) {
-                png_color c;
-
-                // ...for this output pixel
-                size_t out_col = scale_by_zoom_factor(in_col - ti->x, ti->zoom);
-                
-                // get pixel RGB data
-                if (png_pixel_data(&c, cache, in_row, in_col))
-                    return -1;
-                
-                // average the RGB data        
-                ADD_AVG(row_buf[out_col * pixel_bytes + 0], c.red);
-                ADD_AVG(row_buf[out_col * pixel_bytes + 1], c.green);
-                ADD_AVG(row_buf[out_col * pixel_bytes + 2], c.blue);
-            }
-        }
-
-        // output
-        png_write_row(png, row_buf);
-    }
-
-    // done
-    return 0;
-}
-
-int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti)
+int pt_cache_tile (struct pt_cache *cache, struct pt_tile *tile)
 {
     int err;
 
@@ -730,25 +413,10 @@ int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, 
     if ((err = pt_cache_open(cache)))
         return err;
 
-    // check within bounds
-    if (ti->x >= cache->header->width || ti->y >= cache->header->height)
-        // completely outside
-        RETURN_ERROR(PT_ERR_TILE_CLIP);
-   
-    // unscaled or scaled?
-    if (ti->zoom)
-        err = write_png_data_zoomed(cache, png, info, ti);
-
-    else
-        err = write_png_data_unzoomed(cache, png, info, ti);
-
-    if (err)
+    // render
+    if ((err = pt_png_tile(&cache->file->header.png, cache->file->data, tile)))
         return err;
-    
-    // done, flush remaining output
-    png_write_flush(png);
 
-    // ok
     return 0;
 }
 

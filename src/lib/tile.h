@@ -2,8 +2,12 @@
 #define PNGTILE_TILE_H
 
 /**
+ * @file
  * Generating PNG tiles from a cache
  */
+
+struct pt_tile;
+
 #include "pngtile.h"
 #include "cache.h"
 
@@ -40,6 +44,12 @@ struct pt_tile {
         } mem;
     } out;
 };
+
+/**
+ * Write to the tile's output buffer
+ */
+int pt_tile_mem_write (struct pt_tile_mem *buf, void *data, size_t len);
+
 
 /**
  * Alloc a new pt_tile, which must be initialized using pt_tile_init_*

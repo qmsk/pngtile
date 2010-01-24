@@ -1,5 +1,6 @@
 #include "image.h"
 #include "ctx.h"
+#include "png.h"
 #include "cache.h"
 #include "tile.h"
 #include "error.h"
@@ -10,8 +11,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
-
-#include <png.h>
 
 static int pt_image_new (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *path)
 {
@@ -36,128 +35,6 @@ static int pt_image_new (struct pt_image **image_ptr, struct pt_ctx *ctx, const 
 error:
     pt_image_destroy(image);
     
-    return err;
-}
-
-/**
- * Open the image's FILE
- */
-static int pt_image_open_file (struct pt_image *image, FILE **file_ptr)
-{
-    FILE *fp;
-    
-    // open
-    if ((fp = fopen(image->path, "rb")) == NULL)
-        RETURN_ERROR(PT_ERR_IMG_FOPEN);
-
-    // ok
-    *file_ptr = fp;
-
-    return 0;
-}
-
-/**
- * Open the PNG image, setting up the I/O and returning the png_structp and png_infop
- */
-static int pt_image_open_png (struct pt_image *image, png_structp *png_ptr, png_infop *info_ptr)
-{
-    FILE *fp = NULL;
-    png_structp png = NULL;
-    png_infop info = NULL;
-    int err;
-    
-    // open I/O
-    if ((err = pt_image_open_file(image, &fp)))
-        JUMP_ERROR(err);
-
-    // create the struct
-    if ((png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL)
-        JUMP_SET_ERROR(err, PT_ERR_PNG_CREATE);
-
-    // create the info
-    if ((info = png_create_info_struct(png)) == NULL)
-        JUMP_SET_ERROR(err, PT_ERR_PNG_CREATE);
-
-    // setup error trap for the I/O
-    if (setjmp(png_jmpbuf(png)))
-        JUMP_SET_ERROR(err, PT_ERR_PNG);
-    
-    // setup I/O to FILE
-    png_init_io(png, fp);
-
-    // ok
-    // XXX: what to do with fp? Should fclose() when done?
-    *png_ptr = png;
-    *info_ptr = info;
-
-    return 0;
-
-error:
-    // cleanup file
-    if (fp) fclose(fp);
-
-    // cleanup PNG state
-    png_destroy_read_struct(&png, &info, NULL);
-    
-    return err;
-}
-
-/**
- * Update the image_info field from the given png object.
- *
- * Must be called under libpng-error-trap!
- *
- * XXX: currently this info is not used, pulled from the cache instead
- */
-static int pt_image_update_info (struct pt_image *image, png_structp png, png_infop info)
-{
-    // query png_get_*
-    image->info.width = png_get_image_width(png, info); 
-    image->info.height = png_get_image_height(png, info); 
-
-    return 0;
-}
-
-/**
- * Open the PNG image, and write out to the cache
- */
-static int pt_image_update_cache (struct pt_image *image, const struct pt_image_params *params)
-{
-    png_structp png;
-    png_infop info;
-    int err = 0;
-
-    // pre-check enabled
-    if (!(image->cache->mode & PT_OPEN_UPDATE))
-        RETURN_ERROR_ERRNO(PT_ERR_OPEN_MODE, EACCES);
-
-    // open .png
-    if ((err = pt_image_open_png(image, &png, &info)))
-        return err;
-    
-    // setup error trap
-    if (setjmp(png_jmpbuf(png)))
-        JUMP_SET_ERROR(err, PT_ERR_PNG);
-
-    // read meta-info
-    png_read_info(png, info);
-
-    // update our meta-info
-    if ((err = pt_image_update_info(image, png, info)))
-        JUMP_ERROR(err);
-
-    // pass to cache object
-    if ((err = pt_cache_update_png(image->cache, png, info, params)))
-        JUMP_ERROR(err);
-
-    // finish off, ignore trailing data
-    png_read_end(png, NULL);
-
-error:
-    // clean up
-    // XXX: we need to close the fopen'd .png
-    png_destroy_read_struct(&png, &info, NULL);
-
     return err;
 }
 
@@ -204,14 +81,54 @@ error:
     return err;
 }
 
+int pt_image_open_file (struct pt_image *image, FILE **file_ptr)
+{
+    FILE *fp;
+    
+    // open
+    if ((fp = fopen(image->path, "rb")) == NULL)
+        RETURN_ERROR(PT_ERR_IMG_FOPEN);
+
+    // ok
+    *file_ptr = fp;
+
+    return 0;
+}
+
+/**
+ * Open the PNG image, and write out to the cache
+ */
+int pt_image_update (struct pt_image *image, const struct pt_image_params *params)
+{
+    struct pt_png_img img;
+    int err = 0;
+
+    // pre-check enabled
+    if (!(image->cache->mode & PT_OPEN_UPDATE))
+        RETURN_ERROR_ERRNO(PT_ERR_OPEN_MODE, EACCES);
+
+    // open .png
+    if ((err = pt_png_open(image, &img)))
+        return err;
+    
+    // pass to cache object
+    if ((err = pt_cache_update(image->cache, &img, params)))
+        JUMP_ERROR(err);
+
+error:
+    // clean up
+    pt_png_release_read(&img);
+
+    return err;
+}
+
+
 int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr)
 {
     struct stat st;
-    int err;
 
-    // update info
-    if ((err = pt_cache_info(image->cache, &image->info)))
-        return err;
+    // update info from cache
+    pt_cache_info(image->cache, &image->info);
 
     // stat our info
     if (stat(image->path, &st) < 0) {
@@ -236,10 +153,6 @@ int pt_image_status (struct pt_image *image)
     return pt_cache_status(image->cache, image->path);
 }
 
-int pt_image_update (struct pt_image *image, const struct pt_image_params *params)
-{
-    return pt_image_update_cache(image, params);
-}
 
 int pt_image_load (struct pt_image *image)
 {

@@ -25,6 +25,7 @@ const char *error_names[PT_ERR_MAX] = {
     [PT_ERR_CACHE_TRUNC]        = "truncate(.cache)",
     [PT_ERR_CACHE_MMAP]         = "mmap(.cache)",
     [PT_ERR_CACHE_RENAME_TMP]   = "rename(.tmp, .cache)",
+    [PT_ERR_CACHE_VERSION]      = "Incompatible .cache version",
 
     [PT_ERR_PTHREAD_CREATE]     = "pthread_create",
     [PT_ERR_CTX_SHUTDOWN]       = "pt_ctx is shutting down",

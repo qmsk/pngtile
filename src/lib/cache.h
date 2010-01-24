@@ -7,14 +7,61 @@
  * Internal image cache implementation
  */
 #include "image.h"
+#include "png.h"
 
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <png.h>
+/**
+ * Cache format version
+ */
+#define PT_CACHE_VERSION 2
 
 /**
- * State for cache access
+ * Size used to store the cache header
+ */
+#define PT_CACHE_HEADER_SIZE 4096
+
+/**
+ * On-disk header
+ */
+struct pt_cache_header {
+    /** Set to PT_CACHE_VERSION */
+    uint16_t version;
+
+    /** Image format */
+    enum pt_img_format {
+        PT_IMG_PNG,     ///< @see pt_png
+    } format;
+    
+    /** Data header by format  */
+    union {
+        struct pt_png_header png;
+    };
+    
+    /** Parameters used */
+    struct pt_image_params params;
+    
+    /** Size of the data segment */
+    size_t data_size;
+};
+
+/**
+ * On-disk data format. This struct is always exactly PT_CACHE_HEADER_SIZE long
+ */
+struct pt_cache_file {
+    /** Header */
+    struct pt_cache_header header;
+
+    /** Padding for data */
+    uint8_t padding[PT_CACHE_HEADER_SIZE - sizeof(struct pt_cache_header)];
+
+    /** Data follows, header.data_size bytes */
+    uint8_t data[];
+};
+
+/**
+ * Cache state
  */
 struct pt_cache {
     /** Filesystem path to cache file */
@@ -26,51 +73,12 @@ struct pt_cache {
     /** Opened file */
     int fd;
 
-    /** The mmap'd header */
-    struct pt_cache_header *header;
-
-    /** Memory-mapped file data, starting at PT_CACHE_HEADER_SIZE */
-    uint8_t *data;
-
     /** Size of the data segment in bytes, starting at PT_CACHE_HEADER_SIZE */
-    size_t size;
+    size_t data_size;
+
+    /** The mmap'd file */
+    struct pt_cache_file *file;
 };
-
-/**
- * Size used to store the cache header
- */
-#define PT_CACHE_HEADER_SIZE 4096
-
-/**
- * On-disk header
- */
-struct pt_cache_header {
-    /** Pixel dimensions of image */
-    uint32_t width, height;
-    
-    /** Pixel format */
-    uint8_t bit_depth, color_type;
-
-    /** Number of png_color entries that follow */
-    uint16_t num_palette;
-
-    /** Number of bytes per row */
-    uint32_t row_bytes;
-    
-    /** Number of bytes per pixel */
-    uint8_t col_bytes;
-
-    /** Palette entries, up to 256 entries used */
-    png_color palette[PNG_MAX_PALETTE_LENGTH];
-
-    /** Parameters used */
-    struct pt_image_params params;
-};
-
-/**
- * Handle sparse data at this granularity (pixels)
- */
-#define PT_CACHE_BLOCK_SIZE 64
 
 /**
  * Construct the image cache info object associated with the given image.
@@ -85,14 +93,16 @@ int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode);
 int pt_cache_status (struct pt_cache *cache, const char *img_path);
 
 /**
- * Get info for the cached image, open it if not already open.
+ * Get info for the cached image.
+ *
+ * Does not open it if not yet opened.
  */
-int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info);
+void pt_cache_info (struct pt_cache *cache, struct pt_image_info *info);
 
 /**
- * Update the cache data from the given PNG image.
+ * Update the cache data from the given image data
  */
-int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_image_params *params);
+int pt_cache_update (struct pt_cache *cache, struct pt_png_img *img, const struct pt_image_params *params);
 
 /**
  * Open the existing .cache for use. If already opened, does nothing.
@@ -100,11 +110,11 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
 int pt_cache_open (struct pt_cache *cache);
 
 /**
- * Render out a PNG tile as given, into the established png object, up to (but not including) the png_write_end.
+ * Render out the given tile
  *
  * If the cache is not yet open, this will open it
  */
-int pt_cache_tile_png (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_tile_info *ti);
+int pt_cache_tile (struct pt_cache *cache, struct pt_tile *tile);
 
 /**
  * Release all resources associated with the given cache object without any cleanup.

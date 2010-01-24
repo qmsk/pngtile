@@ -45,18 +45,27 @@ enum pt_cache_status {
 
     /** Cache exists, but is stale */
     PT_CACHE_STALE      = 2,
+
+    /** Cache exists, but it was generated using an incompatible version of this library */
+    PT_CACHE_INCOMPAT   = 3,
 };
 
 /** Metadata info for image. Values will be set to zero if not available */
 struct pt_image_info {
-    /** Dimensions of image */
-    size_t width, height;
+    /** Dimensions of image. Only available if the cache is open */
+    size_t img_width, img_height;
+
+    /** Bits per pixel */
+    size_t img_bpp;
 
     /** Last update of image file */
     time_t image_mtime;
 
     /** Size of image file in bytes */
     size_t image_bytes;
+    
+    /** Cache format version or -err */
+    int cache_version;
 
     /** Last update of cache file */
     time_t cache_mtime;
@@ -121,7 +130,9 @@ void pt_ctx_destroy (struct pt_ctx *ctx);
 int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *png_path, int cache_mode);
 
 /**
- * Get the image's metadata
+ * Get the image's metadata.
+ *
+ * XXX: return void, this never fails, just returns partial info
  */
 int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr);
 
@@ -141,6 +152,8 @@ int pt_image_update (struct pt_image *image, const struct pt_image_params *param
 
 /**
  * Load the image's cache in read-only mode without trying to update it.
+ *
+ * Fails if the cache doesn't exist.
  */
 // XXX: rename to pt_image_open?
 int pt_image_load (struct pt_image *image);
@@ -207,6 +220,7 @@ enum pt_error {
     PT_ERR_CACHE_TRUNC,
     PT_ERR_CACHE_MMAP,
     PT_ERR_CACHE_RENAME_TMP,
+    PT_ERR_CACHE_VERSION,
 
     PT_ERR_TILE_CLIP,
 

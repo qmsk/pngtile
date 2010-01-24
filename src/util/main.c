@@ -15,6 +15,7 @@ static const struct option options[] = {
     { "verbose",        false,  NULL,   'v' },
     { "debug",          false,  NULL,   'D' },
     { "force-update",   false,  NULL,   'U' },
+    { "no-update",      false,  NULL,   'N' },
     { "background",     true,   NULL,   'B' },
     { "width",          true,   NULL,   'W' },
     { "height",         true,   NULL,   'H' },
@@ -39,6 +40,7 @@ void help (const char *argv0)
         "\t-v, --verbose        display more informational output\n"
         "\t-D, --debug          equivalent to -v\n"
         "\t-U, --force-update   unconditionally update image caches\n"
+        "\t-N, --no-update      do not update the image cache\n"
         "\t-B, --background     set background pattern for cache update\n"
         "\t-W, --width          set tile width\n"
         "\t-H, --height         set tile height\n"
@@ -52,14 +54,14 @@ void help (const char *argv0)
 int main (int argc, char **argv)
 {
     int opt;
-    bool force_update = false;
+    bool force_update = false, no_update = false;
     struct pt_tile_info ti = {0, 0, 0, 0, 0};
     struct pt_image_params update_params = { };
     int threads = 2;
     int tmp, err;
     
     // parse arguments
-    while ((opt = getopt_long(argc, argv, "hqvDUB:W:H:x:y:z:j:", options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hqvDUNB:W:H:x:y:z:j:", options, NULL)) != -1) {
         switch (opt) {
             case 'h':
                 // display help
@@ -85,14 +87,20 @@ int main (int argc, char **argv)
                 force_update = true;
                 
                 break;
+            
+            case 'N':
+                // supress update of image caches
+                no_update = true;
+
+                break;
 
             case 'B':
                 // background pattern
                 {
-                    unsigned int b1, b2, b3, b4;
+                    unsigned int b1 = 0, b2 = 0, b3 = 0, b4 = 0;
                     
                     // parse 0xXXXXXXXX
-                    if (sscanf(optarg, "0x%02x%02x%02x%02x", &b1, &b2, &b3, &b4) != 4)
+                    if (sscanf(optarg, "0x%02x%02x%02x%02x", &b1, &b2, &b3, &b4) < 1)
                         FATAL("Invalid hex value for -B/--background: %s", optarg);
                     
                     // store
@@ -182,33 +190,41 @@ int main (int argc, char **argv)
 
             else if (status == PT_CACHE_STALE)
                 log_debug("\tImage cache is stale");
+            
+            else if (status == PT_CACHE_INCOMPAT)
+                log_debug("\tImage cache is incompatible");
 
             else if (status == PT_CACHE_FRESH)
                 log_debug("\tImage cache is fresh");
+            
+            if (!no_update) {
+                log_debug("\tUpdating image cache...");
 
-            log_debug("\tUpdating image cache...");
+                if ((err = pt_image_update(image, &update_params))) {
+                    log_warn_errno("pt_image_update: %s: %s", img_path, pt_strerror(err));
+                }
 
-            if ((err = pt_image_update(image, &update_params))) {
-                log_warn_errno("pt_image_update: %s: %s", img_path, pt_strerror(err));
+                log_info("\tUpdated image cache");
+
+            } else {
+                log_warn("\tSupressing cache update");
             }
 
-            log_info("\tUpdated image cache");
-
-        } else {
+        } else {    
             log_debug("\tImage cache is fresh");
         }
 
         // show info
-        const struct pt_image_info *img_info;
+        const struct pt_image_info *info;
         
-        if ((err = pt_image_info(image, &img_info))) {
+        if ((err = pt_image_info(image, &info))) {
             log_warn_errno("pt_image_info: %s: %s", img_path, pt_strerror(err));
 
         } else {
-            log_info("\tImage dimensions: %zux%zu", img_info->width, img_info->height);
-            log_info("\tImage mtime=%u, bytes=%zu", img_info->image_mtime, img_info->image_bytes);
+            log_info("\tImage dimensions: %zux%zu", info->img_width, info->img_height);
+            log_info("\tImage mtime=%u, bytes=%zu", info->image_mtime, info->image_bytes);
             log_info("\tCache mtime=%u, bytes=%zu, blocks=%zu (%zu bytes)", 
-                    img_info->cache_mtime, img_info->cache_bytes, img_info->cache_blocks, img_info->cache_blocks * 512
+                    info->cache_mtime, info->cache_bytes, info->cache_blocks, info->cache_blocks * 512
             );
         }
 
