@@ -160,7 +160,7 @@ static int pt_cache_open_mmap (struct pt_cache *cache, void **addr_ptr, bool rea
         prot |= PROT_WRITE;
     }
 
-    // perform mmap() from second page on
+    // mmap() the full file including header
     if ((addr = mmap(NULL, PT_CACHE_HEADER_SIZE + cache->size, prot, MAP_SHARED, cache->fd, 0)) == MAP_FAILED)
         RETURN_ERROR(PT_ERR_CACHE_MMAP);
 
@@ -245,7 +245,7 @@ static int pt_cache_create (struct pt_cache *cache, struct pt_cache_header *head
         return err;
 
     // calculate data size
-    cache->size = sizeof(*header) + header->height * header->row_bytes;
+    cache->size = header->height * header->row_bytes;
 
     // grow file
     if (ftruncate(cache->fd, PT_CACHE_HEADER_SIZE + cache->size) < 0)
@@ -311,7 +311,7 @@ int pt_cache_open (struct pt_cache *cache)
         JUMP_ERROR(err);
 
     // calculate data size
-    cache->size = sizeof(header) + header.height * header.row_bytes;
+    cache->size = header.height * header.row_bytes;
 
     // mmap header and data
     if ((err = pt_cache_open_mmap(cache, &base, true)))

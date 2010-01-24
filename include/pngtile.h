@@ -50,6 +50,15 @@ enum pt_cache_status {
 struct pt_image_info {
     /** Dimensions of image */
     size_t width, height;
+
+    /** Size of image file in bytes */
+    size_t image_bytes;
+
+    /** Size of cache file in bytes */
+    size_t cache_bytes;
+
+    /** Size of cache file in blocks (for sparse cache files) */
+    size_t cache_blocks;
 };
 
 /**
