@@ -62,7 +62,15 @@ struct pt_cache_header {
 
     /** Palette entries, up to 256 entries used */
     png_color palette[PNG_MAX_PALETTE_LENGTH];
+
+    /** Parameters used */
+    struct pt_image_params params;
 };
+
+/**
+ * Handle sparse data at this granularity (pixels)
+ */
+#define PT_CACHE_BLOCK_SIZE 64
 
 /**
  * Construct the image cache info object associated with the given image.
@@ -84,7 +92,7 @@ int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info);
 /**
  * Update the cache data from the given PNG image.
  */
-int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info);
+int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_image_params *params);
 
 /**
  * Open the existing .cache for use. If already opened, does nothing.

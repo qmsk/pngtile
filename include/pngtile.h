@@ -8,6 +8,7 @@
  */
 #include <stddef.h>
 #include <stdio.h> // for FILE*
+#include <stdint.h>
 
 /**
  * "Global" context shared between images
@@ -49,6 +50,14 @@ enum pt_cache_status {
 struct pt_image_info {
     /** Dimensions of image */
     size_t width, height;
+};
+
+/**
+ * Modifyable params for update
+ */
+struct pt_image_params {
+    /** Don't write out any contiguous regions of this color. Left-aligned in whatever format the source image is in */
+    uint8_t background_color[4];
 };
 
 /**
@@ -109,8 +118,10 @@ int pt_image_status (struct pt_image *image);
 
 /**
  * Update the given image's cache.
+ *
+ * @param params optional parameters to use for the update process
  */
-int pt_image_update (struct pt_image *image);
+int pt_image_update (struct pt_image *image, const struct pt_image_params *params);
 
 /**
  * Load the image's cache in read-only mode without trying to update it.

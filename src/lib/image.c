@@ -119,7 +119,7 @@ static int pt_image_update_info (struct pt_image *image, png_structp png, png_in
 /**
  * Open the PNG image, and write out to the cache
  */
-static int pt_image_update_cache (struct pt_image *image)
+static int pt_image_update_cache (struct pt_image *image, const struct pt_image_params *params)
 {
     png_structp png;
     png_infop info;
@@ -145,7 +145,7 @@ static int pt_image_update_cache (struct pt_image *image)
         JUMP_ERROR(err);
 
     // pass to cache object
-    if ((err = pt_cache_update_png(image->cache, png, info)))
+    if ((err = pt_cache_update_png(image->cache, png, info, params)))
         JUMP_ERROR(err);
 
     // finish off, ignore trailing data
@@ -221,9 +221,9 @@ int pt_image_status (struct pt_image *image)
     return pt_cache_status(image->cache, image->path);
 }
 
-int pt_image_update (struct pt_image *image)
+int pt_image_update (struct pt_image *image, const struct pt_image_params *params)
 {
-    return pt_image_update_cache(image);
+    return pt_image_update_cache(image, params);
 }
 
 int pt_image_load (struct pt_image *image)

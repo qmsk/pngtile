@@ -330,7 +330,74 @@ error:
     return err;
 }
 
-int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info)
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+
+/**
+ * Decode the PNG data directly to mmap() - not good for sparse backgrounds
+ */
+static int decode_png_raw (struct pt_cache *cache, png_structp png, png_infop info)
+{
+    // write out raw image data a row at a time
+    for (size_t row = 0; row < cache->header->height; row++) {
+        // read row data, non-interlaced
+        png_read_row(png, cache->data + row * cache->header->row_bytes, NULL);
+    }
+
+    return 0;
+}
+
+static int decode_png_sparse (struct pt_cache *cache, png_structp png, png_infop info)
+{
+    // one row of pixel data
+    uint8_t *row_buf;
+
+    // alloc
+    if ((row_buf = malloc(cache->header->row_bytes)) == NULL)
+        RETURN_ERROR(PT_ERR_MEM);
+
+    // decode each row at a time
+    for (size_t row = 0; row < cache->header->height; row++) {
+        // read row data, non-interlaced
+        png_read_row(png, row_buf, NULL);
+        
+        // skip background-colored regions to keep the cache file sparse
+        // ...in blocks of PT_CACHE_BLOCK_SIZE bytes
+        for (size_t col_base = 0; col_base < cache->header->width; ){
+            // size of this block in bytes
+            size_t block_size = min(PT_CACHE_BLOCK_SIZE * cache->header->col_bytes, cache->header->row_bytes - col_base);
+
+            // ...each pixel
+            for (
+                    size_t col = col_base;
+
+                    // BLOCK_SIZE * col_bytes wide, don't go over the edge
+                    col < col_base + block_size; 
+
+                    col += cache->header->col_bytes
+            ) {
+                // test this pixel
+                if (bcmp(row_buf + col, cache->header->params.background_color, cache->header->col_bytes)) {
+                    // differs
+                    memcpy(
+                            cache->data + row * cache->header->row_bytes + col_base, 
+                            row_buf + col_base,
+                            block_size
+                    );
+                    
+                    // skip to next block
+                    break;
+                }
+            }
+
+            // skip this block
+            continue;
+        }
+    }
+
+    return 0;
+}
+
+int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info, const struct pt_image_params *params)
 {
     struct pt_cache_header header;
     int err;
@@ -383,17 +450,17 @@ int pt_cache_update_png (struct pt_cache *cache, png_structp png, png_infop info
         log_debug("num_palette=%u", num_palette);
     }
 
+    // any params
+    if (params)
+        header.params = *params;
+
     // create .tmp and write out header
     if ((err = pt_cache_create(cache, &header)))
         return err;
-
-
-    // write out raw image data a row at a time
-    for (size_t row = 0; row < header.height; row++) {
-        // read row data, non-interlaced
-        png_read_row(png, cache->data + row * header.row_bytes, NULL);
-    }
-
+    
+    // decode
+    if ((err = decode_png_sparse(cache, png, info)))
+        return err;
 
     // move from .tmp to .cache
     if ((err = pt_cache_create_done(cache)))

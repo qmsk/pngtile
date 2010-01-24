@@ -15,6 +15,7 @@ static const struct option options[] = {
     { "verbose",        false,  NULL,   'v' },
     { "debug",          false,  NULL,   'D' },
     { "force-update",   false,  NULL,   'U' },
+    { "background",     true,   NULL,   'B' },
     { "width",          true,   NULL,   'W' },
     { "height",         true,   NULL,   'H' },
     { "x",              true,   NULL,   'x' },
@@ -38,6 +39,7 @@ void help (const char *argv0)
         "\t-v, --verbose        display more informational output\n"
         "\t-D, --debug          equivalent to -v\n"
         "\t-U, --force-update   unconditionally update image caches\n"
+        "\t-B, --background     set background pattern for cache update\n"
         "\t-W, --width          set tile width\n"
         "\t-H, --height         set tile height\n"
         "\t-x, --x              set tile x offset\n"
@@ -52,11 +54,12 @@ int main (int argc, char **argv)
     int opt;
     bool force_update = false;
     struct pt_tile_info ti = {0, 0, 0, 0, 0};
+    struct pt_image_params update_params = { };
     int threads = 2;
     int tmp, err;
     
     // parse arguments
-    while ((opt = getopt_long(argc, argv, "hqvDUW:H:x:y:z:j:", options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hqvDUB:W:H:x:y:z:j:", options, NULL)) != -1) {
         switch (opt) {
             case 'h':
                 // display help
@@ -83,6 +86,23 @@ int main (int argc, char **argv)
                 
                 break;
 
+            case 'B':
+                // background pattern
+                {
+                    unsigned int b1, b2, b3, b4;
+                    
+                    // parse 0xXXXXXXXX
+                    if (sscanf(optarg, "0x%02x%02x%02x%02x", &b1, &b2, &b3, &b4) != 4)
+                        FATAL("Invalid hex value for -B/--background: %s", optarg);
+                    
+                    // store
+                    update_params.background_color[0] = b1;
+                    update_params.background_color[1] = b2;
+                    update_params.background_color[2] = b3;
+                    update_params.background_color[3] = b4;
+
+                } break;
+
             case 'W':
                 ti.width = strtol(optarg, NULL, 0); break;
 
@@ -100,7 +120,7 @@ int main (int argc, char **argv)
 
             case 'j':
                 if ((tmp = strtol(optarg, NULL, 0)) < 1)
-                    FATAL("Invalid value for -j/--threads");
+                    FATAL("Invalid value for -j/--threads: %s", optarg);
 
                 threads = tmp; break;
 
@@ -168,7 +188,7 @@ int main (int argc, char **argv)
 
             log_debug("\tUpdating image cache...");
 
-            if ((err = pt_image_update(image))) {
+            if ((err = pt_image_update(image, &update_params))) {
                 log_warn_errno("pt_image_update: %s: %s", img_path, pt_strerror(err));
             }
 
