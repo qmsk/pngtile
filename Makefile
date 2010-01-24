@@ -21,7 +21,7 @@ DIST_RESOURCES = README "Learning Diary.pdf" $(shell "echo python/*.{py,pyx}")
 all: depend lib/libpngtile.so bin/util
 
 lib/libpngtile.so : \
-	build/obj/lib/ctx.o build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/error.o \
+	build/obj/lib/ctx.o build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/png.o build/obj/lib/error.o \
 	build/obj/shared/util.o build/obj/shared/log.o
 
 lib/pypngtile.so : \
