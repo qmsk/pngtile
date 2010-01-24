@@ -208,7 +208,7 @@ int main (int argc, char **argv)
             log_info("\tImage dimensions: %zux%zu", img_info->width, img_info->height);
             log_info("\tImage mtime=%u, bytes=%zu", img_info->image_mtime, img_info->image_bytes);
             log_info("\tCache mtime=%u, bytes=%zu, blocks=%zu (%zu bytes)", 
-                    img_info->cache_mtime, img_info->cache_bytes, img_info->cache_blocks, img_info->cache_blocks * 512,
+                    img_info->cache_mtime, img_info->cache_bytes, img_info->cache_blocks, img_info->cache_blocks * 512
             );
         }
 

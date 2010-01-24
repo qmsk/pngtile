@@ -377,7 +377,7 @@ static int decode_png_sparse (struct pt_cache *cache, png_structp png, png_infop
         
         // skip background-colored regions to keep the cache file sparse
         // ...in blocks of PT_CACHE_BLOCK_SIZE bytes
-        for (size_t col_base = 0; col_base < cache->header->width; ){
+        for (size_t col_base = 0; col_base < cache->header->width; col_base += PT_CACHE_BLOCK_SIZE) {
             // size of this block in bytes
             size_t block_size = min(PT_CACHE_BLOCK_SIZE * cache->header->col_bytes, cache->header->row_bytes - col_base);
 
