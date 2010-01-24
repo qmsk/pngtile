@@ -43,6 +43,26 @@ error:
 }
 
 /**
+ * Force-clean pt_cache, warn on errors
+ */
+static void pt_cache_abort (struct pt_cache *cache)
+{
+    if (cache->file != NULL) {
+        if (munmap(cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size))
+            log_warn_errno("munmap: %p, %zu", cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size);
+
+        cache->file = NULL;
+    }
+
+    if (cache->fd >= 0) {
+        if (close(cache->fd))
+            log_warn_errno("close: %d", cache->fd);
+
+        cache->fd = -1;
+    }
+}
+
+/**
  * Open the cache file as an fd for reading
  *
  * XXX: use some kind of locking?
@@ -177,24 +197,6 @@ void pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
         info->cache_mtime = st.st_mtime;
         info->cache_bytes = st.st_size;
         info->cache_blocks = st.st_blocks;
-    }
-}
-
-/**
- * Abort any incomplete open operation, cleaning up
- */
-static void pt_cache_abort (struct pt_cache *cache)
-{
-    if (cache->file != NULL) {
-        munmap(cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size);
-
-        cache->file = NULL;
-    }
-
-    if (cache->fd >= 0) {
-        close(cache->fd);
-
-        cache->fd = -1;
     }
 }
 
@@ -420,12 +422,31 @@ int pt_cache_tile (struct pt_cache *cache, struct pt_tile *tile)
     return 0;
 }
 
+int pt_cache_close (struct pt_cache *cache)
+{
+    if (cache->file != NULL) {
+        if (munmap(cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size))
+            RETURN_ERROR(PT_ERR_CACHE_MUNMAP);
+
+        cache->file = NULL;
+    }
+
+    if (cache->fd >= 0) {
+        if (close(cache->fd))
+            RETURN_ERROR(PT_ERR_CACHE_CLOSE);
+
+        cache->fd = -1;
+    }
+
+    return 0;
+}
+
 void pt_cache_destroy (struct pt_cache *cache)
 {
-    free(cache->path);
-
+    // cleanup
     pt_cache_abort(cache);
 
+    free(cache->path);
     free(cache);
 }
 

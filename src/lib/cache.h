@@ -117,6 +117,11 @@ int pt_cache_open (struct pt_cache *cache);
 int pt_cache_tile (struct pt_cache *cache, struct pt_tile *tile);
 
 /**
+ * Close the cache, if opened
+ */
+int pt_cache_close (struct pt_cache *cache);
+
+/**
  * Release all resources associated with the given cache object without any cleanup.
  */
 void pt_cache_destroy (struct pt_cache *cache);
