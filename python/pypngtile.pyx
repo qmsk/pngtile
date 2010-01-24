@@ -29,19 +29,26 @@ cdef extern from "pngtile.h" :
         PT_CACHE_FRESH
         PT_CACHE_NONE
         PT_CACHE_STALE
+        PT_CACHE_INCOMPAT
 
     struct pt_image_info :
-        size_t width, height
+        size_t img_width, img_height
+        int img_mtime, cache_mtime, cache_version
+        size_t img_bytes, cache_bytes
+        size_t cache_blocks
+
+    struct pt_image_params :
+        int background_color[4]
 
     struct pt_tile_info :
         size_t width, height
         size_t x, y
         int zoom
-        
+
     int pt_image_open (pt_image **image_ptr, pt_ctx *ctx, char *png_path, int cache_mode)
     int pt_image_info_func "pt_image_info" (pt_image *image, pt_image_info **info_ptr)
     int pt_image_status (pt_image *image)
-    int pt_image_update (pt_image *image)
+    int pt_image_update (pt_image *image, pt_image_params *params)
     int pt_image_tile_file (pt_image *image, pt_tile_info *info, stdio.FILE *out)
     int pt_image_tile_mem (pt_image *image, pt_tile_info *info, char **buf_ptr, size_t *len_ptr)
     void pt_image_destroy (pt_image *image)
@@ -53,6 +60,7 @@ CACHE_ERROR = PT_CACHE_ERROR
 CACHE_FRESH = PT_CACHE_FRESH
 CACHE_NONE = PT_CACHE_NONE
 CACHE_STALE = PT_CACHE_STALE
+CACHE_INCOMPAT = PT_CACHE_INCOMPAT
 
 class Error (BaseException) :
     pass
@@ -79,16 +87,17 @@ cdef class Image :
             pt_image_info_func(self.image, &image_info)
         )
 
-        return (image_info.width, image_info.height)
+        return (image_info.img_width, image_info.img_height)
     
     def status (self) :
         return trap_err("pt_image_status", 
             pt_image_status(self.image)
         )
     
+    # XXX: support params
     def update (self) :
         trap_err("pt_image_update", 
-            pt_image_update(self.image)
+            pt_image_update(self.image, NULL)
         )
 
     def tile_file (self, size_t width, size_t height, size_t x, size_t y, int zoom, object out) :
