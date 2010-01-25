@@ -206,6 +206,9 @@ error:
     return err;
 }
 
+/**
+ * Async work func for pt_image_tile_async
+ */
 static void _pt_image_tile_async (void *arg)
 {
     struct pt_tile *tile = arg;
@@ -227,6 +230,10 @@ int pt_image_tile_async (struct pt_image *image, const struct pt_tile_info *info
 {
     struct pt_tile *tile;
     int err;
+
+    // need a ctx for this
+    if (!image->ctx)
+        return -1;
 
     // alloc
     if ((err = pt_tile_new(&tile)))

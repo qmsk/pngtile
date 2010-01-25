@@ -122,8 +122,10 @@ void pt_ctx_destroy (struct pt_ctx *ctx);
 /**
  * Open a new pt_image for use.
  *
+ * The pt_ctx is optional, but required for pt_image_tile_async.
+ *
  * @param img_ptr returned pt_image handle
- * @param ctx global state to use
+ * @param ctx global state to use (optional)
  * @param path filesystem path to .png file
  * @param mode combination of PT_OPEN_* flags
  */
@@ -184,6 +186,8 @@ int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, 
  *
  * This function may return before the PNG has been rendered.
  *
+ * Fails with PT_ERR if not pt_ctx was given to pt_image_open.
+ *
  * @param image render from image's cache. The cache must have been opened previously!
  * @param info tile parameters
  * @param out IO stream to write PNG data to, and close once done
@@ -199,7 +203,12 @@ void pt_image_destroy (struct pt_image *image);
  * Error codes returned
  */
 enum pt_error {
+    /** No error */
     PT_SUCCESS = 0,
+    
+    /** Generic error */
+    PT_ERR = 1,
+
     PT_ERR_MEM,
 
     PT_ERR_PATH,
