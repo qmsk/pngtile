@@ -274,15 +274,6 @@ static inline const void* tile_row_col (const struct pt_png_header *header, cons
 }
 
 /**
- * Fill in a clipped region of \a width_px pixels at the given row segment
- */
-static inline void tile_row_fill_clip (const struct pt_png_header *header, png_byte *row, size_t width_px)
-{
-    // XXX: use a configureable background color, or full transparency?
-    memset(row, /* 0xd7 */ 0x00, width_px * header->col_bytes);
-}
-
-/**
  * Write raw tile image data, directly from the cache
  */
 static int pt_png_encode_direct (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_info *ti)
@@ -293,6 +284,15 @@ static int pt_png_encode_direct (struct pt_png_img *img, const struct pt_png_hea
         png_write_row(img->png, (const png_bytep) tile_row_col(header, data, row, ti->x));
 
     return 0;
+}
+
+/**
+ * Fill in a clipped region of \a width_px pixels at the given row segment
+ */
+static inline void tile_row_fill_clip (const struct pt_png_header *header, png_byte *row, size_t width_px)
+{
+    // XXX: use a configureable background color, or full transparency?
+    memset(row, /* 0xd7 */ 0x00, width_px * header->col_bytes);
 }
 
 /**
@@ -345,44 +345,6 @@ static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_he
     return 0;
 }
 
-static inline size_t scale_by_zoom_factor (size_t value, int z)
-{
-    if (z > 0)
-        return value << z;
-
-    else if (z < 0)
-        return value >> -z;
-
-    else
-        return value;
-}
-
-#define ADD_AVG(l, r) (l) = ((l) + (r)) / 2
-
-static inline int png_pixel_data (png_color *out, const struct pt_png_header *header, const uint8_t *data, size_t row, size_t col)
-{
-    if (header->color_type == PNG_COLOR_TYPE_PALETTE) {
-        // palette entry number
-        int p;
-
-        if (header->bit_depth == 8)
-            p = *((uint8_t *) tile_row_col(header, data, row, col));
-        else
-            return -1;
-
-        if (p >= header->num_palette)
-            return -1;
-        
-        // reference data from palette
-        *out = header->palette[p];
-
-        return 0;
-
-    } else {
-        return -1;
-    }
-}
-
 /**
  * Write unscaled tile data
  */
@@ -419,6 +381,49 @@ static int pt_png_encode_unzoomed (struct pt_png_img *img, const struct pt_png_h
 }
 
 /**
+ * Manipulate powers of two
+ */
+static inline size_t scale_by_zoom_factor (size_t value, int z)
+{
+    if (z > 0)
+        return value << z;
+
+    else if (z < 0)
+        return value >> -z;
+
+    else
+        return value;
+}
+
+#define ADD_AVG(l, r) (l) = ((l) + (r)) / 2
+
+/**
+ * Converts a pixel's data into a png_color
+ */
+static inline void png_pixel_data (png_color *out, const struct pt_png_header *header, const uint8_t *data, size_t row, size_t col)
+{
+    if (header->color_type == PNG_COLOR_TYPE_PALETTE) {
+        // palette entry number
+        int p;
+
+        if (header->bit_depth == 8)
+            p = *((uint8_t *) tile_row_col(header, data, row, col));
+        else
+            // unknown
+            return;
+
+        if (p >= header->num_palette)
+            return;
+        
+        // reference data from palette
+        *out = header->palette[p];
+
+    } else {
+        // unknown
+    }
+}
+
+/**
  * Write scaled tile data
  */
 static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_info *ti)
@@ -441,6 +446,9 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
 
     // buffer to hold output rows
     uint8_t *row_buf;
+                
+    
+    png_color c = { };
     
     // only supports zooming out...
     if (ti->zoom >= 0)
@@ -471,14 +479,12 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
         for (size_t in_row = in_row_offset; in_row < in_row_offset + pixel_size && in_row < header->height; in_row++) {
             // and includes each input pixel
             for (size_t in_col = ti->x; in_col < ti->x + data_width && in_col < header->width; in_col++) {
-                png_color c;
 
                 // ...for this output pixel
                 size_t out_col = scale_by_zoom_factor(in_col - ti->x, ti->zoom);
                 
                 // get pixel RGB data
-                if (png_pixel_data(&c, header, data, in_row, in_col))
-                    return -1;
+                png_pixel_data(&c, header, data, in_row, in_col);
                 
                 // average the RGB data        
                 ADD_AVG(row_buf[out_col * pixel_bytes + 0], c.red);
@@ -566,14 +572,6 @@ error:
 
     return err;
 }
-
-
-
-
-
-
-
-
 
 
 void pt_png_release_read (struct pt_png_img *img)
