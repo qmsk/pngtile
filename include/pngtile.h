@@ -23,7 +23,10 @@ struct pt_image;
 
 /** Bitmask for pt_image_open modes */
 enum pt_open_mode {
-    /** Update cache if needed */
+    /** Open cache for read*/
+    PT_OPEN_READ    = 0x00,
+
+    /** Open cache for update */
     PT_OPEN_UPDATE   = 0x01,
 
     /** Accept stale cache */
