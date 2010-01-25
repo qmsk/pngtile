@@ -64,8 +64,6 @@ static void pt_cache_abort (struct pt_cache *cache)
 
 /**
  * Open the cache file as an fd for reading
- *
- * XXX: use some kind of locking?
  */
 static int pt_cache_open_read_fd (struct pt_cache *cache, int *fd_ptr)
 {
