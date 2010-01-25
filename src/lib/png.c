@@ -111,7 +111,7 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
 /**
  * Decode the PNG data directly to memory - not good for sparse backgrounds
  */
-static int pt_png_decode_raw (struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params, uint8_t *out)
+static int pt_png_decode_direct (struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params, uint8_t *out)
 {
     // write out raw image data a row at a time
     for (size_t row = 0; row < header->height; row++) {
@@ -180,7 +180,14 @@ int pt_png_decode (struct pt_png_img *img, const struct pt_png_header *header, c
 {
     int err;
 
-    if ((err = pt_png_decode_sparse(img, header, params, out)))
+    // decode
+    if (params->background_color)
+        err = pt_png_decode_sparse(img, header, params, out);
+
+    else
+        err = pt_png_decode_direct(img, header, params, out);
+    
+    if (err)
         return err;
     
     // finish off, ignore trailing data
@@ -363,7 +370,8 @@ static int pt_png_encode_unzoomed (struct pt_png_img *img, const struct pt_png_h
 
     // set palette?
     if (header->color_type == PNG_COLOR_TYPE_PALETTE)
-        png_set_PLTE(img->png, img->info, header->palette, header->num_palette);
+        // oops... missing const
+        png_set_PLTE(img->png, img->info, (png_colorp) header->palette, header->num_palette);
 
     // write meta-info
     png_write_info(img->png, img->info);
