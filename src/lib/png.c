@@ -345,7 +345,7 @@ static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_he
     return 0;
 }
 
-static size_t scale_by_zoom_factor (size_t value, int z)
+static inline size_t scale_by_zoom_factor (size_t value, int z)
 {
     if (z > 0)
         return value << z;
@@ -359,7 +359,7 @@ static size_t scale_by_zoom_factor (size_t value, int z)
 
 #define ADD_AVG(l, r) (l) = ((l) + (r)) / 2
 
-static int png_pixel_data (png_color *out, const struct pt_png_header *header, const uint8_t *data, size_t row, size_t col)
+static inline int png_pixel_data (png_color *out, const struct pt_png_header *header, const uint8_t *data, size_t row, size_t col)
 {
     if (header->color_type == PNG_COLOR_TYPE_PALETTE) {
         // palette entry number
