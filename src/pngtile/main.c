@@ -349,7 +349,8 @@ int main (int argc, char **argv)
                 log_debug("\tUpdating image cache...");
 
                 if ((err = pt_image_update(image, &update_params))) {
-                    log_warn_errno("pt_image_update: %s: %s", img_path, pt_strerror(err));
+                    log_error("pt_image_update: %s: %s", img_path, pt_strerror(err));
+                    goto error;
                 }
 
                 log_info("\tUpdated image cache");
@@ -364,9 +365,10 @@ int main (int argc, char **argv)
             // ensure it's loaded
             log_debug("\tLoad image cache...");
 
-            if ((err = pt_image_load(image)))
+            if ((err = pt_image_load(image))) {
                 log_errno("pt_image_load: %s", pt_strerror(err));
-
+                goto error;
+            }
         }
 
         // show info
@@ -407,11 +409,16 @@ int main (int argc, char **argv)
                 goto error;
 
         }
-error:
         // cleanup
         // XXX: leak because of async
         if (!ctx)
             pt_image_destroy(image);
+        
+        continue;
+
+error:
+        // quit
+        EXIT_ERROR(EXIT_FAILURE, "Processing image failed: %s", img_path);
     }
     
     if (ctx) {
