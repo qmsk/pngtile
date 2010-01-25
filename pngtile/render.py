@@ -186,8 +186,7 @@ def render_cache (cache, image, width, height, x, y, zl) :
     
     if cache :
         # cache key
-        # XXX: need a better id for the image..
-        key = "tl_%d:%d_%d:%d:%d_%s" % (x, y, width, height, zl, id(image))
+        key = "tl_%d:%d_%d:%d:%d_%s" % (x, y, width, height, zl, image.path)
         
         # lookup
         data = cache.get(key)
