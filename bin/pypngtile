@@ -4,23 +4,26 @@
     Python clone of the pngtile binary.
 """
 
-import optparse
+import optparse, sys
 
 import pypngtile as pt
 
 # CLI options
 options = None
 
+def log (fmt, args) :
+    print >>sys.stderr, fmt % args
+
 def log_debug (fmt, *args) :
     if options.debug or options.verbose :
-        print fmt % args
+        log(fmt, args)
 
 def log_info (fmt, *args) :
     if not options.quiet :
-        print fmt % args
+        log(fmt, args)
 
 def log_warn (fmt, *args) :
-    print fmt % args
+    log(fmt, args)
 
 
 def parse_hex (hex) :
@@ -51,7 +54,13 @@ def parse_args (args) :
     parser.add_option('-U', "--force-update",   help="Unconditionally update the image caches",             action='store_true')
     parser.add_option('-N', "--no-update",      help="Do not update the image caches, even if unusable",    action='store_true')
     parser.add_option('-B', "--background",     help="Background pattern for sparse cache file",            metavar="0xHH..")
-
+    parser.add_option('-W', "--width",          help="Output tile width",                                   metavar="PX",       type='int', default=800)
+    parser.add_option('-H', "--height",         help="Output tile height",                                  metavar="PX",       type='int', default=600)
+    parser.add_option('-x', "--x",              help="Tile x offset",                                       metavar="PX",       type='int', default=0)
+    parser.add_option('-y', "--y",              help="Tile y offset",                                       metavar="PX",       type='int', default=0)
+    parser.add_option('-z', "--zoom",           help="Tile zoom level, -n",                                 metavar="ZL",       type='int', default=0)
+    parser.add_option('-o', "--out",            help="Render tile to output file, or -",                    metavar="FILE")
+    
     # parse
     options, args = parser.parse_args(args=args)
 
@@ -64,6 +73,32 @@ def parse_args (args) :
             raise ValueError("Invalid value for --background: %s" % options.background)
 
     return args
+
+
+def process_tile (image) :
+    """
+        Process output tile for given image
+    """
+    
+    # parse out
+    if options.out == '-' :
+        log_debug("\tUsing stdout as output...")
+        
+        # use stdout
+        out = sys.stdout
+
+    else :
+        log_debug("\tOpening file for output: %s", options.out)
+
+        # open file
+        out = open(options.out, "wb")
+    
+    log_info("\tRender tile %dx%d@(%d:%d)@%d -> %s...", options.width, options.height, options.x, options.y, options.zoom, options.out)
+
+    # render
+    image.tile_file(options.width, options.height, options.x, options.y, options.zoom, out)
+    
+    log_debug("Rendered tile: %s", options.out)
 
 
 def process_image (image) :
@@ -109,6 +144,9 @@ def process_image (image) :
     else: 
         log_debug("\tImage cache is fresh")
 
+        # open it
+        image.open()
+
     # show info
     info = image.info()
 
@@ -117,7 +155,16 @@ def process_image (image) :
     log_info("\tCache mtime=%d, bytes=%d, blocks=%d (%d bytes), version=%d", 
             info['cache_mtime'], info['cache_bytes'], info['cache_blocks'], info['cache_blocks'] * 512, info['cache_version']
     )
+    
 
+    # render tile?
+    if options.out :
+        log_debug("\tRendering output tile")
+
+        process_tile(image)
+
+    else :
+        log_debug("\tNot rendering output tile")
 
 def process_images (image_paths) :
     """
