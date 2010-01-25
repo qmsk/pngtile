@@ -47,7 +47,7 @@ struct pt_cache_header {
 };
 
 /**
- * On-disk data format. This struct is always exactly PT_CACHE_HEADER_SIZE long
+ * On-disk data format. This struct is always exactly PT_CACHE_HEADER_SIZE long (or is it?)
  */
 struct pt_cache_file {
     /** Header */

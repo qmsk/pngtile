@@ -208,6 +208,16 @@ static int pt_cache_tmp_name (struct pt_cache *cache, char tmp_path[1024])
 }
 
 /**
+ * Compute and return the full size of the .cache file
+ */
+static size_t pt_cache_size (size_t data_size)
+{
+    assert(sizeof(struct pt_cache_file) == PT_CACHE_HEADER_SIZE);
+
+    return sizeof(struct pt_cache_file) + data_size;
+}
+
+/**
  * Open the .tmp cache file as an fd for writing
  */
 static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
@@ -232,7 +242,7 @@ static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
 
 
 /**
- * Mmap the pt_cache_file using sizeof(struct pt_cache_file) + data_size
+ * Mmap the pt_cache_file using pt_cache_size(data_size)
  */
 static int pt_cache_open_mmap (struct pt_cache *cache, struct pt_cache_file **file_ptr, size_t data_size, bool readonly)
 {
@@ -249,7 +259,7 @@ static int pt_cache_open_mmap (struct pt_cache *cache, struct pt_cache_file **fi
     }
 
     // mmap() the full file including header
-    if ((addr = mmap(NULL, sizeof(struct pt_cache_file) + data_size, prot, MAP_SHARED, cache->fd, 0)) == MAP_FAILED)
+    if ((addr = mmap(NULL, pt_cache_size(data_size), prot, MAP_SHARED, cache->fd, 0)) == MAP_FAILED)
         RETURN_ERROR(PT_ERR_CACHE_MMAP);
 
     // ok
@@ -340,7 +350,7 @@ static int pt_cache_create (struct pt_cache *cache, struct pt_cache_header *head
         JUMP_ERROR(err);
 
     // grow file
-    if (ftruncate(cache->fd, sizeof(struct pt_cache_file) + header->data_size) < 0)
+    if (ftruncate(cache->fd, pt_cache_size(header->data_size)) < 0)
         JUMP_SET_ERROR(err, PT_ERR_CACHE_TRUNC);
 
     // mmap header and data
