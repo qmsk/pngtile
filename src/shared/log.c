@@ -45,7 +45,7 @@ void set_log_level (enum log_level level)
 
 size_t str_append_fmt_va (char *buf_ptr, size_t *buf_size, const char *fmt, va_list args)
 {
-    int ret;
+    int ret = 0;
 
     if (*buf_size && (ret = vsnprintf(buf_ptr, *buf_size, fmt, args)) < 0)
         return 0;
