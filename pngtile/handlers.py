@@ -66,7 +66,11 @@ def handle_dir (req, name, path) :
         Handle request for a directory
     """
     
-    prefix = os.path.dirname(req.script_root).rstrip('/')
+    prefix = req.script_root
+    
+    print "req.script_root:", req.script_root
+    print "prefix", prefix
+
 
     return Response(render.dir_html(prefix, name, path), content_type="text/html")
 
@@ -77,7 +81,7 @@ def handle_img_viewport (req, image, name) :
         Handle request for image viewport
     """
     
-    prefix = os.path.dirname(req.script_root).rstrip('/')
+    prefix = req.script_root
 
     # viewport
     return Response(render.img_html(prefix, name, image), content_type="text/html")
