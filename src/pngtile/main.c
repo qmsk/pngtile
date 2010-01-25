@@ -5,6 +5,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <stdbool.h>
 
 /**
@@ -263,7 +264,10 @@ int main (int argc, char **argv)
 
             if (strcmp(out_path, "-") == 0) {
                 // use stdout
-                out_file = stdout;
+                if ((out_file = fdopen(STDOUT_FILENO, "wb")) == NULL) {
+                    log_errno("fdopen: STDOUT_FILENO");
+                    goto error;
+                }
             
             } else if (false /* tmp */) {
                 int fd;
@@ -271,17 +275,15 @@ int main (int argc, char **argv)
                 // temporary file for output
                 if ((fd = mkstemp(tmp_name)) < 0) {
                     log_errno("mkstemp");
-                    
-                    continue;
+                    goto error;
                 }
 
                 out_path = tmp_name;
 
                 // open out
-                if ((out_file = fdopen(fd, "w")) == NULL) {
+                if ((out_file = fdopen(fd, "wb")) == NULL) {
                     log_errno("fdopen");
-
-                    continue;
+                    goto error;
                 }
 
             } else {
@@ -307,7 +309,10 @@ int main (int argc, char **argv)
 
                 if ((err = pt_image_tile_file(image, &ti, out_file)))
                     log_errno("pt_image_tile_file: %s: %s", img_path, pt_strerror(err));
-
+                
+                // cleanup
+                if (fclose(out_file))
+                    log_warn_errno("fclose: out_file");
             }
         }
 
