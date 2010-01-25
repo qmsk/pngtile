@@ -8,13 +8,45 @@
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
+int pt_png_check (const char *path)
+{
+    FILE *fp;
+    uint8_t header[8];
+    int ret;
+
+    // fopen
+    if ((fp = fopen(path, "rb")) == NULL)
+        RETURN_ERROR(PT_ERR_IMG_OPEN);
+
+    // read
+    if (fread(header, 1, sizeof(header), fp) != sizeof(header))
+        JUMP_SET_ERROR(ret, PT_ERR_IMG_FORMAT);
+      
+    // compare signature  
+    if (png_sig_cmp(header, 0, sizeof(header)))
+        // not a PNG file
+        ret = 1;
+
+    else
+        // valid PNG file
+        ret = 0;
+
+error:
+    // cleanup
+    fclose(fp);
+
+    return ret;
+}
+
 int pt_png_open (struct pt_image *image, struct pt_png_img *img)
 {
-    FILE *fp = NULL;
     int err;
+
+    // init
+    memset(img, 0, sizeof(*img));
     
     // open I/O
-    if ((err = pt_image_open_file(image, &fp)))
+    if ((err = pt_image_open_file(image, &img->fh)))
         JUMP_ERROR(err);
 
     // create the struct
@@ -35,27 +67,31 @@ int pt_png_open (struct pt_image *image, struct pt_png_img *img)
     
 
     // setup I/O to FILE
-    png_init_io(img->png, fp);
+    png_init_io(img->png, img->fh);
 
     // read meta-info
     png_read_info(img->png, img->info);
 
 
-    // XXX: what to do with fp? Should fclose() when done?
+    // img->fh will be closed by pt_png_release_read
     return 0;
 
 error:
     // cleanup
     pt_png_release_read(img);
-
-    if (fp) fclose(fp);
     
     return err;
 }
 
 int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, size_t *data_size)
 {
-    // XXX: check image doesn't use any options we don't handle
+    // check image doesn't use any options we don't handle
+    if (png_get_interlace_type(img->png, img->info) != PNG_INTERLACE_NONE) {
+        log_warn("Can't handle interlaced PNG");
+
+        RETURN_ERROR(PT_ERR_IMG_FORMAT);
+    }
+
 
     // initialize
     memset(header, 0, sizeof(*header));
@@ -78,7 +114,7 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
     header->row_bytes = png_get_rowbytes(img->png, img->info);
 
     // calculate bpp as num_channels * bpc
-    // XXX: this assumes the packed bit depth will be either 8 or 16
+    // this assumes the packed bit depth will be either 8 or 16
     header->col_bytes = png_get_channels(img->png, img->info) * (header->bit_depth == 16 ? 2 : 1);
 
     log_debug("row_bytes=%u, col_bytes=%u", header->row_bytes, header->col_bytes);
@@ -89,7 +125,7 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
         png_colorp palette;
 
         if (png_get_PLTE(img->png, img->info, &palette, &num_palette) == 0)
-            // XXX: PLTE chunk not read?
+            // PLTE chunk not read?
             RETURN_ERROR(PT_ERR_PNG);
         
         // should only be 256 of them at most
@@ -216,7 +252,7 @@ static void pt_png_mem_write (png_structp png, png_bytep data, png_size_t length
     
     // write to buffer
     if ((err = pt_tile_mem_write(buf, data, length)))
-        // XXX: log pt_strerror(err)
+        // drop err, because png_error doesn't do formatted output
         png_error(png, "pt_tile_mem_write: ...");
 }
 
@@ -270,19 +306,9 @@ static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_he
     size_t clip_x, clip_y;
 
 
-    // figure out if the tile clips over the right edge
-    // XXX: use min()
-    if (ti->x + ti->width > header->width)
-        clip_x = header->width;
-    else
-        clip_x = ti->x + ti->width;
-    
-    // figure out if the tile clips over the bottom edge
-    // XXX: use min()
-    if (ti->y + ti->height > header->height)
-        clip_y = header->height;
-    else
-        clip_y = ti->y + ti->height;
+    // fit the left/bottom edge against the image dimensions
+    clip_x = min(ti->x + ti->width, header->width);
+    clip_y = min(ti->y + ti->height, header->height);
 
 
     // allocate buffer for a single row of image data
@@ -415,7 +441,7 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
     // buffer to hold output rows
     uint8_t *row_buf;
     
-    // XXX: only supports zooming out...
+    // only supports zooming out...
     if (ti->zoom >= 0)
         RETURN_ERROR(PT_ERR_ZOOM);
 
@@ -474,12 +500,15 @@ int pt_png_tile (struct pt_png_header *header, uint8_t *data, struct pt_tile *ti
     struct pt_tile_info *ti = &tile->info;
     int err;
 
+    // init img
+    img->png = NULL;
+    img->info = NULL;
+
     // check within bounds
     if (ti->x >= header->width || ti->y >= header->height)
         // completely outside
         RETURN_ERROR(PT_ERR_TILE_CLIP);
     
-    // XXX: init img
     // open PNG writer
     if ((img->png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL)
         JUMP_SET_ERROR(err, PT_ERR_PNG_CREATE);
@@ -497,6 +526,7 @@ int pt_png_tile (struct pt_png_header *header, uint8_t *data, struct pt_tile *ti
     switch (tile->out_type) {
         case PT_TILE_OUT_FILE:
             // use default FILE* operation
+            // do NOT store in img->fh
             png_init_io(img->png, tile->out.file);
 
             break;
@@ -549,10 +579,23 @@ error:
 void pt_png_release_read (struct pt_png_img *img)
 {
     png_destroy_read_struct(&img->png, &img->info, NULL);
+    
+    // close possible filehandle
+    if (img->fh) {
+        if (fclose(img->fh))
+            log_warn_errno("fclose");
+    }
 }
 
 void pt_png_release_write (struct pt_png_img *img)
 {
     png_destroy_write_struct(&img->png, &img->info);
+
+    // close possible filehandle
+    if (img->fh) {
+        if (fclose(img->fh))
+            log_warn_errno("fclose");
+    }
+
 }
 

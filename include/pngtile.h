@@ -215,7 +215,8 @@ enum pt_error {
     PT_ERR_OPEN_MODE,
     
     PT_ERR_IMG_STAT,
-    PT_ERR_IMG_FOPEN,
+    PT_ERR_IMG_OPEN,
+    PT_ERR_IMG_FORMAT,
     
     PT_ERR_PNG_CREATE,
     PT_ERR_PNG,

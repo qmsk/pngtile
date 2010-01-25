@@ -21,6 +21,8 @@ struct pt_png_img {
     png_struct *png;
     png_info *info;
 
+    /** Possible opened I/O file */
+    FILE *fh;
 };
 
 /**
@@ -50,6 +52,12 @@ struct pt_png_header {
 #include "image.h"
 #include "tile.h"
 
+/**
+ * Check if the given path looks like a .png file.
+ *
+ * Returns 0 if ok, 1 if non-png file, -1 on error
+ */
+int pt_png_check (const char *path);
 
 /**
  * Open the given .png image, and read info

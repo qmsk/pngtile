@@ -56,7 +56,13 @@ int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *
     char cache_path[1024];
     int err;
 
-    // XXX: verify that the path exists and looks like a PNG file
+    // verify that the path exists and looks like a PNG file
+    if ((err = pt_png_check(path)) < 0)
+        return err;
+    
+    if (err)
+        // fail, not a PNG
+        RETURN_ERROR(PT_ERR_IMG_FORMAT);
 
     // alloc
     if ((err = pt_image_new(&image, ctx, path)))
@@ -87,7 +93,7 @@ int pt_image_open_file (struct pt_image *image, FILE **file_ptr)
     
     // open
     if ((fp = fopen(image->path, "rb")) == NULL)
-        RETURN_ERROR(PT_ERR_IMG_FOPEN);
+        RETURN_ERROR(PT_ERR_IMG_OPEN);
 
     // ok
     *file_ptr = fp;

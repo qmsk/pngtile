@@ -12,7 +12,8 @@ const char *error_names[PT_ERR_MAX] = {
     [PT_ERR_OPEN_MODE]          = "open_mode",
     
     [PT_ERR_IMG_STAT]           = "stat(.png)",
-    [PT_ERR_IMG_FOPEN]          = "fopen(.png)",
+    [PT_ERR_IMG_OPEN]           = "open(.png)",
+    [PT_ERR_IMG_FORMAT]         = "Unknown image format",
     
     [PT_ERR_PNG_CREATE]         = "png_create()",
     [PT_ERR_PNG]                = "png_*()",
