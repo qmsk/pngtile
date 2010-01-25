@@ -8,21 +8,69 @@ import os.path, os
 
 import pypngtile as pt
 
+## Settings
+# path to images
 DATA_ROOT = os.environ.get("PNGTILE_DATA_PATH") or os.path.abspath('data/')
 
+# only open each image once
 IMAGE_CACHE = {}
 
+# width of a tile
 TILE_WIDTH = 256
 TILE_HEIGHT = 256
 
 # max. output resolution to allow
 MAX_PIXELS = 1920 * 1200
 
-def dir_view (req, name, path) :
+def dir_url (prefix, name, item) :
+    """
+        Join together an absolute URL prefix, an optional directory name, and a directory item
+    """
+
+    url = prefix
+
+    if name :
+        url = os.path.join(url, name)
+
+    url = os.path.join(url, item)
+
+    return url
+
+def dir_list (dir_path) :
+    """
+        Yield a series of directory items to show for the given dir
+    """
+
+    # link to parent
+    yield '..'
+
+    for item in os.listdir(dir_path) :
+        path = os.path.join(dir_path, item)
+
+        # skip dotfiles
+        if item.startswith('.') :
+            continue
+        
+        # show dirs
+        if os.path.isdir(path) :
+            yield item
+
+        # examine ext
+        base, ext = os.path.splitext(path)
+
+        # show .png files with a .cache file
+        if ext == '.png' and os.path.exists(base + '.cache') :
+            yield item
+
+### Render HTML data
+def render_dir (req, name, path) :
+    """
+        Directory index
+    """
+
     prefix = os.path.dirname(req.script_root).rstrip('/')
     script_prefix = req.script_root
     name = name.rstrip('/')
-
 
     return """\
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
@@ -39,20 +87,28 @@ def dir_view (req, name, path) :
     </body>
 </html>""" % dict(
         prefix          = prefix,
-        dir             = name,
+        dir             = '/' + name,
         
         listing         = "\n".join(
+            # <li> link
             """<li><a href="%(url)s">%(name)s</a></li>""" % dict(
-                url         = '/'.join((script_prefix, name, item)),
+                # URL to dir
+                url         = dir_url(script_prefix, name, item),
+
+                # item name
                 name        = item,
-            ) for item in ['..'] + [i for i in os.listdir(path) if i.endswith('.png') or os.path.isdir(os.path.join(path, i))]
+            ) for item in dir_list(path)
         ),
     )
 
-def image_view (req, image_path, image) :
-    image_name = os.path.basename(image_path)
-
-    img_width, img_height = image.info()
+def render_img_viewport (req, name, image) :
+    """
+        HTML for image
+    """
+    
+    # a little slow, but not so bad - two stats(), heh
+    info = image.info()
+    img_width, img_height = info['img_width'], info['img_height']
 
     return """\
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
@@ -87,7 +143,7 @@ def image_view (req, image_path, image) :
         </script>
     </body>
 </html>""" % dict(
-        title           = image_name,
+        title           = name,
         prefix          = os.path.dirname(req.script_root).rstrip('/'),
         tile_url        = req.url,
 
@@ -99,6 +155,10 @@ def image_view (req, image_path, image) :
     )
 
 def scale_by_zoom (val, zoom) :
+    """
+        Scale coordinates by zoom factor
+    """
+
     if zoom > 0 :
         return val << zoom
 
@@ -108,14 +168,23 @@ def scale_by_zoom (val, zoom) :
     else :
         return val
 
-def render_tile (image, x, y, zoom, width=TILE_WIDTH, height=TILE_HEIGHT) :
+### Render PNG Data
+def render_img_tile (image, x, y, zoom, width=TILE_WIDTH, height=TILE_HEIGHT) :
+    """
+        Render given tile, returning PNG data
+    """
+
     return image.tile_mem(
         width, height, 
         scale_by_zoom(x, -zoom), scale_by_zoom(y, -zoom), 
         zoom
     )
 
-def render_image (image, cx, cy, zoom, width, height) :
+def render_img_region (image, cx, cy, zoom, width, height) :
+    """
+        Render arbitrary tile, returning PNG data
+    """
+
     x = scale_by_zoom(cx - width / 2, -zoom)
     y = scale_by_zoom(cy - height / 2, -zoom)
 
@@ -129,80 +198,164 @@ def render_image (image, cx, cy, zoom, width, height) :
         zoom
     )
 
-def handle_main (req) :
+
+### Manipulate request data
+def get_req_path (req) :
+    """
+        Returns the name and path requested
+    """
+
     # path to image
     image_name = req.path.lstrip('/')
     
     # build absolute path
     image_path = os.path.abspath(os.path.join(DATA_ROOT, image_name))
 
-    
     # ensure the path points inside the data root
     if not image_path.startswith(DATA_ROOT) :
         raise exceptions.NotFound(image_name)
 
+    return image_name, image_path
 
-    if os.path.isdir(image_path) :
-        return Response(dir_view(req, image_name, image_path), content_type="text/html")
-    
-    elif not os.path.exists(image_path) :
-        raise exceptions.NotFound(image_name)
-
-    elif not image_name or not image_name.endswith('.png') :
-        raise exceptions.BadRequest("Not a PNG file")
-    
+def get_image (name, path) :
+    """
+        Gets an Image object from the cache, ensuring that it is cached
+    """
 
     # get Image object
-    if image_path in IMAGE_CACHE :
+    if path in IMAGE_CACHE :
         # get from cache
-        image = IMAGE_CACHE[image_path]
+        image = IMAGE_CACHE[path]
 
     else :
-        # ensure exists
-        if not os.path.exists(image_path) :
-            raise exceptions.NotFound(image_name)
+        # open
+        image = pt.Image(path)
+
+        # check
+        if image.status() not in (pt.CACHE_FRESH, pt.CACHE_STALE) :
+            raise exceptions.InternalServerError("Image cache not available: %s" % name)
+
+        # load
+        image.open()
 
         # cache
-        image = IMAGE_CACHE[image_path] = pt.Image(image_path)
+        IMAGE_CACHE[path] = image
     
-    if image.status() == pt.CACHE_NONE :
-        raise exceptions.InternalServerError("Image not cached: " + image_name)
+    return image
+
+
+
+### Handle request
+def handle_dir (req, name, path) :
+    """
+        Handle request for a directory
+    """
+
+    return Response(render_dir(req, name, path), content_type="text/html")
+
+
+
+def handle_img_viewport (req, image, name) :
+    """
+        Handle request for image viewport
+    """
+
+    # viewport
+    return Response(render_img_viewport(req, name, image), content_type="text/html")
+
+
+def handle_img_region (req, image) :
+    """
+        Handle request for an image region
+    """
+
+    # specific image
+    width = int(req.args['w'])
+    height = int(req.args['h'])
+    cx = int(req.args['cx'])
+    cy = int(req.args['cy'])
+    zoom = int(req.args.get('zl', "0"))
+
+    # yay full render
+    return Response(render_img_region(image, cx, cy, zoom, width, height), content_type="image/png")
+
+
+def handle_img_tile (req, image) :
+    """
+        Handle request for image tile
+    """
+
+    # tile
+    x = int(req.args['x'])
+    y = int(req.args['y'])
+    zoom = int(req.args.get('zl', "0"))
+        
+    # yay render
+    return Response(render_img_tile(image, x, y, zoom), content_type="image/png")
+
+## Dispatch req to handle_img_*
+def handle_img (req, name, path) :
+    """
+        Handle request for an image
+    """
+
+    # get image object
+    image = get_image(name, path)
 
     # what view?
     if not req.args :
-        # viewport
-        return Response(image_view(req, image_path, image), content_type="text/html")
+        return handle_img_viewport(req, image, name)
 
     elif 'w' in req.args and 'h' in req.args and 'cx' in req.args and 'cy' in req.args :
-        # specific image
-        width = int(req.args['w'])
-        height = int(req.args['h'])
-        cx = int(req.args['cx'])
-        cy = int(req.args['cy'])
-        zoom = int(req.args.get('zl', "0"))
-
-        # yay full render
-        return Response(render_image(image, cx, cy, zoom, width, height), content_type="image/png")
+        return handle_img_region(req, image)
 
     elif 'x' in req.args and 'y' in req.args :
-        # tile
-        x = int(req.args['x'])
-        y = int(req.args['y'])
-        zoom = int(req.args.get('zl', "0"))
-        
-        # yay render
-        return Response(render_tile(image, x, y, zoom), content_type="image/png")
-   
+        return handle_img_tile(req, image)
+
     else :
         raise exceptions.BadRequest("Unknown args")
-   
+
+
+
+## Dispatch request to handle_*
+def handle_req (req) :
+    """
+        Main request handler
+    """
+    
+    # decode req
+    name, path = get_req_path(req)
+
+    # determine dir/image
+    if os.path.isdir(path) :
+        # directory
+        return handle_dir(req, name, path)
+    
+    elif not os.path.exists(path) :
+        # no such file
+        raise exceptions.NotFound(name)
+
+    elif not name or not name.endswith('.png') :
+        # invalid file
+        raise exceptions.BadRequest("Not a PNG file")
+    
+    else :
+        # image
+        return handle_img(req, name, path)
+
+
+
 
 @responder
 def application (env, start_response) :
+    """
+        Main WSGI entry point
+    """
+
     req = Request(env, start_response)
     
     try :
-        return handle_main(req)
+        return handle_req(req)
 
     except exceptions.HTTPException, e :
         return e
