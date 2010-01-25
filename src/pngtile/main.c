@@ -197,6 +197,9 @@ int main (int argc, char **argv)
 
             else if (status == PT_CACHE_FRESH)
                 log_debug("\tImage cache is fresh");
+
+            else
+                log_warn("\tImage cache status is unknown");
             
             if (!no_update) {
                 log_debug("\tUpdating image cache...");
@@ -222,10 +225,10 @@ int main (int argc, char **argv)
             log_warn_errno("pt_image_info: %s: %s", img_path, pt_strerror(err));
 
         } else {
-            log_info("\tImage dimensions: %zux%zu", info->img_width, info->img_height);
+            log_info("\tImage dimensions: %zux%zu (%zu bpp)", info->img_width, info->img_height, info->img_bpp);
             log_info("\tImage mtime=%ld, bytes=%zu", (long) info->image_mtime, info->image_bytes);
-            log_info("\tCache mtime=%ld, bytes=%zu, blocks=%zu (%zu bytes)", 
-                    (long) info->cache_mtime, info->cache_bytes, info->cache_blocks, info->cache_blocks * 512
+            log_info("\tCache mtime=%ld, bytes=%zu, blocks=%zu (%zu bytes), version=%d", 
+                    (long) info->cache_mtime, info->cache_bytes, info->cache_blocks, info->cache_blocks * 512, info->cache_version
             );
         }
 
