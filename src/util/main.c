@@ -222,9 +222,9 @@ int main (int argc, char **argv)
 
         } else {
             log_info("\tImage dimensions: %zux%zu", info->img_width, info->img_height);
-            log_info("\tImage mtime=%u, bytes=%zu", info->image_mtime, info->image_bytes);
-            log_info("\tCache mtime=%u, bytes=%zu, blocks=%zu (%zu bytes)", 
-                    info->cache_mtime, info->cache_bytes, info->cache_blocks, info->cache_blocks * 512
+            log_info("\tImage mtime=%ld, bytes=%zu", (long) info->image_mtime, info->image_bytes);
+            log_info("\tCache mtime=%ld, bytes=%zu, blocks=%zu (%zu bytes)", 
+                    (long) info->cache_mtime, info->cache_bytes, info->cache_blocks, info->cache_blocks * 512
             );
         }
 
