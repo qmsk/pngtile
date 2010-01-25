@@ -9,8 +9,6 @@ ABOUT:
     For this purpose, the library linearly decodes the PNG image to an uncompressed memory-mapped file, which can then
     be later used to encode a portion of this raw pixel data back into a PNG image.
 
-    Additionally, the library contains a thread pool for doing asynchronous tile render operations in parallel.
-
 
 NOTES:
     The command-line utility is mainly intended for maintining the image caches and testing, primary usage is expected
@@ -20,7 +18,12 @@ NOTES:
     There is a separate project that provides a web-based tile viewer using Javascript (implemented in Python as a
     WSGI application).
 
-    The .cache files are not portable across different architectures.
+    The .cache files are not portable across different architectures, nor are they compatible across different cache
+    format versions.
+
+    The library supports sparse cache files. A pixel-format byte pattern can be provided with --background using
+    hexadecimal notation (--background 0xFFFFFF - for 24bpp RGB white), and consecutive regions of that color will
+    be omitted in the cache file, which may provide significant gains in space efficiency.
 
 
 COMPILING:
@@ -28,8 +31,6 @@ COMPILING:
 
         * libpng 1.2.15~beta5-3ubuntu0.1
         * NPTL 2.7 (glibc 2.7-10ubuntu5)
-
-    The code was verified to compile and run on cc.hut.fi's Ubuntu computers, e.g. asterix.hut.fi.
 
     To compile, simply execute
 
@@ -46,6 +47,9 @@ USAGE:
     updated if the cache doesn't exist yet, or is stale:
 
         ./bin/util -v data/*.png
+    
+    Use -v/--verbose for more detailed output.
+
 
     To render a tile from some image, provide appropriate -W/-H and -x/-y options to ./bin/util:
         
@@ -54,27 +58,16 @@ USAGE:
     The output PNG tiles will be written to temporary files, the names of which are shown in the [INFO] output.
 
 
-
     To force-update an image's cache, use the -U/--force-update option:
 
         ./bin/util --force-update data/*.png
 
-    To change the number of threads used for tile-render operations, use -j/--threads:
-        
-        time ./bin/util -q data/* -W 4096 -H 4096 -x 8000 -y 4000 -j 1
-        > real    0m3.866s
-        
-        time ./bin/util -q data/* -W 4096 -H 4096 -x 8000 -y 4000 -j 4
-        > real    0m1.463s
+    Alternatively, to not update an image's cache, use the -N/--no-update option.
 
-        (measured on an Intel Core 2 Duo, compiled without optimizations)
-    
 
 TODO/BUGS:
     At this stage, the library is primarily designed to handle a specific set of PNG images, and hence does not support
     all aspects of the PNG format, nor any other image formats.
-
-    Cache updated operations are not executed using the thread pool.
 
     The pt_images opened by main() are not cleaned up before process exit, due to the asynchronous nature of the tile
     render operation's accesses to the underlying pt_cache object.

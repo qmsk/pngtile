@@ -42,7 +42,7 @@ void help (const char *argv0)
         "\t-D, --debug          equivalent to -v\n"
         "\t-U, --force-update   unconditionally update image caches\n"
         "\t-N, --no-update      do not update the image cache\n"
-        "\t-B, --background     set background pattern for cache update\n"
+        "\t-B, --background     set background pattern for sparse cache file: 0xHH..\n"
         "\t-W, --width          set tile width\n"
         "\t-H, --height         set tile height\n"
         "\t-x, --x              set tile x offset\n"
