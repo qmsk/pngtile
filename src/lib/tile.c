@@ -78,6 +78,10 @@ int pt_tile_init_mem (struct pt_tile *tile, struct pt_cache *cache, const struct
 
 int pt_tile_render (struct pt_tile *tile)
 {
+    // validate dimensions
+    if (!tile->info.width || !tile->info.height)
+        RETURN_ERROR(PT_ERR_TILE_DIM);
+
     return pt_cache_tile(tile->cache, tile);
 }
 

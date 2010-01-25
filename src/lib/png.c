@@ -444,7 +444,7 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
     
     // only supports zooming out...
     if (ti->zoom >= 0)
-        RETURN_ERROR(PT_ERR_ZOOM);
+        RETURN_ERROR(PT_ERR_TILE_ZOOM);
 
     if ((row_buf = malloc(row_bytes)) == NULL)
         RETURN_ERROR(PT_ERR_MEM);
