@@ -198,10 +198,10 @@ void pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
     }
 }
 
-static int pt_cache_tmp_name (struct pt_cache *cache, char tmp_path[1024])
+static int pt_cache_tmp_name (struct pt_cache *cache, char tmp_path[], size_t tmp_len)
 {
     // get .tmp path
-    if (path_with_fext(cache->path, tmp_path, sizeof(tmp_path), ".tmp"))
+    if (path_with_fext(cache->path, tmp_path, tmp_len, ".tmp"))
         RETURN_ERROR(PT_ERR_PATH);
 
     return 0;
@@ -227,7 +227,7 @@ static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
     int err;
 
     // get .tmp path
-    if ((err = pt_cache_tmp_name(cache, tmp_path)))
+    if ((err = pt_cache_tmp_name(cache, tmp_path, sizeof(tmp_path))))
         return err;
 
     // open for write, create, fail if someone else already opened it for update
@@ -376,7 +376,7 @@ static int pt_cache_create_done (struct pt_cache *cache)
     int err;
     
     // get .tmp path
-    if ((err = pt_cache_tmp_name(cache, tmp_path)))
+    if ((err = pt_cache_tmp_name(cache, tmp_path, sizeof(tmp_path))))
         return err;
 
     // rename
@@ -399,7 +399,7 @@ static void pt_cache_create_abort (struct pt_cache *cache)
     pt_cache_abort(cache);
 
     // get .tmp path
-    if ((err = pt_cache_tmp_name(cache, tmp_path))) {
+    if ((err = pt_cache_tmp_name(cache, tmp_path, sizeof(tmp_path)))) {
         log_warn_errno("pt_cache_tmp_name: %s: %s", cache->path, pt_strerror(err));
         
         return;
