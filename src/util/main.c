@@ -33,7 +33,8 @@ void help (const char *argv0)
 {
     fprintf(stderr, "Usage: %s [options] <image> [...]\n", argv0);
     fprintf(stderr,
-        "XXX: Process some image files.\n"
+        "Open each of the given image files, check cache status, optionally update their cache, display image info, and\n"
+        "optionally render a tile of each.\n"
         "\n"
         "\t-h, --help           show this help and exit\n"
         "\t-q, --quiet          supress informational output\n"
