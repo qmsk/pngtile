@@ -8,6 +8,14 @@
 #include <unistd.h>
 #include <stdbool.h>
 
+enum option_names {
+
+    _OPT_LONGONLY       = 255,
+
+    OPT_BENCHMARK,
+    OPT_RANDOMIZE,
+};
+
 /**
  * Command-line options
  */
@@ -26,7 +34,11 @@ static const struct option options[] = {
     { "zoom",           true,   NULL,   'z' },
     { "out",            true,   NULL,   'o' },
     { "threads",        true,   NULL,   'j' },
-    { 0,                0,      0,      0   }
+    
+    // --long-only options
+    { "benchmark",      true,   NULL,   OPT_BENCHMARK   },
+    { "randomize",      false,  NULL,   OPT_RANDOMIZE   },
+    { 0,                0,      0,      0               }
 };
 
 /**
@@ -39,27 +51,148 @@ void help (const char *argv0)
         "Open each of the given image files, check cache status, optionally update their cache, display image info, and\n"
         "optionally render a tile of each.\n"
         "\n"
-        "\t-h, --help           show this help and exit\n"
-        "\t-q, --quiet          supress informational output\n"
-        "\t-v, --verbose        display more informational output\n"
-        "\t-D, --debug          equivalent to -v\n"
-        "\t-U, --force-update   unconditionally update image caches\n"
-        "\t-N, --no-update      do not update the image cache\n"
-        "\t-B, --background     set background pattern for sparse cache file: 0xHH..\n"
-        "\t-W, --width          set tile width\n"
-        "\t-H, --height         set tile height\n"
-        "\t-x, --x              set tile x offset\n"
-        "\t-y, --y              set tile y offset\n"
-        "\t-z, --zoom           set zoom factor (<0)\n"
-        "\t-o, --out            set tile output file\n"
-        "\t-j, --threads        number of threads\n"
+        "\t-h, --help               show this help and exit\n"
+        "\t-q, --quiet              supress informational output\n"
+        "\t-v, --verbose            display more informational output\n"
+        "\t-D, --debug              equivalent to -v\n"
+        "\t-U, --force-update       unconditionally update image caches\n"
+        "\t-N, --no-update          do not update the image cache\n"
+        "\t-B, --background         set background pattern for sparse cache file: 0xHH..\n"
+        "\t-W, --width      PX      set tile width\n"
+        "\t-H, --height     PX      set tile height\n"
+        "\t-x, --x          PX      set tile x offset\n"
+        "\t-y, --y          PX      set tile y offset\n"
+        "\t-z, --zoom       ZL      set zoom factor (<0)\n"
+        "\t-o, --out        FILE    set tile output file\n"
+        "\t-j, --threads    N       number of threads\n"
+        "\t--benchmark      N       do N tile renders\n"
+        "\t--randomize              randomize tile x/y coords\n"
     );
+}
+
+unsigned long parse_uint (const char *val, const char *name)
+{
+    char *endptr;
+    long int out;
+
+    // decode
+    out = strtol(val, &endptr, 0);
+
+    // validate
+    if (*endptr || out < 0)
+        EXIT_ERROR(EXIT_FAILURE, "Invalid value for %s: %s", name, val);
+
+    // ok
+    return out;
+}
+
+signed long parse_sint (const char *val, const char *name)
+{
+    char *endptr;
+    long int out;
+
+    // decode
+    out = strtol(val, &endptr, 0);
+
+    // validate
+    if (*endptr)
+        EXIT_ERROR(EXIT_FAILURE, "Invalid value for %s: %s", name, val);
+
+    // ok
+    return out;
+}
+
+long randrange (long start, long end)
+{
+    return start + (rand() * (end - start) / RAND_MAX);
+}
+
+/**
+ * Randomize tile x/y with given image info
+ */
+void randomize_tile (struct pt_tile_info *ti, const struct pt_image_info *info)
+{
+    ti->x = randrange(0, info->img_width - ti->width);
+    ti->y = randrange(0, info->img_height - ti->height);
+}
+
+/**
+ * Render a tile
+ */
+int do_tile (struct pt_ctx *ctx, struct pt_image *image, const struct pt_tile_info *ti, const char *out_path)
+{
+    FILE *out_file = NULL;
+    char tmp_name[] = "pt-tile-XXXXXX";
+    int err = 0;
+    
+    if (!out_path) {
+        int fd;
+        
+        // temporary file for output
+        if ((fd = mkstemp(tmp_name)) < 0) {
+            log_errno("mkstemp");
+            goto error;
+        }
+
+        out_path = tmp_name;
+
+        // open out
+        if ((out_file = fdopen(fd, "wb")) == NULL) {
+            log_errno("fdopen");
+            goto error;
+        }
+
+    } else if (strcmp(out_path, "-") == 0) {
+        // use stdout
+        if ((out_file = fdopen(STDOUT_FILENO, "wb")) == NULL) {
+            log_errno("fdopen: STDOUT_FILENO");
+            goto error;
+        }
+
+    } else {
+        // use file
+        if ((out_file = fopen(out_path, "wb")) == NULL) {
+            log_errno("fopen: %s", out_path);
+            goto error;
+        }
+
+    }
+
+    
+    if (ctx) {
+        // render
+        log_info("\tAsync render tile %zux%zu@(%zu,%zu) -> %s", ti->width, ti->height, ti->x, ti->y, out_path);
+
+        if ((err = pt_image_tile_async(image, ti, out_file))) {
+            log_errno("pt_image_tile_async: %s", pt_strerror(err));
+            goto error;
+        }
+
+        // will close it itself
+        out_file = NULL;
+
+    } else {
+        // render
+        log_info("\tRender tile %zux%zu@(%zu,%zu) -> %s", ti->width, ti->height, ti->x, ti->y, out_path);
+
+        if ((err = pt_image_tile_file(image, ti, out_file))) {
+            log_errno("pt_image_tile_file: %s", pt_strerror(err));
+            goto error;
+        }
+    }
+
+error:
+    // cleanup
+    if (out_file && fclose(out_file))
+        log_warn_errno("fclose: out_file");
+
+    return err;
 }
 
 int main (int argc, char **argv)
 {
     int opt;
-    bool force_update = false, no_update = false;
+    bool force_update = false, no_update = false, randomize = false;
     struct pt_tile_info ti = {
         .width  = 800,
         .height = 600,
@@ -69,8 +202,8 @@ int main (int argc, char **argv)
     };
     struct pt_image_params update_params = { };
     const char *out_path = NULL;
-    int threads = 0;
-    int tmp, err;
+    int threads = 0, benchmark = 0;
+    int err;
     
     // parse arguments
     while ((opt = getopt_long(argc, argv, "hqvDUNB:W:H:x:y:z:o:j:", options, NULL)) != -1) {
@@ -83,28 +216,20 @@ int main (int argc, char **argv)
 
             case 'q':
                 // supress excess log output
-                set_log_level(LOG_WARN);
-
-                break;
+                set_log_level(LOG_WARN); break;
 
             case 'v':
             case 'D':
                 // display additional output
-                set_log_level(LOG_DEBUG);
-
-                break;
+                set_log_level(LOG_DEBUG); break;
             
             case 'U':
                 // force update of image caches
-                force_update = true;
-                
-                break;
+                force_update = true; break;
             
             case 'N':
                 // supress update of image caches
-                no_update = true;
-
-                break;
+                no_update = true; break;
 
             case 'B':
                 // background pattern
@@ -124,31 +249,32 @@ int main (int argc, char **argv)
                 } break;
 
             case 'W':
-                ti.width = strtol(optarg, NULL, 0); break;
+                ti.width = parse_uint(optarg, "--width"); break;
 
             case 'H':
-                ti.height = strtol(optarg, NULL, 0); break;
+                ti.height = parse_uint(optarg, "--height"); break;
 
             case 'x':
-                ti.x = strtol(optarg, NULL, 0); break;
+                ti.x = parse_uint(optarg, "--x"); break;
 
             case 'y':
-                ti.y = strtol(optarg, NULL, 0); break;
+                ti.y = parse_uint(optarg, "--y"); break;
 
             case 'z':
-                ti.zoom = strtol(optarg, NULL, 0); break;
+                ti.zoom = parse_sint(optarg, "--zoom"); break;
 
             case 'o':
                 // output file
-                out_path = optarg;
-
-                break;
+                out_path = optarg; break;
 
             case 'j':
-                if ((tmp = strtol(optarg, NULL, 0)) < 1)
-                    FATAL("Invalid value for -j/--threads: %s", optarg);
+                threads = parse_uint(optarg, "--threads"); break;
 
-                threads = tmp; break;
+            case OPT_BENCHMARK:
+                benchmark = parse_uint(optarg, "--benchmark"); break;
+            
+            case OPT_RANDOMIZE:
+                randomize = true; break;
 
             case '?':
                 // useage error
@@ -258,64 +384,29 @@ int main (int argc, char **argv)
         }
 
         // render tile?
-        if (out_path) {
-            FILE *out_file;
-            char tmp_name[] = "pt-tile-XXXXXX";
+        if (benchmark) {
+            log_info("\tRunning %d %stile renders...", benchmark, randomize ? "randomized " : "");
 
-            if (strcmp(out_path, "-") == 0) {
-                // use stdout
-                if ((out_file = fdopen(STDOUT_FILENO, "wb")) == NULL) {
-                    log_errno("fdopen: STDOUT_FILENO");
+            // n times
+            for (int i = 0; i < benchmark; i++) {
+                // randomize x, y
+                if (randomize)
+                    randomize_tile(&ti, info);
+
+                if (do_tile(ctx, image, &ti, out_path))
                     goto error;
-                }
-            
-            } else if (false /* tmp */) {
-                int fd;
-                
-                // temporary file for output
-                if ((fd = mkstemp(tmp_name)) < 0) {
-                    log_errno("mkstemp");
-                    goto error;
-                }
-
-                out_path = tmp_name;
-
-                // open out
-                if ((out_file = fdopen(fd, "wb")) == NULL) {
-                    log_errno("fdopen");
-                    goto error;
-                }
-
-            } else {
-                // use file
-                if ((out_file = fopen(out_path, "wb")) == NULL) {
-                    log_errno("fopen: %s", out_path);
-                    goto error;
-                }
-
             }
 
-            
-            if (ctx) {
-                // render
-                log_info("\tAsync render tile %zux%zu@(%zu,%zu) -> %s", ti.width, ti.height, ti.x, ti.y, out_path);
+        } else if (out_path) {
+            // randomize x, y
+            if (randomize)
+                randomize_tile(&ti, info);
 
-                if ((err = pt_image_tile_async(image, &ti, out_file)))
-                    log_errno("pt_image_tile_async: %s: %s", img_path, pt_strerror(err));
+            // just once
+            if (do_tile(ctx, image, &ti, out_path))
+                goto error;
 
-            } else {
-                // render
-                log_info("\tRender tile %zux%zu@(%zu,%zu) -> %s", ti.width, ti.height, ti.x, ti.y, out_path);
-
-                if ((err = pt_image_tile_file(image, &ti, out_file)))
-                    log_errno("pt_image_tile_file: %s: %s", img_path, pt_strerror(err));
-                
-                // cleanup
-                if (fclose(out_file))
-                    log_warn_errno("fclose: out_file");
-            }
         }
-
 error:
         // cleanup
         // XXX: leak because of async
