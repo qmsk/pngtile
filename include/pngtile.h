@@ -167,6 +167,8 @@ int pt_image_load (struct pt_image *image);
  * Render a PNG tile to a FILE*.
  *
  * The PNG data will be written to the given stream, which will be flushed, but not closed.
+ *
+ * Tile render operations are threadsafe as long as the pt_image is not modified during execution.
  */
 int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info, FILE *out);
 
@@ -174,6 +176,8 @@ int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info,
  * Render a PNG tile to memory.
  *
  * The PNG data will be written to a malloc'd buffer.
+ *
+ * Tile render operations are threadsafe as long as the pt_image is not modified during execution.
  *
  * @param image render from image's cache
  * @param info tile parameters

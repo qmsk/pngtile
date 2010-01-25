@@ -48,16 +48,18 @@ cdef extern from "pngtile.h" :
         size_t width, height
         size_t x, y
         int zoom
+
+    ctypedef pt_image_info* const_image_info_ptr "const struct pt_image_info *"
     
     ## functions
-    int pt_image_open (pt_image **image_ptr, pt_ctx *ctx, char *png_path, int cache_mode)
-    int pt_image_info_ "pt_image_info" (pt_image *image, pt_image_info **info_ptr)
-    int pt_image_status (pt_image *image)
-    int pt_image_load (pt_image *image)
-    int pt_image_update (pt_image *image, pt_image_params *params)
-    int pt_image_tile_file (pt_image *image, pt_tile_info *info, stdio.FILE *out)
-    int pt_image_tile_mem (pt_image *image, pt_tile_info *info, char **buf_ptr, size_t *len_ptr)
-    void pt_image_destroy (pt_image *image)
+    int pt_image_open (pt_image **image_ptr, pt_ctx *ctx, char *png_path, int cache_mode) nogil
+    int pt_image_info_ "pt_image_info" (pt_image *image, pt_image_info **info_ptr) nogil
+    int pt_image_status (pt_image *image) nogil
+    int pt_image_load (pt_image *image) nogil
+    int pt_image_update (pt_image *image, pt_image_params *params) nogil
+    int pt_image_tile_file (pt_image *image, pt_tile_info *info, stdio.FILE *out) nogil
+    int pt_image_tile_mem (pt_image *image, pt_tile_info *info, char **buf_ptr, size_t *len_ptr) nogil
+    void pt_image_destroy (pt_image *image) nogil
     
     # error code -> name
     char* pt_strerror (int err)
@@ -74,15 +76,12 @@ CACHE_STALE     = PT_CACHE_STALE
 CACHE_INCOMPAT  = PT_CACHE_INCOMPAT
 
 class Error (BaseException) :
-    pass
+    """
+        Base class for errors raised by pypngtile.
+    """
 
-# raise Error if the given return value is <0
-cdef int trap_err (char *op, int ret) except -1 :
-    if ret < 0 :
-        raise Error("%s: %s: %s" % (op, pt_strerror(ret), strerror(errno)))
-
-    else :
-        return ret
+    def __init__ (self, func, err) :
+        super(Error, self).__init__("%s: %s: %s" % (func, pt_strerror(err), strerror(errno)))
 
 cdef class Image :
     """
@@ -101,9 +100,15 @@ cdef class Image :
     
     # open the pt_image
     def __cinit__ (self, char *path, int mode = 0) :
-        trap_err("pt_image_open", 
-            pt_image_open(&self.image, NULL, path, mode)
-        )
+        cdef int err
+        
+        # open
+        with nogil :
+            # XXX: I hope use of path doesn't break...
+            err = pt_image_open(&self.image, NULL, path, mode)
+
+        if err :
+            raise Error("pt_image_open", err)
 
 
     def info (self) :
@@ -123,14 +128,17 @@ cdef class Image :
             cache_blocks        - size of cache file in disk blocks - 512 bytes / block
         """
 
-        cdef pt_image_info *info
-        
-        trap_err("pt_image_info",
-            pt_image_info_(self.image, &info)
-        )
+        cdef const_image_info_ptr infop
+        cdef int err
 
+        with nogil :
+            err = pt_image_info_(self.image, &infop)
+
+        if err :
+            raise Error("pt_image_info", err)
+        
         # return as a struct
-        return info[0]
+        return infop[0]
 
 
     def status (self) :
@@ -143,19 +151,28 @@ cdef class Image :
             CACHE_INCOMPAT      - the cache file exists, but is incompatible with this version of the library
         """
 
-        return trap_err("pt_image_status", 
-            pt_image_status(self.image)
-        )
-    
+        cdef int ret
+
+        with nogil :
+            ret = pt_image_status(self.image)
+
+        if ret :
+            raise Error("pt_image_status", ret)
+        
+        return ret
 
     def open (self) :
         """
             Open the underlying cache file for reading, if available.
         """
 
-        return trap_err("pt_image_load",
-            pt_image_load(self.image)
-        )
+        cdef int err
+
+        with nogil :
+            err = pt_image_load(self.image)
+
+        if err :
+            raise Error("pt_image_load", err)
 
 
     def update (self, background_color = None) :
@@ -169,6 +186,8 @@ cdef class Image :
 
         cdef pt_image_params params
         cdef char *bgcolor
+        cdef int err
+
         memset(&params, 0, sizeof(params))
 
         # params
@@ -183,9 +202,11 @@ cdef class Image :
             memcpy(params.background_color, bgcolor, len(bgcolor))
     
         # run update
-        trap_err("pt_image_update", 
-            pt_image_update(self.image, &params)
-        )
+        with nogil :
+            err = pt_image_update(self.image, &params)
+
+        if err :
+            raise Error("pt_image_update", err)
 
 
     def tile_file (self, size_t width, size_t height, size_t x, size_t y, int zoom, object out) :
@@ -204,6 +225,7 @@ cdef class Image :
 
         cdef stdio.FILE *outf
         cdef pt_tile_info ti
+        cdef int err
 
         memset(&ti, 0, sizeof(ti))
         
@@ -224,9 +246,11 @@ cdef class Image :
         ti.zoom = zoom
         
         # render
-        trap_err("pt_image_tile_file", 
-            pt_image_tile_file(self.image, &ti, outf)
-        )
+        with nogil :
+            err = pt_image_tile_file(self.image, &ti, outf)
+
+        if err :
+            raise Error("pt_image_tile_file", err)
 
 
     def tile_mem (self, size_t width, size_t height, size_t x, size_t y, int zoom) :
@@ -243,6 +267,7 @@ cdef class Image :
         cdef pt_tile_info ti
         cdef char *buf
         cdef size_t len
+        cdef int err
         
         memset(&ti, 0, sizeof(ti))
         
@@ -254,9 +279,11 @@ cdef class Image :
         ti.zoom = zoom
         
         # render and return via buf/len
-        trap_err("pt_image_tile_mem", 
-            pt_image_tile_mem(self.image, &ti, &buf, &len)
-        )
+        with nogil :
+            err = pt_image_tile_mem(self.image, &ti, &buf, &len)
+
+        if err :
+            raise Error("pt_image_tile_mem", err)
         
         # copy buffer as str...
         data = python_string.PyString_FromStringAndSize(buf, len)
