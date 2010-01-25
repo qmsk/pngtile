@@ -36,7 +36,7 @@ COMPILING:
 
         make
 
-    The libpngtile.so will be placed under lib/, and the 'util' binary under bin/.
+    The libpngtile.so will be placed under lib/, and the 'pngtile' binary under bin/.
 
 
 USAGE:
@@ -46,21 +46,21 @@ USAGE:
     Provide any number of *.png paths as arguments to the ./bin/util command. Each will be opened, and automatically
     updated if the cache doesn't exist yet, or is stale:
 
-        ./bin/util -v data/*.png
+        pngtile -v data/*.png
     
     Use -v/--verbose for more detailed output.
 
 
-    To render a tile from some image, provide appropriate -W/-H and -x/-y options to ./bin/util:
+    To render a tile from some image, provide appropriate -W/-H and -x/-y options to pngtile:
         
-        ./bin/util data/*.png -W 1024 -H 1024 -x 8000 -y 4000
+        pngtile data/*.png -W 1024 -H 1024 -x 8000 -y 4000
 
     The output PNG tiles will be written to temporary files, the names of which are shown in the [INFO] output.
 
 
     To force-update an image's cache, use the -U/--force-update option:
 
-        ./bin/util --force-update data/*.png
+        pngtile --force-update data/*.png
 
     Alternatively, to not update an image's cache, use the -N/--no-update option.
 

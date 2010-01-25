@@ -18,7 +18,7 @@ LOADLIBES = -lpng -lpthread
 DIST_NAME = 78949E-as2
 DIST_RESOURCES = README "Learning Diary.pdf" $(shell "echo python/*.{py,pyx}")
 
-all: depend lib/libpngtile.so bin/util
+all: depend lib/libpngtile.so bin/pngtile
 
 lib/libpngtile.so : \
 	build/obj/lib/ctx.o build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/png.o build/obj/lib/error.o \
@@ -27,7 +27,7 @@ lib/libpngtile.so : \
 lib/pypngtile.so : \
 	lib/libpngtile.so
 
-bin/util: \
+bin/pngtile: \
 	lib/libpngtile.so \
 	build/obj/shared/log.o
 
