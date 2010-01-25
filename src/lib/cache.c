@@ -200,6 +200,15 @@ void pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
     }
 }
 
+static int pt_cache_tmp_name (struct pt_cache *cache, char tmp_path[1024])
+{
+    // get .tmp path
+    if (path_with_fext(cache->path, tmp_path, sizeof(tmp_path), ".tmp"))
+        RETURN_ERROR(PT_ERR_PATH);
+
+    return 0;
+}
+
 /**
  * Open the .tmp cache file as an fd for writing
  */
@@ -207,14 +216,14 @@ static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
 {
     int fd;
     char tmp_path[1024];
-    
-    // get .tmp path
-    if (path_with_fext(cache->path, tmp_path, sizeof(tmp_path), ".tmp"))
-        RETURN_ERROR(PT_ERR_PATH);
+    int err;
 
-    // open for write, create
-    // XXX: locking? At least O_EXCL...
-    if ((fd = open(tmp_path, O_RDWR | O_CREAT, 0644)) < 0)
+    // get .tmp path
+    if ((err = pt_cache_tmp_name(cache, tmp_path)))
+        return err;
+
+    // open for write, create, fail if someone else already opened it for update
+    if ((fd = open(tmp_path, O_RDWR | O_CREAT | O_EXCL, 0644)) < 0)
         RETURN_ERROR(PT_ERR_CACHE_OPEN_TMP);
 
     // ok
@@ -322,9 +331,7 @@ static int pt_cache_create (struct pt_cache *cache, struct pt_cache_header *head
 {
     int err;
 
-    // no access
-    if (!(cache->mode & PT_OPEN_UPDATE))
-        RETURN_ERROR(PT_ERR_OPEN_MODE);
+    assert(cache->mode & PT_OPEN_UPDATE);
 
     // open as .tmp
     if ((err = pt_cache_open_tmp_fd(cache, &cache->fd)))
@@ -358,10 +365,11 @@ error:
 static int pt_cache_create_done (struct pt_cache *cache)
 {
     char tmp_path[1024];
+    int err;
     
     // get .tmp path
-    if (path_with_fext(cache->path, tmp_path, sizeof(tmp_path), ".tmp"))
-        RETURN_ERROR(PT_ERR_PATH);
+    if ((err = pt_cache_tmp_name(cache, tmp_path)))
+        return err;
 
     // rename
     if (rename(tmp_path, cache->path) < 0)
@@ -371,13 +379,41 @@ static int pt_cache_create_done (struct pt_cache *cache)
     return 0;
 }
 
+/**
+ * Abort a failed cache update after cache_create
+ */
+static void pt_cache_create_abort (struct pt_cache *cache)
+{
+    char tmp_path[1024];
+    int err;
+    
+    // close open stuff
+    pt_cache_abort(cache);
+
+    // get .tmp path
+    if ((err = pt_cache_tmp_name(cache, tmp_path))) {
+        log_warn_errno("pt_cache_tmp_name: %s: %s", cache->path, pt_strerror(err));
+        
+        return;
+    }
+
+    // remove .tmp
+    if (unlink(tmp_path))
+        log_warn_errno("unlink: %s", tmp_path);
+}
+
 int pt_cache_update (struct pt_cache *cache, struct pt_png_img *img, const struct pt_image_params *params)
 {
     struct pt_cache_header header;
     int err;
-    
-    // XXX: check cache_mode
-    // XXX: close any already-opened cache file
+
+    // check mode
+    if (!(cache->mode & PT_OPEN_UPDATE))
+        RETURN_ERROR(PT_ERR_OPEN_MODE);
+
+    // close if open
+    if ((err = pt_cache_close(cache)))
+        return err;
     
     // prep header
     header.version = PT_CACHE_VERSION;
@@ -397,14 +433,19 @@ int pt_cache_update (struct pt_cache *cache, struct pt_png_img *img, const struc
 
     // decode to disk
     if ((err = pt_png_decode(img, &cache->file->header.png, &cache->file->header.params, cache->file->data)))
-        return err;
+        goto error;
 
     // done, commit .tmp
     if ((err = pt_cache_create_done(cache)))
-        // XXX: pt_cache_abort?
-        return err;
-
+        goto error;
+    
     return 0;
+
+error:
+    // cleanup .tmp
+    pt_cache_create_abort(cache);
+
+    return err;
 }
 
 int pt_cache_tile (struct pt_cache *cache, struct pt_tile *tile)
