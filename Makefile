@@ -15,8 +15,8 @@ CPPFLAGS = -Iinclude -Isrc/
 LOADLIBES = -lpng -lpthread
 
 # output name
-DIST_NAME = 78949E-as2
-DIST_RESOURCES = README "Learning Diary.pdf" $(shell "echo python/*.{py,pyx}")
+DIST_NAME = pngtile-0.2
+DIST_RESOURCES = README $(shell "echo python/*.{py,pyx}")
 
 all: depend lib/libpngtile.so bin/pngtile
 
