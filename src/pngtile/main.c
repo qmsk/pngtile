@@ -46,7 +46,7 @@ void help (const char *argv0)
         "\t-W, --width          set tile width\n"
         "\t-H, --height         set tile height\n"
         "\t-x, --x              set tile x offset\n"
-        "\t-y, --y              set tile z offset\n"
+        "\t-y, --y              set tile y offset\n"
         "\t-z, --zoom           set zoom factor (<0)\n"
         "\t-j, --threads        number of threads\n"
     );
