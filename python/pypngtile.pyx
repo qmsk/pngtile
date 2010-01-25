@@ -97,10 +97,16 @@ cdef class Image :
 
     cdef pt_image *image
 
+    # XXX: should really be a pt_image property...
+    cdef readonly object path
+
     
     # open the pt_image
     def __cinit__ (self, char *path, int mode = 0) :
         cdef int err
+
+        # store
+        self.path = path
         
         # open
         with nogil :
