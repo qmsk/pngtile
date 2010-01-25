@@ -3,19 +3,22 @@
 import wsgiref.simple_server
 import werkzeug
 from werkzeug.exceptions import NotFound
+import memcache
 
 import pngtile.wsgi
 
-def main (host='0.0.0.0', port=8000) :
-    # original app
-    app = pngtile.wsgi.WSGIApplication()
+def main (host='0.0.0.0', port=8000, memcache_host='localhost:11211') :
+    print "Using memcache server at %s" % memcache_host
 
-    # dispatch on URL
-    # XXX: just replace with SharedDataMiddleware..
-    app = werkzeug.DispatcherMiddleware(app, {
-        '/static':      werkzeug.SharedDataMiddleware(NotFound(), {
-            '/':            'static',
-        }),
+    # cache
+    cache = memcache.Client([memcache_host])
+
+    # original app
+    app = pngtile.wsgi.WSGIApplication(cache)
+
+    # serve up static content as well
+    app = werkzeug.SharedDataMiddleware(app, {
+        '/static':          'static',
     })
     
     # http server
