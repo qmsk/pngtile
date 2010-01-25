@@ -53,6 +53,7 @@ cdef extern from "pngtile.h" :
     int pt_image_open (pt_image **image_ptr, pt_ctx *ctx, char *png_path, int cache_mode)
     int pt_image_info_ "pt_image_info" (pt_image *image, pt_image_info **info_ptr)
     int pt_image_status (pt_image *image)
+    int pt_image_load (pt_image *image)
     int pt_image_update (pt_image *image, pt_image_params *params)
     int pt_image_tile_file (pt_image *image, pt_tile_info *info, stdio.FILE *out)
     int pt_image_tile_mem (pt_image *image, pt_tile_info *info, char **buf_ptr, size_t *len_ptr)
@@ -144,6 +145,16 @@ cdef class Image :
 
         return trap_err("pt_image_status", 
             pt_image_status(self.image)
+        )
+    
+
+    def open (self) :
+        """
+            Open the underlying cache file for reading, if available.
+        """
+
+        return trap_err("pt_image_load",
+            pt_image_load(self.image)
         )
 
 
