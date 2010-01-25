@@ -5,6 +5,7 @@
  */
 const char *error_names[PT_ERR_MAX] = {
     [PT_SUCCESS]                = "Success",
+    [PT_ERR]                    = "Unspecified error",
     [PT_ERR_MEM]                = "malloc()",
 
     [PT_ERR_PATH]               = "path",
@@ -42,7 +43,11 @@ const char *pt_strerror (int err)
         err = -err;
 
     if (err < PT_SUCCESS || err >= PT_ERR_MAX)
-        return "Unknown error";
+        return "Invalid error code";
+    
+    else if (!error_names[err])
+        return "Missing string for error code";
+
     else
         return error_names[err];
 }
