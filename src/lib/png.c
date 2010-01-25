@@ -502,8 +502,7 @@ int pt_png_tile (const struct pt_png_header *header, const uint8_t *data, struct
     int err;
 
     // init img
-    img->png = NULL;
-    img->info = NULL;
+    memset(img, 0, sizeof(*img));
 
     // check within bounds
     if (ti->x >= header->width || ti->y >= header->height)
