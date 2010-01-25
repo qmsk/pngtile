@@ -227,7 +227,7 @@ static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
 /**
  * Mmap the pt_cache_file using sizeof(struct pt_cache_file) + data_size
  */
-static int pt_cache_open_mmap (struct pt_cache *cache, void **addr_ptr, size_t data_size, bool readonly)
+static int pt_cache_open_mmap (struct pt_cache *cache, struct pt_cache_file **file_ptr, size_t data_size, bool readonly)
 {
     int prot = 0;
     void *addr;
@@ -246,7 +246,7 @@ static int pt_cache_open_mmap (struct pt_cache *cache, void **addr_ptr, size_t d
         RETURN_ERROR(PT_ERR_CACHE_MMAP);
 
     // ok
-    *addr_ptr = addr;
+    *file_ptr = addr;
 
     return 0;
 }
@@ -273,7 +273,7 @@ int pt_cache_open (struct pt_cache *cache)
         JUMP_SET_ERROR(err, PT_ERR_CACHE_VERSION);
 
     // mmap the header + data
-    if ((err = pt_cache_open_mmap(cache, (void **) &cache->file, header.data_size, true)))
+    if ((err = pt_cache_open_mmap(cache, &cache->file, header.data_size, true)))
         JUMP_ERROR(err);
 
     // done
@@ -339,7 +339,7 @@ static int pt_cache_create (struct pt_cache *cache, struct pt_cache_header *head
         JUMP_SET_ERROR(err, PT_ERR_CACHE_TRUNC);
 
     // mmap header and data
-    if ((err = pt_cache_open_mmap(cache, (void **) &cache->file, header->data_size, false)))
+    if ((err = pt_cache_open_mmap(cache, &cache->file, header->data_size, false)))
         JUMP_ERROR(err);
 
     // done
