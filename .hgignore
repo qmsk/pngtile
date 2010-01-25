@@ -4,8 +4,8 @@ syntax: regexp
 \.pyc$
 
 ^build/
-^bin/
-^lib/
+^bin/pngtile$
+^lib/libpngtile.so$
 ^doc/html
 ^dist
 ^Learning Diary\.pdf$
