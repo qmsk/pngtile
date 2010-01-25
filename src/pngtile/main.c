@@ -3,6 +3,7 @@
 #include "pngtile.h"
 
 #include <getopt.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
 
@@ -22,6 +23,7 @@ static const struct option options[] = {
     { "x",              true,   NULL,   'x' },
     { "y",              true,   NULL,   'y' },
     { "zoom",           true,   NULL,   'z' },
+    { "out",            true,   NULL,   'o' },
     { "threads",        true,   NULL,   'j' },
     { 0,                0,      0,      0   }
 };
@@ -48,6 +50,7 @@ void help (const char *argv0)
         "\t-x, --x              set tile x offset\n"
         "\t-y, --y              set tile y offset\n"
         "\t-z, --zoom           set zoom factor (<0)\n"
+        "\t-o, --out            set tile output file\n"
         "\t-j, --threads        number of threads\n"
     );
 }
@@ -56,13 +59,20 @@ int main (int argc, char **argv)
 {
     int opt;
     bool force_update = false, no_update = false;
-    struct pt_tile_info ti = {0, 0, 0, 0, 0};
+    struct pt_tile_info ti = {
+        .width  = 800,
+        .height = 600,
+        .x      = 0,
+        .y      = 0,
+        .zoom   = 0
+    };
     struct pt_image_params update_params = { };
-    int threads = 2;
+    const char *out_path = NULL;
+    int threads = 0;
     int tmp, err;
     
     // parse arguments
-    while ((opt = getopt_long(argc, argv, "hqvDUNB:W:H:x:y:z:j:", options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hqvDUNB:W:H:x:y:z:o:j:", options, NULL)) != -1) {
         switch (opt) {
             case 'h':
                 // display help
@@ -127,6 +137,12 @@ int main (int argc, char **argv)
             case 'z':
                 ti.zoom = strtol(optarg, NULL, 0); break;
 
+            case 'o':
+                // output file
+                out_path = optarg;
+
+                break;
+
             case 'j':
                 if ((tmp = strtol(optarg, NULL, 0)) < 1)
                     FATAL("Invalid value for -j/--threads: %s", optarg);
@@ -154,13 +170,14 @@ int main (int argc, char **argv)
     struct pt_ctx *ctx = NULL;
     struct pt_image *image = NULL;
     enum pt_cache_status status;
+    
+    if (threads) {
+        // build ctx
+        log_debug("Construct pt_ctx with %d threads", threads);
 
-    // build ctx
-    log_debug("Construct pt_ctx with %d threads", threads);
-
-    if ((err = pt_ctx_new(&ctx, threads)))
-        EXIT_ERROR(EXIT_FAILURE, "pt_ctx_new: threads=%d", threads);
-
+        if ((err = pt_ctx_new(&ctx, threads)))
+            EXIT_ERROR(EXIT_FAILURE, "pt_ctx_new: threads=%d", threads);
+    }
     
     // process each image in turn
     log_debug("Processing %d images...", argc - optind);
@@ -216,6 +233,13 @@ int main (int argc, char **argv)
 
         } else {    
             log_debug("\tImage cache is fresh");
+
+            // ensure it's loaded
+            log_debug("\tLoad image cache...");
+
+            if ((err = pt_image_load(image)))
+                log_errno("pt_image_load: %s", pt_strerror(err));
+
         }
 
         // show info
@@ -233,49 +257,73 @@ int main (int argc, char **argv)
         }
 
         // render tile?
-        if (ti.width && ti.height) {
+        if (out_path) {
+            FILE *out_file;
             char tmp_name[] = "pt-tile-XXXXXX";
-            int fd;
-            FILE *out;
+
+            if (strcmp(out_path, "-") == 0) {
+                // use stdout
+                out_file = stdout;
             
-            // temporary file for output
-            if ((fd = mkstemp(tmp_name)) < 0) {
-                log_errno("mkstemp");
+            } else if (false /* tmp */) {
+                int fd;
                 
-                continue;
+                // temporary file for output
+                if ((fd = mkstemp(tmp_name)) < 0) {
+                    log_errno("mkstemp");
+                    
+                    continue;
+                }
+
+                out_path = tmp_name;
+
+                // open out
+                if ((out_file = fdopen(fd, "w")) == NULL) {
+                    log_errno("fdopen");
+
+                    continue;
+                }
+
+            } else {
+                // use file
+                if ((out_file = fopen(out_path, "wb")) == NULL) {
+                    log_errno("fopen: %s", out_path);
+                    goto error;
+                }
+
             }
 
-            // open out
-            if ((out = fdopen(fd, "w")) == NULL) {
-                log_errno("fdopen");
-
-                continue;
-            }
             
-            // ensure it's loaded
-            log_debug("\tLoad image cache...");
+            if (ctx) {
+                // render
+                log_info("\tAsync render tile %zux%zu@(%zu,%zu) -> %s", ti.width, ti.height, ti.x, ti.y, out_path);
 
-            if ((err = pt_image_load(image)))
-                log_errno("pt_image_load: %s", pt_strerror(err));
+                if ((err = pt_image_tile_async(image, &ti, out_file)))
+                    log_errno("pt_image_tile_async: %s: %s", img_path, pt_strerror(err));
 
-            // render
-            log_info("\tAsync render tile %zux%zu@(%zu,%zu) -> %s", ti.width, ti.height, ti.x, ti.y, tmp_name);
+            } else {
+                // render
+                log_info("\tRender tile %zux%zu@(%zu,%zu) -> %s", ti.width, ti.height, ti.x, ti.y, out_path);
 
+                if ((err = pt_image_tile_file(image, &ti, out_file)))
+                    log_errno("pt_image_tile_file: %s: %s", img_path, pt_strerror(err));
 
-            if ((err = pt_image_tile_async(image, &ti, out)))
-                log_errno("pt_image_tile: %s: %s", img_path, pt_strerror(err));
+            }
         }
 
 error:
         // cleanup
-        // XXX: leak because of async: pt_image_destroy(image);
-        ;
+        // XXX: leak because of async
+        if (!ctx)
+            pt_image_destroy(image);
     }
+    
+    if (ctx) {
+        log_info("Waiting for images to finish...");
 
-    log_info("Waiting for images to finish...");
-
-    // wait for tile operations to finish...
-    pt_ctx_shutdown(ctx);
+        // wait for tile operations to finish...
+        pt_ctx_shutdown(ctx);
+    }
 
     log_info("Done");
 
