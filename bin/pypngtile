@@ -1,0 +1,155 @@
+#!/usr/bin/env python
+
+"""
+    Python clone of the pngtile binary.
+"""
+
+import optparse
+
+import pypngtile as pt
+
+# CLI options
+options = None
+
+def log_debug (fmt, *args) :
+    if options.debug or options.verbose :
+        print fmt % args
+
+def log_info (fmt, *args) :
+    if not options.quiet :
+        print fmt % args
+
+def log_warn (fmt, *args) :
+    print fmt % args
+
+
+def parse_hex (hex) :
+    """
+        Parse a 0xHH.. style string as a raw bytestring
+    """
+
+    if not hex.startswith("0x") :
+        raise ValueError(hex)
+
+    return hex[2:].decode("hex")
+
+def parse_args (args) :
+    """
+        Parse given argv[1:]
+    """
+
+    global options
+
+    parser = optparse.OptionParser(
+            usage   = "Usage: %prog [options] <image file> [...]",
+    )
+
+    # build opts list
+    parser.add_option('-q', "--quiet",          help="Supress informational output",                        action='store_true')
+    parser.add_option('-v', "--verbose",        help="Display more output",                                 action='store_true')
+    parser.add_option('-D', "--debug",          help="Equivalent to -v",                                    action='store_true')
+    parser.add_option('-U', "--force-update",   help="Unconditionally update the image caches",             action='store_true')
+    parser.add_option('-N', "--no-update",      help="Do not update the image caches, even if unusable",    action='store_true')
+    parser.add_option('-B', "--background",     help="Background pattern for sparse cache file",            metavar="0xHH..")
+
+    # parse
+    options, args = parser.parse_args(args=args)
+
+    # decode
+    if options.background :
+        try :
+            options.background = parse_hex(options.background)
+
+        except ValueError :
+            raise ValueError("Invalid value for --background: %s" % options.background)
+
+    return args
+
+
+def process_image (image) :
+    """
+        Process given image
+    """
+
+    # check cache status
+    status = image.status()
+
+    # update if stale?
+    if status != pt.CACHE_FRESH or options.force_update :
+        # decode status
+        if status == pt.CACHE_NONE :
+            log_info("\tImage cache is missing")
+        
+        elif status == pt.CACHE_STALE :
+            log_info("\tImage cache is stale")
+
+        elif status == pt.CACHE_INCOMPAT :
+            log_info("\tImage cache is incompatible")
+
+        elif status == pt.CACHE_FRESH :
+            log_info("\tImage cache is fresh")
+
+        else :
+            log_warn("\tImage cache status unknown: %d", status)
+
+        
+        # update unless supressed
+        if not options.no_update :
+            log_info("\tUpdating image cache...")
+            
+            # update with optional background color
+            image.update(background_color=options.background)
+
+            log_debug("\tUpdated image cache")
+
+        else :
+            # warn
+            log_warn("\tSupressing cache update even though it is needed")
+
+    else: 
+        log_debug("\tImage cache is fresh")
+
+    # show info
+    info = image.info()
+
+    log_info("\tImage dimensions: %d x %d (%d bpp)", info['img_width'], info['img_height'], info['img_bpp'])
+    log_info("\tImage mtime=%d, bytes=%d", info['image_mtime'], info['image_bytes'])
+    log_info("\tCache mtime=%d, bytes=%d, blocks=%d (%d bytes), version=%d", 
+            info['cache_mtime'], info['cache_bytes'], info['cache_blocks'], info['cache_blocks'] * 512, info['cache_version']
+    )
+
+
+def process_images (image_paths) :
+    """
+        Open up each image_path and process using process_image
+    """
+
+    for image_path in image_paths :
+        log_debug("Loading image: %s", image_path)
+
+        # open up
+        image = pt.Image(image_path, pt.OPEN_UPDATE)
+
+        log_info("Opened image: %s", image_path);
+
+        # process
+        process_image(image)
+
+
+def main (args) :
+    """
+        Operate on given argv[1:]
+    """
+
+    # parse opts/args
+    args = parse_args(args)
+    
+    # handle each image
+    process_images(args)
+
+
+if __name__ == '__main__' :
+    from sys import argv
+
+    main(argv[1:])
+
