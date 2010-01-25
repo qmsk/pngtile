@@ -204,6 +204,10 @@ def get_req_path (req) :
     """
         Returns the name and path requested
     """
+    
+    # check DATA_ROOT exists..
+    if not os.path.isdir(DATA_ROOT) :
+        raise exceptions.InternalServerError("Missing DATA_ROOT")
 
     # path to image
     image_name = req.path.lstrip('/')
