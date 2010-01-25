@@ -52,20 +52,6 @@ def dir_list (dir_path) :
         if ext == '.png' and os.path.exists(base + '.cache') :
             yield item
 
-def scale_by_zoom (val, zoom) :
-    """
-        Scale coordinates by zoom factor
-    """
-
-    if zoom > 0 :
-        return val << zoom
-
-    elif zoom > 0 :
-        return val >> -zoom
-
-    else :
-        return val
-
 
 ### Render HTML data
 def dir_html (prefix, name, path) :
@@ -157,19 +143,90 @@ def img_html (prefix, name, image) :
         img_height      = img_height,
     )
 
+
+# threshold to cache images on - only images with a source data region *larger* than this are cached
+CACHE_THRESHOLD = 512 * 512
+
+def scale_by_zoom (val, zoom) :
+    """
+        Scale dimension by zoom factor
+    """
+
+    if zoom > 0 :
+        return val << zoom
+
+    elif zoom > 0 :
+        return val >> -zoom
+
+    else :
+        return val
+
+### Image caching
+def check_cache_threshold (width, height, zl) :
+    """
+        Checks if a tile with the given dimensions should be cached
+    """
+
+    return (scale_by_zoom(width, -zl) * scale_by_zoom(height, -zl)) > CACHE_THRESHOLD
+
+def render_raw (image, width, height, x, y, zl) :
+    """
+        Render and return tile
+    """
+
+    return image.tile_mem(
+            width, height,
+            x, y, zl
+    )
+
+def render_cache (cache, image, width, height, x, y, zl) :
+    """
+        Perform a cached render of the given tile
+    """
+    
+    if cache :
+        # cache key
+        # XXX: need a better id for the image..
+        key = "tl_%d:%d_%d:%d:%d_%s" % (x, y, width, height, zl, id(image))
+        
+        # lookup
+        data = cache.get(key)
+
+    else :
+        # oops, no cache
+        data = None
+
+    if not data :
+        # cache miss, render
+        data = render_raw(image, width, height, x, y, zl)
+        
+        if cache :
+            # store
+            cache.add(key, data)
+    
+    # ok
+    return data
+
 ### Render PNG Data
-def img_png_tile (image, x, y, zoom) :
+def img_png_tile (image, x, y, zoom, cache) :
     """
         Render given tile, returning PNG data
     """
 
-    return image.tile_mem(
-        TILE_WIDTH, TILE_HEIGHT,
-        scale_by_zoom(x, -zoom), scale_by_zoom(y, -zoom), 
-        zoom
-    )
+    # remap coordinates by zoom
+    x = scale_by_zoom(x, -zoom)
+    y = scale_by_zoom(y, -zoom)
 
-def img_png_region (image, cx, cy, zoom, width, height) :
+    # do we want to cache this?
+    if check_cache_threshold(TILE_WIDTH, TILE_HEIGHT, zoom) :
+        # go via the cache
+        return render_cache(cache, image, TILE_WIDTH, TILE_HEIGHT, x, y, zoom)
+
+    else :
+        # just go raw
+        return render_raw(image, TILE_WIDTH, TILE_HEIGHT, x, y, zoom)
+
+def img_png_region (image, cx, cy, zoom, width, height, cache) :
     """
         Render arbitrary tile, returning PNG data
     """
@@ -180,10 +237,7 @@ def img_png_region (image, cx, cy, zoom, width, height) :
     # safely limit
     if width * height > MAX_PIXELS :
         raise ValueError("Image size: %d * %d > %d" % (width, height, MAX_PIXELS))
-
-    return image.tile_mem(
-        width, height,
-        x, y,
-        zoom
-    )
+    
+    # these images are always cached
+    return render_cache(cache, image, width, height, x, y, zoom)
 

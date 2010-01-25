@@ -11,7 +11,6 @@ DATA_ROOT = os.environ.get("PNGTILE_DATA_PATH") or os.path.abspath('data/')
 # only open each image once
 IMAGE_CACHE = {}
 
-
 ### Parse request data
 def get_path (req_path) :
     """
@@ -84,7 +83,7 @@ def handle_img_viewport (req, image, name) :
     return Response(render.img_html(prefix, name, image), content_type="text/html")
 
 
-def handle_img_region (req, image) :
+def handle_img_region (req, image, cache) :
     """
         Handle request for an image region
     """
@@ -98,14 +97,14 @@ def handle_img_region (req, image) :
     
     try :
         # yay full render
-        return Response(render.img_png_region(image, cx, cy, zoom, width, height), content_type="image/png")
+        return Response(render.img_png_region(image, cx, cy, zoom, width, height, cache), content_type="image/png")
 
     except ValueError, ex :
         # too large
         raise exceptions.Forbidden(str(ex))
 
 
-def handle_img_tile (req, image) :
+def handle_img_tile (req, image, cache) :
     """
         Handle request for image tile
     """
@@ -114,12 +113,14 @@ def handle_img_tile (req, image) :
     x = int(req.args['x'])
     y = int(req.args['y'])
     zoom = int(req.args.get('zl', "0"))
+
+    # cache?
         
     # yay render
-    return Response(render.img_png_tile(image, x, y, zoom), content_type="image/png")
+    return Response(render.img_png_tile(image, x, y, zoom, cache), content_type="image/png")
 
 ## Dispatch req to handle_img_*
-def handle_img (req, name, path) :
+def handle_img (req, name, path, cache) :
     """
         Handle request for an image
     """
@@ -132,10 +133,10 @@ def handle_img (req, name, path) :
         return handle_img_viewport(req, image, name)
 
     elif 'w' in req.args and 'h' in req.args and 'cx' in req.args and 'cy' in req.args :
-        return handle_img_region(req, image)
+        return handle_img_region(req, image, cache)
 
     elif 'x' in req.args and 'y' in req.args :
-        return handle_img_tile(req, image)
+        return handle_img_tile(req, image, cache)
 
     else :
         raise exceptions.BadRequest("Unknown args")
@@ -143,7 +144,7 @@ def handle_img (req, name, path) :
 
 
 ## Dispatch request to handle_*
-def handle_req (req) :
+def handle_req (req, cache) :
     """
         Main request handler
     """
@@ -166,6 +167,6 @@ def handle_req (req) :
     
     else :
         # image
-        return handle_img(req, name, path)
+        return handle_img(req, name, path, cache)
 
 

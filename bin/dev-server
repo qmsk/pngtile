@@ -6,18 +6,24 @@ from werkzeug.exceptions import NotFound
 
 import pngtile.wsgi
 
-# dispatch on URL
-app = werkzeug.DispatcherMiddleware(pngtile.wsgi.application, {
-    '/static':      werkzeug.SharedDataMiddleware(NotFound(), {
-        '/':            'static',
-    }),
-})
-
 def main (host='0.0.0.0', port=8000) :
+    # original app
+    app = pngtile.wsgi.WSGIApplication()
+
+    # dispatch on URL
+    # XXX: just replace with SharedDataMiddleware..
+    app = werkzeug.DispatcherMiddleware(app, {
+        '/static':      werkzeug.SharedDataMiddleware(NotFound(), {
+            '/':            'static',
+        }),
+    })
+    
+    # http server
     httpd = wsgiref.simple_server.make_server(host, port, app)
 
     print "Listening on %s:%d" % (host, port)
-
+    
+    # go
     httpd.serve_forever()
 
 if __name__ == '__main__' :
