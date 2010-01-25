@@ -3,11 +3,11 @@ CFLAGS_ALL = -Wall -std=gnu99
 LDFLAGS_ALL =
 CFLAGS_DBG = -g
 CFLAGS_REL = -O2
-CFLAGS_PRF = -g -pg
-LDFLAGS_PRF = -g -pg
+CFLAGS_PRF = -g -O2 -pg
+LDFLAGS_PRF = -pg
 
-CFLAGS_SEL = ${CFLAGS_PRF}
-LDFLAGS_SEL = ${LDFLAGS_PRF}
+CFLAGS_SEL = ${CFLAGS_REL}
+LDFLAGS_SEL = ${LDFLAGS_REL}
 
 # warnings, and use C99 with GNU extensions
 CFLAGS = ${CFLAGS_ALL} ${CFLAGS_SEL}
@@ -29,12 +29,20 @@ lib/libpngtile.so : \
 	build/obj/lib/ctx.o build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/png.o build/obj/lib/error.o \
 	build/obj/shared/util.o build/obj/shared/log.o
 
+lib/libpngtile.a : \
+	build/obj/lib/ctx.o build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/png.o build/obj/lib/error.o \
+	build/obj/shared/util.o build/obj/shared/log.o
+
 lib/pypngtile.so : \
 	lib/libpngtile.so
 
-bin/pngtile: \
-	lib/libpngtile.so \
-	build/obj/shared/log.o
+bin/pngtile : \
+	build/obj/pngtile/main.o \
+	lib/libpngtile.so build/obj/shared/log.o
+
+bin/pngtile-static : \
+	build/obj/pngtile/main.o \
+	lib/libpngtile.a
 
 SRC_PATHS = $(wildcard src/*/*.c)
 SRC_NAMES = $(patsubst src/%,%,$(SRC_PATHS))
@@ -77,12 +85,15 @@ build/obj/%.o : src/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
 
 # output binaries
-bin/% : build/obj/%/main.o
+bin/% :
 	$(CC) $(LDFLAGS) $+ $(LOADLIBES) $(LDLIBS) -o $@
 
 # output libraries
 lib/lib%.so :
 	$(CC) -shared $(LDFLAGS) $+ $(LOADLIBES) $(LDLIBS) -o $@
+
+lib/lib%.a :
+	$(AR) rc $@ $+
 
 build/pyx/%.c : src/py/%.pyx
 	cython -o $@ $<
