@@ -1,12 +1,17 @@
 # :set noexpandtab
 CFLAGS_ALL = -Wall -std=gnu99
+LDFLAGS_ALL =
 CFLAGS_DBG = -g
 CFLAGS_REL = -O2
+CFLAGS_PRF = -g -pg
+LDFLAGS_PRF = -g -pg
 
-CFLAGS_SEL = ${CFLAGS_REL}
+CFLAGS_SEL = ${CFLAGS_PRF}
+LDFLAGS_SEL = ${LDFLAGS_PRF}
 
 # warnings, and use C99 with GNU extensions
 CFLAGS = ${CFLAGS_ALL} ${CFLAGS_SEL}
+LDFLAGS = ${LDFLAGS_ALL} ${LDFLAGS_SEL}
 
 # preprocessor flags
 CPPFLAGS = -Iinclude -Isrc/
