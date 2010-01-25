@@ -43,20 +43,22 @@ cdef extern from "pngtile.h" :
 
     struct pt_image_params :
         int background_color[4]
-
+    
     struct pt_tile_info :
         size_t width, height
         size_t x, y
         int zoom
-
+    
+    ## functions
     int pt_image_open (pt_image **image_ptr, pt_ctx *ctx, char *png_path, int cache_mode)
-    int pt_image_info_func "pt_image_info" (pt_image *image, pt_image_info **info_ptr)
+    int pt_image_info_ "pt_image_info" (pt_image *image, pt_image_info **info_ptr)
     int pt_image_status (pt_image *image)
     int pt_image_update (pt_image *image, pt_image_params *params)
     int pt_image_tile_file (pt_image *image, pt_tile_info *info, stdio.FILE *out)
     int pt_image_tile_mem (pt_image *image, pt_tile_info *info, char **buf_ptr, size_t *len_ptr)
     void pt_image_destroy (pt_image *image)
-
+    
+    # error code -> name
     char* pt_strerror (int err)
 
 ## constants
@@ -73,6 +75,7 @@ CACHE_INCOMPAT  = PT_CACHE_INCOMPAT
 class Error (BaseException) :
     pass
 
+# raise Error if the given return value is <0
 cdef int trap_err (char *op, int ret) except -1 :
     if ret < 0 :
         raise Error("%s: %s: %s" % (op, pt_strerror(ret), strerror(errno)))
@@ -122,7 +125,7 @@ cdef class Image :
         cdef pt_image_info *info
         
         trap_err("pt_image_info",
-            pt_image_info_func(self.image, &info)
+            pt_image_info_(self.image, &info)
         )
 
         # return as a struct
@@ -175,9 +178,25 @@ cdef class Image :
 
 
     def tile_file (self, size_t width, size_t height, size_t x, size_t y, int zoom, object out) :
+        """
+            Render a region of the source image as a PNG tile to the given output file.
+
+            width       - dimensions of the output tile in px
+            height      
+            x           - coordinates in the source file
+            y
+            zoom        - zoom level: out = 2**(-zoom) * in
+            out         - output file
+
+            Note that the given file object MUST be a *real* stdio FILE*, not a fake Python object.
+        """
+
         cdef stdio.FILE *outf
         cdef pt_tile_info ti
 
+        memset(&ti, 0, sizeof(ti))
+        
+        # convert to FILE
         if not PyFile_Check(out) :
             raise TypeError("out: must be a file object")
 
@@ -185,30 +204,45 @@ cdef class Image :
 
         if not outf :
             raise TypeError("out: must have a FILE*")
-    
+        
+        # pack params
         ti.width = width
         ti.height = height
         ti.x = x
         ti.y = y
         ti.zoom = zoom
         
+        # render
         trap_err("pt_image_tile_file", 
             pt_image_tile_file(self.image, &ti, outf)
         )
 
 
     def tile_mem (self, size_t width, size_t height, size_t x, size_t y, int zoom) :
+        """
+            Render a region of the source image as a PNG tile, and return the PNG data a a string.
+
+            width       - dimensions of the output tile in px
+            height      
+            x           - coordinates in the source file
+            y
+            zoom        - zoom level: out = 2**(-zoom) * in
+        """
+
         cdef pt_tile_info ti
         cdef char *buf
         cdef size_t len
-
+        
+        memset(&ti, 0, sizeof(ti))
+        
+        # pack params
         ti.width = width
         ti.height = height
         ti.x = x
         ti.y = y
         ti.zoom = zoom
         
-        # render and return ptr to buffer
+        # render and return via buf/len
         trap_err("pt_image_tile_mem", 
             pt_image_tile_mem(self.image, &ti, &buf, &len)
         )
@@ -225,4 +259,6 @@ cdef class Image :
     def __dealloc__ (self) :
         if self.image :
             pt_image_destroy(self.image)
+
+            self.image = NULL
 
