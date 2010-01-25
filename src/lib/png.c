@@ -268,7 +268,7 @@ static void pt_png_mem_flush (png_structp png_ptr)
 /**
  * Return a pointer to the pixel data on \a row, starting at \a col.
  */
-static inline void* tile_row_col (const struct pt_png_header *header, uint8_t *data, size_t row, size_t col)
+static inline const void* tile_row_col (const struct pt_png_header *header, const uint8_t *data, size_t row, size_t col)
 {
     return data + (row * header->row_bytes) + (col * header->col_bytes);
 }
@@ -285,11 +285,12 @@ static inline void tile_row_fill_clip (const struct pt_png_header *header, png_b
 /**
  * Write raw tile image data, directly from the cache
  */
-static int pt_png_encode_direct (struct pt_png_img *img, const struct pt_png_header *header, uint8_t *data, const struct pt_tile_info *ti)
+static int pt_png_encode_direct (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_info *ti)
 {
     for (size_t row = ti->y; row < ti->y + ti->height; row++)
         // write data directly
-        png_write_row(img->png, tile_row_col(header, data, row, ti->x));
+        // missing const...
+        png_write_row(img->png, (const png_bytep) tile_row_col(header, data, row, ti->x));
 
     return 0;
 }
@@ -297,7 +298,7 @@ static int pt_png_encode_direct (struct pt_png_img *img, const struct pt_png_hea
 /**
  * Write clipped tile image data (a tile that goes over the edge of the actual image) by aligning the data from the cache as needed
  */
-static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_header *header, uint8_t *data, const struct pt_tile_info *ti)
+static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_info *ti)
 {
     png_byte *rowbuf;
     size_t row;
@@ -358,7 +359,7 @@ static size_t scale_by_zoom_factor (size_t value, int z)
 
 #define ADD_AVG(l, r) (l) = ((l) + (r)) / 2
 
-static int png_pixel_data (png_color *out, const struct pt_png_header *header, uint8_t *data, size_t row, size_t col)
+static int png_pixel_data (png_color *out, const struct pt_png_header *header, const uint8_t *data, size_t row, size_t col)
 {
     if (header->color_type == PNG_COLOR_TYPE_PALETTE) {
         // palette entry number
@@ -385,7 +386,7 @@ static int png_pixel_data (png_color *out, const struct pt_png_header *header, u
 /**
  * Write unscaled tile data
  */
-static int pt_png_encode_unzoomed (struct pt_png_img *img, const struct pt_png_header *header, uint8_t *data, const struct pt_tile_info *ti)
+static int pt_png_encode_unzoomed (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_info *ti)
 {
     int err;
 
@@ -420,7 +421,7 @@ static int pt_png_encode_unzoomed (struct pt_png_img *img, const struct pt_png_h
 /**
  * Write scaled tile data
  */
-static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_header *header, uint8_t *data, const struct pt_tile_info *ti)
+static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_info *ti)
 {
     // size of the image data in px
     size_t data_width = scale_by_zoom_factor(ti->width, -ti->zoom);
@@ -494,7 +495,7 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
     return 0;
 }
 
-int pt_png_tile (struct pt_png_header *header, uint8_t *data, struct pt_tile *tile)
+int pt_png_tile (const struct pt_png_header *header, const uint8_t *data, struct pt_tile *tile)
 {
     struct pt_png_img _img, *img = &_img;
     struct pt_tile_info *ti = &tile->info;

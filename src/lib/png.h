@@ -82,7 +82,7 @@ int pt_png_info (struct pt_png_header *header, struct pt_image_info *info);
 /**
  * Render out a tile
  */
-int pt_png_tile (struct pt_png_header *header, uint8_t *data, struct pt_tile *tile);
+int pt_png_tile (const struct pt_png_header *header, const uint8_t *data, struct pt_tile *tile);
 
 /**
  * Release pt_png_ctx resources as allocated by pt_png_open
