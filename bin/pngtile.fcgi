@@ -2,11 +2,9 @@
 
 import flup.server.fcgi
 
-def main (app, bind=None) :
-    """
-        Run as a non-threaded single-process non-multiplexed FastCGI server
-    """
+import memcache
 
+def run_fastcgi (app, bind=None) :
     # create WSGIServer
     server = flup.server.fcgi.WSGIServer(app, 
         # try to supress threading
@@ -27,8 +25,22 @@ def main (app, bind=None) :
     # run... threads :(
     server.run()
 
+def main (bind=None) :
+    """
+        Run as a non-threaded single-process non-multiplexed FastCGI server
+    """
+
+    # open cache
+    cache = memcache.Client(['localhost:11211'])
+    
+    # build app
+    app = pngtile.wsgi.WSGIApplication(cache)
+
+    # server
+    run_fastcgi(app, bind)
+
 if __name__ == '__main__' :
     import pngtile.wsgi
 
-    main(pngtile.wsgi.application)
+    main()
 
