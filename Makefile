@@ -21,7 +21,7 @@ LOADLIBES = -lpng -lpthread
 
 # output name
 DIST_NAME = pngtile-0.2
-DIST_RESOURCES = README $(shell "echo python/*.{py,pyx}")
+DIST_RESOURCES = README python/ pngtile/ static/ bin/
 
 all: depend lib/libpngtile.so bin/pngtile
 
@@ -50,15 +50,18 @@ SRC_DIRS = $(dir $(SRC_NAMES))
 
 .PHONY : dirs clean depend dist
 
+dist-clean : clean dirs
+
 dirs: 
 	mkdir -p bin lib dist
 	mkdir -p $(SRC_DIRS:%=build/deps/%)
 	mkdir -p $(SRC_DIRS:%=build/obj/%) build/obj/python
 
 clean:
-	rm -f build/obj/*/*.o build/deps/*/*.d build/pyx/*.c
-	rm -f bin/{pngtile,pngtile-static} lib/libpngtile.{a,so} run/*
-	rm -rf dist/*
+	rm -f build/obj/*/*.o build/deps/*/*.d
+	rm -f bin/pngtile bin/pngtile-static lib/libpngtile.{a,so} run/*
+	rm -f pngtile/*.pyc 
+	rm -f */.*.swp
 
 # .h dependencies
 depend: $(SRC_NAMES:%.c=build/deps/%.d)
@@ -105,10 +108,11 @@ lib/py%.so : build/obj/python/py%.o
 	$(CC) -shared $(LDFLAGS) $+ $(LOADLIBES) $(LDLIBS) -o $@
 
 dist:
+	rm -rf dist/$(DIST_NAME)
 	mkdir -p dist/$(DIST_NAME)
-	cp -rv Makefile $(DIST_RESOURCES) src/ include/ dist/$(DIST_NAME)/
+	cp -rv Makefile $(DIST_RESOURCES) src/ include/  dist/$(DIST_NAME)/
 	rm dist/$(DIST_NAME)/src/*/.*.sw[op]
-	make -C dist/$(DIST_NAME) dirs
+	make -C dist/$(DIST_NAME) dist-clean
 	tar -C dist -czvf dist/$(DIST_NAME).tar.gz $(DIST_NAME)
 	@echo "*** Output at dist/$(DIST_NAME).tar.gz"
 
