@@ -413,9 +413,8 @@ static inline void png_pixel_data (const png_color **outp, const struct pt_png_h
             // unknown
             return;
 
-        if (p >= header->num_palette)
-            // invalid
-            return;
+        // hrhr - assume our working data is valid (or we have 255 palette entries, so it doesn't matter...)
+        assert(p < header->num_palette);
         
         // reference data from palette
         *outp = &header->palette[p];
