@@ -54,9 +54,10 @@ dirs:
 	mkdir -p bin lib dist
 	mkdir -p $(SRC_DIRS:%=build/deps/%)
 	mkdir -p $(SRC_DIRS:%=build/obj/%)
+	mkdir -p build/pyx
 
 clean:
-	rm -f build/obj/*/*.o build/deps/*/*.d
+	rm -f build/obj/*/*.o build/deps/*/*.d build/pyx/*.c
 	rm -f bin/{pngtile,pngtile-static} lib/libpngtile.{a,so} run/*
 	rm -rf dist/*
 
@@ -95,14 +96,14 @@ lib/lib%.so :
 lib/lib%.a :
 	$(AR) rc $@ $+
 
-build/pyx/%.c : src/py/%.pyx
+build/pyx/%.c : python/%.pyx
 	cython -o $@ $<
 
 build/obj/py/%.o : build/pyx/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
 
-lib/py%.so : build/obj/py/%.o
-	$(CC) -shared $(LDFLAGS) $+ $(LOADLIBES) $(LDLIBS) -o $@
+lib/py%.so : build/pyx/py%.c
+	$(CC) -I/usr/include/python2.5 -shared -fPIC $(CPPFLAGS) $(CFLAGS) $+ $(LDFLAGS) $(LOADLIBES) $(LDLIBS) -o $@
 
 dist:
 	mkdir -p dist/$(DIST_NAME)
