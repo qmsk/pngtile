@@ -21,9 +21,10 @@ LOADLIBES = -lpng -lpthread
 
 # output name
 DIST_NAME = pngtile-${shell hg id -i}
+DIST_DEPS = python/pypngtile.c
 DIST_RESOURCES = README python/ pngtile/ static/ bin/
 
-all: depend lib/libpngtile.so bin/pngtile
+all: depend lib/libpngtile.so bin/pngtile lib/pypngtile.so
 
 lib/libpngtile.so : \
 	build/obj/lib/ctx.o build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/png.o build/obj/lib/error.o \
@@ -107,11 +108,10 @@ build/obj/python/%.o : python/%.c
 lib/py%.so : build/obj/python/py%.o
 	$(CC) -shared $(LDFLAGS) $+ $(LOADLIBES) $(LDLIBS) -o $@
 
-dist:
+dist: $(DIST_DEPS)
 	rm -rf dist/$(DIST_NAME)
 	mkdir -p dist/$(DIST_NAME)
 	cp -rv Makefile $(DIST_RESOURCES) src/ include/  dist/$(DIST_NAME)/
-	rm dist/$(DIST_NAME)/src/*/.*.sw[op]
 	make -C dist/$(DIST_NAME) dist-clean
 	tar -C dist -czvf dist/$(DIST_NAME).tar.gz $(DIST_NAME)
 	@echo "*** Output at dist/$(DIST_NAME).tar.gz"
