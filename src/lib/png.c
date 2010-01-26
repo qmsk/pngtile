@@ -403,24 +403,34 @@ static inline size_t scale_by_zoom_factor (size_t value, int z)
  */
 static inline void png_pixel_data (const png_color **outp, const struct pt_png_header *header, const uint8_t *data, size_t row, size_t col)
 {
-    if (header->color_type == PNG_COLOR_TYPE_PALETTE) {
-        // palette entry number
-        int p;
+    // palette entry number
+    int p;
 
-        if (header->bit_depth == 8)
-            p = *((uint8_t *) tile_row_col(header, data, row, col));
-        else
-            // unknown
+    switch (header->color_type) {
+        case PNG_COLOR_TYPE_PALETTE:
+            switch (header->bit_depth) {
+                case 8:
+                    // 8bpp palette
+                    p = *((uint8_t *) tile_row_col(header, data, row, col));
+
+                    break;
+                
+                default :
+                    // unknown
+                    return;
+            }
+
+            // hrhr - assume our working data is valid (or we have 255 palette entries, so it doesn't matter...)
+            assert(p < header->num_palette);
+            
+            // reference data from palette
+            *outp = &header->palette[p];
+            
             return;
 
-        // hrhr - assume our working data is valid (or we have 255 palette entries, so it doesn't matter...)
-        assert(p < header->num_palette);
-        
-        // reference data from palette
-        *outp = &header->palette[p];
-
-    } else {
-        // unknown
+        default :
+            // unknown pixel format
+            return;
     }
 }
 
