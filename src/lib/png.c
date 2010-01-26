@@ -217,6 +217,7 @@ int pt_png_decode (struct pt_png_img *img, const struct pt_png_header *header, c
     int err;
 
     // decode
+    // XXX: it's an array, you silly
     if (params->background_color)
         err = pt_png_decode_sparse(img, header, params, out);
 
@@ -400,7 +401,7 @@ static inline size_t scale_by_zoom_factor (size_t value, int z)
 /**
  * Converts a pixel's data into a png_color
  */
-static inline void png_pixel_data (png_color *out, const struct pt_png_header *header, const uint8_t *data, size_t row, size_t col)
+static inline void png_pixel_data (const png_color **outp, const struct pt_png_header *header, const uint8_t *data, size_t row, size_t col)
 {
     if (header->color_type == PNG_COLOR_TYPE_PALETTE) {
         // palette entry number
@@ -413,10 +414,11 @@ static inline void png_pixel_data (png_color *out, const struct pt_png_header *h
             return;
 
         if (p >= header->num_palette)
+            // invalid
             return;
         
         // reference data from palette
-        *out = header->palette[p];
+        *outp = &header->palette[p];
 
     } else {
         // unknown
@@ -447,8 +449,8 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
     // buffer to hold output rows
     uint8_t *row_buf;
                 
-    
-    png_color c = { };
+    // color entry for pixel
+    const png_color *c = &header->palette[0];
     
     // only supports zooming out...
     if (ti->zoom >= 0)
@@ -487,9 +489,9 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
                 png_pixel_data(&c, header, data, in_row, in_col);
                 
                 // average the RGB data        
-                ADD_AVG(row_buf[out_col * pixel_bytes + 0], c.red);
-                ADD_AVG(row_buf[out_col * pixel_bytes + 1], c.green);
-                ADD_AVG(row_buf[out_col * pixel_bytes + 2], c.blue);
+                ADD_AVG(row_buf[out_col * pixel_bytes + 0], c->red);
+                ADD_AVG(row_buf[out_col * pixel_bytes + 1], c->green);
+                ADD_AVG(row_buf[out_col * pixel_bytes + 2], c->blue);
             }
         }
 
