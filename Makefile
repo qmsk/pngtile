@@ -57,7 +57,7 @@ dirs:
 
 clean:
 	rm -f build/obj/*/*.o build/deps/*/*.d
-	rm -f bin/* lib/*.so run/*
+	rm -f bin/{pngtile,pngtile-static} lib/libpngtile.{a,so} run/*
 	rm -rf dist/*
 
 # .h dependencies
