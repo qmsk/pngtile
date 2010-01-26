@@ -53,8 +53,7 @@ SRC_DIRS = $(dir $(SRC_NAMES))
 dirs: 
 	mkdir -p bin lib dist
 	mkdir -p $(SRC_DIRS:%=build/deps/%)
-	mkdir -p $(SRC_DIRS:%=build/obj/%)
-	mkdir -p build/pyx
+	mkdir -p $(SRC_DIRS:%=build/obj/%) build/obj/py
 
 clean:
 	rm -f build/obj/*/*.o build/deps/*/*.d build/pyx/*.c
@@ -96,14 +95,14 @@ lib/lib%.so :
 lib/lib%.a :
 	$(AR) rc $@ $+
 
-build/pyx/%.c : python/%.pyx
+python/%.c : python/%.pyx
 	cython -o $@ $<
 
-build/obj/py/%.o : build/pyx/%.c
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+build/obj/py/%.o : python/%.c
+	$(CC) -c -fPIC -I/usr/include/python2.5 $(CPPFLAGS) $(CFLAGS) $< -o $@
 
-lib/py%.so : build/pyx/py%.c
-	$(CC) -I/usr/include/python2.5 -shared -fPIC $(CPPFLAGS) $(CFLAGS) $+ $(LDFLAGS) $(LOADLIBES) $(LDLIBS) -o $@
+lib/py%.so : build/obj/py/py%.o
+	$(CC) -shared $(LDFLAGS) $+ $(LOADLIBES) $(LDLIBS) -o $@
 
 dist:
 	mkdir -p dist/$(DIST_NAME)
