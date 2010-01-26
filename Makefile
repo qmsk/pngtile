@@ -60,9 +60,9 @@ dirs:
 
 clean:
 	rm -f build/obj/*/*.o build/deps/*/*.d
-	rm -f bin/pngtile bin/pngtile-static lib/libpngtile.{a,so} run/*
+	rm -f bin/pngtile bin/pngtile-static lib/*.so lib/*.a
 	rm -f pngtile/*.pyc 
-	rm -f */.*.swp
+	rm -f */.*.swp */*/.*.swp
 
 # .h dependencies
 depend: $(SRC_NAMES:%.c=build/deps/%.d)
