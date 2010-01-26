@@ -20,10 +20,11 @@ CPPFLAGS = -Iinclude -Isrc/
 LOADLIBES = -lpng -lpthread
 
 # output name
-DIST_NAME = pngtile-0.2
-DIST_RESOURCES = README $(shell "echo python/*.{py,pyx}")
+DIST_NAME = pngtile-${shell hg id -i}
+DIST_DEPS = python/pypngtile.c
+DIST_RESOURCES = README python/ pngtile/ static/ bin/
 
-all: depend lib/libpngtile.so bin/pngtile
+all: depend lib/libpngtile.so bin/pngtile lib/pypngtile.so
 
 lib/libpngtile.so : \
 	build/obj/lib/ctx.o build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/png.o build/obj/lib/error.o \
@@ -50,15 +51,18 @@ SRC_DIRS = $(dir $(SRC_NAMES))
 
 .PHONY : dirs clean depend dist
 
+dist-clean : clean dirs
+
 dirs: 
 	mkdir -p bin lib dist
 	mkdir -p $(SRC_DIRS:%=build/deps/%)
-	mkdir -p $(SRC_DIRS:%=build/obj/%)
+	mkdir -p $(SRC_DIRS:%=build/obj/%) build/obj/python
 
 clean:
 	rm -f build/obj/*/*.o build/deps/*/*.d
-	rm -f bin/{pngtile,pngtile-static} lib/libpngtile.{a,so} run/*
-	rm -rf dist/*
+	rm -f bin/pngtile bin/pngtile-static lib/*.so lib/*.a
+	rm -f pngtile/*.pyc 
+	rm -f */.*.swp */*/.*.swp
 
 # .h dependencies
 depend: $(SRC_NAMES:%.c=build/deps/%.d)
@@ -95,20 +99,20 @@ lib/lib%.so :
 lib/lib%.a :
 	$(AR) rc $@ $+
 
-build/pyx/%.c : src/py/%.pyx
+python/%.c : python/%.pyx
 	cython -o $@ $<
 
-build/obj/py/%.o : build/pyx/%.c
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+build/obj/python/%.o : python/%.c
+	$(CC) -c -fPIC -I/usr/include/python2.5 $(CPPFLAGS) $(CFLAGS) $< -o $@
 
-lib/py%.so : build/obj/py/%.o
+lib/py%.so : build/obj/python/py%.o
 	$(CC) -shared $(LDFLAGS) $+ $(LOADLIBES) $(LDLIBS) -o $@
 
-dist:
+dist: $(DIST_DEPS)
+	rm -rf dist/$(DIST_NAME)
 	mkdir -p dist/$(DIST_NAME)
-	cp -rv Makefile $(DIST_RESOURCES) src/ include/ dist/$(DIST_NAME)/
-	rm dist/$(DIST_NAME)/src/*/.*.sw[op]
-	make -C dist/$(DIST_NAME) dirs
+	cp -rv Makefile $(DIST_RESOURCES) src/ include/  dist/$(DIST_NAME)/
+	make -C dist/$(DIST_NAME) dist-clean
 	tar -C dist -czvf dist/$(DIST_NAME).tar.gz $(DIST_NAME)
 	@echo "*** Output at dist/$(DIST_NAME).tar.gz"
 

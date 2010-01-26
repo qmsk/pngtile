@@ -4,8 +4,9 @@ syntax: regexp
 \.pyc$
 
 ^build/
-^bin/pngtile$
-^lib/libpngtile.so$
+^bin/pngtile(-static)?$
+^data
+^lib/libpngtile.(so|a)$
 ^doc/html
 ^dist
-^Learning Diary\.pdf$
+^python/pypngtile.c$

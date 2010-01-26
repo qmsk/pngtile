@@ -32,11 +32,13 @@ COMPILING:
         * libpng 1.2.15~beta5-3ubuntu0.1
         * NPTL 2.7 (glibc 2.7-10ubuntu5)
 
-    To compile, simply execute
+    To compile dist versions, simply execute
 
         make
 
-    The libpngtile.so will be placed under lib/, and the 'pngtile' binary under bin/.
+    The libpngtile.so and pypngtile.so libraries will be placed under lib/, and the 'pngtile' binary under bin/.
+
+    XXX: If compiling the pypngtile.so library with make fails, then `setup.py build_ext -i` should build it.
 
 
 USAGE:

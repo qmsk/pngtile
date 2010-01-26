@@ -331,29 +331,29 @@ int main (int argc, char **argv)
         // update if stale
         if (status != PT_CACHE_FRESH || force_update) {
             if (status == PT_CACHE_NONE)
-                log_debug("\tImage cache is missing");
+                log_info("\tImage cache is missing");
 
             else if (status == PT_CACHE_STALE)
-                log_debug("\tImage cache is stale");
+                log_info("\tImage cache is stale");
             
             else if (status == PT_CACHE_INCOMPAT)
-                log_debug("\tImage cache is incompatible");
+                log_info("\tImage cache is incompatible");
 
             else if (status == PT_CACHE_FRESH)
-                log_debug("\tImage cache is fresh");
+                log_info("\tImage cache is fresh");
 
             else
                 log_warn("\tImage cache status is unknown");
             
             if (!no_update) {
-                log_debug("\tUpdating image cache...");
+                log_info("\tUpdating image cache...");
 
                 if ((err = pt_image_update(image, &update_params))) {
                     log_error("pt_image_update: %s: %s", img_path, pt_strerror(err));
                     goto error;
                 }
 
-                log_info("\tUpdated image cache");
+                log_debug("\tUpdated image cache");
 
             } else {
                 log_warn("\tSupressing cache update");
@@ -363,7 +363,7 @@ int main (int argc, char **argv)
             log_debug("\tImage cache is fresh");
 
             // ensure it's loaded
-            log_debug("\tLoad image cache...");
+            log_info("\tLoad image cache...");
 
             if ((err = pt_image_load(image))) {
                 log_errno("pt_image_load: %s", pt_strerror(err));
