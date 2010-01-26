@@ -20,7 +20,7 @@ CPPFLAGS = -Iinclude -Isrc/
 LOADLIBES = -lpng -lpthread
 
 # output name
-DIST_NAME = pngtile-0.2
+DIST_NAME = pngtile-${shell hg id -i}
 DIST_RESOURCES = README python/ pngtile/ static/ bin/
 
 all: depend lib/libpngtile.so bin/pngtile
