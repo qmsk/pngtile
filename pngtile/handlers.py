@@ -68,10 +68,6 @@ def handle_dir (req, name, path) :
     
     prefix = req.script_root
     
-    print "req.script_root:", req.script_root
-    print "prefix", prefix
-
-
     return Response(render.dir_html(prefix, name, path), content_type="text/html")
 
 
