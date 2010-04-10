@@ -9,8 +9,8 @@
  *  x, y        - the pixel coordinates of the top-left corner
  *                XXX: these are scaled from the image coordinates by the zoom level
  *
- *  zl          - the zoom level used, out < zl < in.
- *                The image pixels are scaled by powers-of-two, so a 256x256 tile at zl=-1 shows a 512x512 area of the
+ *  zl          - the zoom level used, in < zl < out.
+ *                The image pixels are scaled by powers-of-two, so a 256x256 tile at zl=1 shows a 512x512 area of the
  *                1:1 image.
  */
 var Source = Class.create({
@@ -234,7 +234,7 @@ var Viewport = Class.create({
         
         // delta > 0 : scroll up, zoom in
         // delta < 0 : scroll down, zoom out
-        delta = delta < 0 ? -1 : 1;
+        delta = delta < 0 ? 1 : -1;
 
         // Firefox's DOMMouseEvent's pageX/Y attributes are broken. layerN is for mozilla, offsetN for IE, seems to work
 
@@ -315,8 +315,8 @@ var Viewport = Class.create({
     /** Zoom à la delta such that the given (current) absolute (x, y) co-ordinates will be at the top left */
     zoom_to: function (x, y, delta) {
         return this.zoom_scaled(
-            scaleByZoomDelta(x, delta),
-            scaleByZoomDelta(y, delta),
+            scaleByZoomDelta(x, -delta),
+            scaleByZoomDelta(y, -delta),
             delta
         );
     },
@@ -324,8 +324,8 @@ var Viewport = Class.create({
     /** Zoom à la delta such that the given (current) absolute (x, y) co-ordinates will be at the center */
     zoom_center_to: function (x, y, delta) {
         return this.zoom_scaled(
-            scaleByZoomDelta(x, delta) - this.center_offset_x,
-            scaleByZoomDelta(y, delta) - this.center_offset_y,
+            scaleByZoomDelta(x, -delta) - this.center_offset_x,
+            scaleByZoomDelta(y, -delta) - this.center_offset_y,
             delta
         );
     },
@@ -341,18 +341,18 @@ var Viewport = Class.create({
 
     /** Zoom in one level, keeping the view centered */
     zoom_in: function () {
-        return this.zoom_centered(+1);
+        return this.zoom_centered(-1);
     },
     
     /** Zoom out one level, keeping the view centered */
     zoom_out: function () {
-        return this.zoom_centered(-1);
+        return this.zoom_centered(+1);
     },
 
     /** Center the view on the given coords, and zoom in, if possible */
     center_and_zoom_in: function (cx, cy) {
         // try and zoom in
-        if (this.update_zoom(1)) {
+        if (this.update_zoom(-1)) {
             // scaled coords
             cx = scaleByZoomDelta(cx, 1);
             cy = scaleByZoomDelta(cy, 1);
@@ -548,11 +548,11 @@ var Viewport = Class.create({
     update_zoom_ui: function () {
         // deactivate zoom-in button if zoomed in
         if (this.btn_zoom_in)
-            (this.zoom_layer.level >= this.source.zoom_max) ? this.btn_zoom_in.disable() : this.btn_zoom_in.enable();
+            (this.zoom_layer.level <= this.source.zoom_min) ? this.btn_zoom_in.disable() : this.btn_zoom_in.enable();
         
         // deactivate zoom-out button if zoomed out
         if (this.btn_zoom_out)
-            (this.zoom_layer.level <= this.source.zoom_min) ? this.btn_zoom_out.disable() : this.btn_zoom_out.enable();
+            (this.zoom_layer.level >= this.source.zoom_max) ? this.btn_zoom_out.disable() : this.btn_zoom_out.enable();
         
         // link-to-image
         this.update_image_link();
@@ -632,7 +632,7 @@ var ZoomLayer = Class.create({
      * For zoom levels different than this layer's level, this will resize the tiles!
      */
     update_tiles: function (zoom_level) {
-        var zd = zoom_level - this.level;
+        var zd = this.level - zoom_level;
         
         // desired tile size
         var tw = scaleByZoomDelta(this.source.tile_width, zd);
@@ -656,8 +656,8 @@ var ZoomLayer = Class.create({
     }
 });
 
-// scale the given co-ordinate by a zoom delta. If we zoom in (dz > 0), n will become larger, and if we zoom 
-// out (dz < 0), n will become smaller.
+// scale the given co-ordinate by a zoom delta. If we zoom out (dz > 0), n will become larger, and if we zoom 
+// in (dz < 0), n will become smaller.
 function scaleByZoomDelta (n, dz) {
     if (dz > 0)
         return n << dz;

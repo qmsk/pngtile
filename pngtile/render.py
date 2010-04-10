@@ -127,7 +127,7 @@ def img_html (prefix, name, image) :
         </div>
 
         <script type="text/javascript">
-            var tile_source = new Source("%(tile_url)s", %(tile_width)d, %(tile_height)d, -4, 0, %(img_width)d, %(img_height)d);
+            var tile_source = new Source("%(tile_url)s", %(tile_width)d, %(tile_height)d, 0, 4, %(img_width)d, %(img_height)d);
             var main = new Viewport(tile_source, "viewport");
         </script>
     </body>
@@ -150,6 +150,9 @@ CACHE_THRESHOLD = 512 * 512
 def scale_by_zoom (val, zoom) :
     """
         Scale dimension by zoom factor
+
+        zl > 0 -> bigger
+        zl < 0 -> smaller
     """
 
     if zoom > 0 :
@@ -167,7 +170,7 @@ def check_cache_threshold (width, height, zl) :
         Checks if a tile with the given dimensions should be cached
     """
 
-    return (scale_by_zoom(width, -zl) * scale_by_zoom(height, -zl)) > CACHE_THRESHOLD
+    return (scale_by_zoom(width, zl) * scale_by_zoom(height, zl)) > CACHE_THRESHOLD
 
 def render_raw (image, width, height, x, y, zl) :
     """
@@ -213,8 +216,8 @@ def img_png_tile (image, x, y, zoom, cache) :
     """
 
     # remap coordinates by zoom
-    x = scale_by_zoom(x, -zoom)
-    y = scale_by_zoom(y, -zoom)
+    x = scale_by_zoom(x, zoom)
+    y = scale_by_zoom(y, zoom)
 
     # do we want to cache this?
     if check_cache_threshold(TILE_WIDTH, TILE_HEIGHT, zoom) :
@@ -230,8 +233,8 @@ def img_png_region (image, cx, cy, zoom, width, height, cache) :
         Render arbitrary tile, returning PNG data
     """
 
-    x = scale_by_zoom(cx - width / 2, -zoom)
-    y = scale_by_zoom(cy - height / 2, -zoom)
+    x = scale_by_zoom(cx - width / 2, zoom)
+    y = scale_by_zoom(cy - height / 2, zoom)
 
     # safely limit
     if width * height > MAX_PIXELS :

@@ -440,11 +440,11 @@ static inline void png_pixel_data (const png_color **outp, const struct pt_png_h
 static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_info *ti)
 {
     // size of the image data in px
-    size_t data_width = scale_by_zoom_factor(ti->width, -ti->zoom);
-    size_t data_height = scale_by_zoom_factor(ti->height, -ti->zoom);
+    size_t data_width = scale_by_zoom_factor(ti->width, ti->zoom);
+    size_t data_height = scale_by_zoom_factor(ti->height, ti->zoom);
 
     // input pixels per output pixel
-    size_t pixel_size = scale_by_zoom_factor(1, -ti->zoom);
+    size_t pixel_size = scale_by_zoom_factor(1, ti->zoom);
 
     // bytes per output pixel
     size_t pixel_bytes = 3;
@@ -462,7 +462,7 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
     const png_color *c = &header->palette[0];
     
     // only supports zooming out...
-    if (ti->zoom >= 0)
+    if (ti->zoom < 0)
         RETURN_ERROR(PT_ERR_TILE_ZOOM);
 
     if ((row_buf = malloc(row_bytes)) == NULL)
@@ -484,7 +484,7 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
         memset(row_buf, 0, row_bytes);
 
         // ...includes pixels starting from this row.
-        size_t in_row_offset = ti->y + scale_by_zoom_factor(out_row, -ti->zoom);
+        size_t in_row_offset = ti->y + scale_by_zoom_factor(out_row, ti->zoom);
         
         // ...each out row includes pixel_size in rows
         for (size_t in_row = in_row_offset; in_row < in_row_offset + pixel_size && in_row < header->height; in_row++) {
@@ -492,7 +492,7 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
             for (size_t in_col = ti->x; in_col < ti->x + data_width && in_col < header->width; in_col++) {
 
                 // ...for this output pixel
-                size_t out_col = scale_by_zoom_factor(in_col - ti->x, ti->zoom);
+                size_t out_col = scale_by_zoom_factor(in_col - ti->x, -ti->zoom);
                 
                 // get pixel RGB data
                 png_pixel_data(&c, header, data, in_row, in_col);
