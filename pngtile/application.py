@@ -6,6 +6,10 @@ import pypngtile
 import os.path
 
 class BaseApplication (object):
+    IMAGE_TYPES = (
+        'png',
+    )
+
     def __init__ (self, image_root):
         if not os.path.isdir(image_root) :
             raise Exception("Given image_root does not exist: {image_root}".format(image_root=image_root))
@@ -14,11 +18,11 @@ class BaseApplication (object):
 
         self.image_cache = { }
 
-    def lookup_image (self, url):
+    def lookup_path (self, url):
         """
             Lookup image by request path.
 
-            Returns image_name, image_path.
+            Returns name, path.
         """
 
         if not os.path.isdir(self.image_root):
@@ -37,12 +41,6 @@ class BaseApplication (object):
         if not os.path.exists(path):
             raise exceptions.NotFound(name)
 
-        if os.path.isdir(path):
-            raise exceptions.BadRequest("Is a directory: {name}".format(name=name))
-
-        if not path.endswith('.png'):
-            raise exceptions.BadRequest("Not a PNG image: {name}".format(name=name))
-
         return name, path
 
     def get_image (self, url):
@@ -50,7 +48,15 @@ class BaseApplication (object):
             Return Image object.
         """
 
-        name, path = self.lookup_image(url)
+        name, path = self.lookup_path(url)
+
+        if os.path.isdir(path):
+            raise exceptions.BadRequest("Is a directory: {name}".format(name=name))
+
+        basename, file_type = path.rsplit('.', 1)
+
+        if file_type not in self.IMAGE_TYPES:
+            raise exceptions.BadRequest("Not a supported image: {name}: {type}".format(name=name, type=file_type))
 
         # get Image object
         image = self.image_cache.get(path)
