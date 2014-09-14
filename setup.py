@@ -3,39 +3,32 @@ from distutils.extension import Extension
 
 import os.path
 
-build_root = os.path.abspath(os.path.dirname(__file__))
-
-pypngtile_c = "python/pypngtile.c"
-pypngtile_name = "python/pypngtile.pyx"
-
-cmdclass = dict()
-
 try :
-    from Cython.Distutils import build_ext
-    
-    cmdclass['build_ext'] = build_ext
+    from Cython.Build import cythonize
 
+    CYTHON = True
 except ImportError :
-    path = os.path.join(build_root, pypngtile_c)
+    CYTHON = False
 
-    if os.path.exists(path) :
-        print "Warning: falling back from .pyx -> .c due to missing Cython"
-        # just use the .c
-        pypngtile_name = pypngtile_c
-    
-    else :
-        # fail
-        raise
+if CYTHON:
+    pypngtile_sources = [ "python/pypngtile.pyx" ]
+elif os.path.exists("python/pypngtile.c"):
+    pypngtile_sources = [ "python/pypngtile.c" ]
+else:
+    raise Exception("Building from source requires Cython")
+
+ext_modules = [Extension("pypngtile",
+    sources         = pypngtile_sources,
+    libraries       = ['pngtile'],
+)]
+
+if CYTHON:
+    ext_modules = cythonize(ext_modules)
 
 setup(
-    name = 'pngtiles',
-    cmdclass = cmdclass,
-    ext_modules = [
-        Extension("pypngtile", [pypngtile_name],
-            include_dirs = ['include'],
-            library_dirs = ['lib'],
-            libraries = ['pngtile'],
-        ),
-    ],
+    name            = 'pngtile',
+    version         = '1.0-dev',
+
+    ext_modules     = ext_modules,
 )
 

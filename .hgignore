@@ -1,12 +1,14 @@
-syntax: regexp
+syntax: glob
 
-\.[^/]+\.sw[op]$
-\.pyc$
+.*.swo
+.*.swp
+*.pyc
 
-^build/
-^bin/pngtile(-static)?$
-^data
-^lib/libpngtile.(so|a)$
-^doc/html
-^dist
-^python/pypngtile.c$
+bin/pngtile
+bin/pngtile-static
+build/
+dist/
+doc/html
+lib/
+opt/
+python/pypngtile.c

@@ -1,16 +1,15 @@
-pngtile
+# libpngtile
 
 Constant-time/memory tile-based handling of large PNG images.
 
-ABOUT:
-    pngtile is a library (and associated command-line utility) offering efficient random access to partial regions of
+## About
+    pngtile is a C library (and associated command-line utility) offering efficient random access to partial regions of
     very large PNG images (gigapixel range).
 
     For this purpose, the library linearly decodes the PNG image to an uncompressed memory-mapped file, which can then
     be later used to encode a portion of this raw pixel data back into a PNG image.
 
-
-NOTES:
+## Notes
     The command-line utility is mainly intended for maintining the image caches and testing, primary usage is expected
     to be performed using the library interface directly. A simple Cython wrapper for a Python extension module is
     provided under python/.
@@ -25,23 +24,26 @@ NOTES:
     hexadecimal notation (--background 0xFFFFFF - for 24bpp RGB white), and consecutive regions of that color will
     be omitted in the cache file, which may provide significant gains in space efficiency.
 
-
-COMPILING:
+## Build
     The library depends on libpng and pthreads. The code was developed and tested using:
-
-        * libpng 1.2.15~beta5-3ubuntu0.1
-        * NPTL 2.7 (glibc 2.7-10ubuntu5)
+        
+        * libpng12-dev      png.h       1.2.15~beta5-3ubuntu0.1
+        * libc6-dev         pthread.h   NPTL 2.7 (glibc 2.7-10ubuntu5)
 
     To compile dist versions, simply execute
 
-        make
+        $ make
+
+    To compile source versions, execute:
+        
+        $ make dirs
+        $ make
 
     The libpngtile.so and pypngtile.so libraries will be placed under lib/, and the 'pngtile' binary under bin/.
 
     XXX: If compiling the pypngtile.so library with make fails, then `setup.py build_ext -i` should build it.
 
-
-USAGE:
+## Usage
     Store the .png data files in a directory. You must have write access to the directory when updating the caches,
     which are written as a .cache file alongside the .png file.
 
@@ -66,11 +68,24 @@ USAGE:
 
     Alternatively, to not update an image's cache, use the -N/--no-update option.
 
-
-TODO/BUGS:
+## Issues
     At this stage, the library is primarily designed to handle a specific set of PNG images, and hence does not support
     all aspects of the PNG format, nor any other image formats.
 
     The pt_images opened by main() are not cleaned up before process exit, due to the asynchronous nature of the tile
     render operation's accesses to the underlying pt_cache object.
+
+# pypngtile
+
+Python extension for pngtile
+
+## Dependencies
+
+    * python-cython
+    * python-dev
+
+## Build
+
+    $ python setup.py build_ext
+
 

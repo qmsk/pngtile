@@ -21,10 +21,10 @@ LOADLIBES = -lpng -lpthread
 
 # output name
 DIST_NAME = pngtile-${shell hg id -i}
-DIST_DEPS = python/pypngtile.c
-DIST_RESOURCES = README python/ pngtile/ static/ bin/
+DIST_DEPS = 
+DIST_RESOURCES = README pngtile/ static/ bin/
 
-all: depend lib/libpngtile.so bin/pngtile lib/pypngtile.so
+all: depend lib/libpngtile.so bin/pngtile
 
 lib/libpngtile.so : \
 	build/obj/lib/ctx.o build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/png.o build/obj/lib/error.o \
@@ -33,9 +33,6 @@ lib/libpngtile.so : \
 lib/libpngtile.a : \
 	build/obj/lib/ctx.o build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/png.o build/obj/lib/error.o \
 	build/obj/shared/util.o build/obj/shared/log.o
-
-lib/pypngtile.so : \
-	lib/libpngtile.so
 
 bin/pngtile : \
 	build/obj/pngtile/main.o \
@@ -56,12 +53,11 @@ dist-clean : clean dirs
 dirs: 
 	mkdir -p bin lib dist
 	mkdir -p $(SRC_DIRS:%=build/deps/%)
-	mkdir -p $(SRC_DIRS:%=build/obj/%) build/obj/python
+	mkdir -p $(SRC_DIRS:%=build/obj/%)
 
 clean:
 	rm -f build/obj/*/*.o build/deps/*/*.d
 	rm -f bin/pngtile bin/pngtile-static lib/*.so lib/*.a
-	rm -f pngtile/*.pyc 
 	rm -f */.*.swp */*/.*.swp
 
 # .h dependencies
@@ -98,15 +94,6 @@ lib/lib%.so :
 
 lib/lib%.a :
 	$(AR) rc $@ $+
-
-python/%.c : python/%.pyx
-	cython -o $@ $<
-
-build/obj/python/%.o : python/%.c
-	$(CC) -c -fPIC -I/usr/include/python2.5 $(CPPFLAGS) $(CFLAGS) $< -o $@
-
-lib/py%.so : build/obj/python/py%.o
-	$(CC) -shared $(LDFLAGS) $+ $(LOADLIBES) $(LDLIBS) -o $@
 
 dist: $(DIST_DEPS)
 	rm -rf dist/$(DIST_NAME)
