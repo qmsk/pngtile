@@ -1,9 +1,0 @@
-#!/usr/bin/python
-"""
-    Script for running the Tornado server + handler
-"""
-
-from pngtile import tornado_handler
-
-tornado_handler.main()
-
