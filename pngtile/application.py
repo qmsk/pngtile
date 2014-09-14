@@ -93,7 +93,7 @@ class BaseApplication (object):
     STYLESHEETS = ( )
     SCRIPTS = ( )
 
-    def render_html (self, title, body, stylesheets=None, scripts=None):
+    def render_html (self, title, body, stylesheets=None, scripts=None, end=()):
         if stylesheets is None:
             stylesheets = self.STYLESHEETS
 
@@ -110,7 +110,7 @@ class BaseApplication (object):
             html.body(
                 *(body + tuple(
                     html.script(src=src) for src in scripts
-                ))
+                ) + end)
             ),
         ])
 
