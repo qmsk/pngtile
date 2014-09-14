@@ -11,6 +11,48 @@ from pngtile.application import BaseApplication
 import pypngtile
 
 import json
+import os, os.path
+
+def dir_url (prefix, name, item):
+    """
+        Join together an absolute URL prefix, an optional directory name, and a directory item
+    """
+
+    url = prefix
+
+    if name:
+        url += '/' + name
+    
+    url += '/' + item
+
+    return url
+
+def dir_list (root):
+    """
+        Yield a series of directory items to show for the given dir
+    """
+
+    for name in os.listdir(root):
+        path = os.path.join(root, name)
+
+        # skip dotfiles
+        if name.startswith('.'):
+            continue
+        
+        # show dirs
+        if os.path.isdir(path):
+            yield name
+
+        # examine ext
+        if '.' in name:
+            name_base, name_type = name.rsplit('.', 1)
+        else:
+            name_base = name
+            name_type = None
+
+        # show .png files with a .cache file
+        if name_type in ImageApplication.IMAGE_TYPES and os.path.exists(os.path.join(root, name_base + '.cache')):
+            yield name
 
 class ImageApplication (BaseApplication):
 
@@ -30,6 +72,47 @@ class ImageApplication (BaseApplication):
 
     def __init__ (self, **opts):
         BaseApplication.__init__(self, **opts)
+
+    def render_dir_breadcrumb (self, name):
+        path = []
+
+        yield html.li(html.a(href='/', *[u"Index"]))
+        
+        if name:
+            for part in name.split('/'):
+                path.append(part)
+
+                yield html.li(html.a(href='/'.join(path), *[part]))
+
+    def render_dir (self, request, name, items):
+        """
+            request:    werkzeug.Request
+            name:       /.../... url to dir
+            items:      [...] items in dir
+        """
+        
+        if name:
+            title = name
+        else:
+            title = "Index"
+
+        return self.render_html(
+            title       = name,
+            body        = (
+                html.div(class_='container', *[
+                    html.h1(title),
+                    html.div(*[
+                        html.ol(class_='breadcrumb', *self.render_dir_breadcrumb(name)),
+                    ]),
+                    html.div(class_='list', *[
+                        html.ul(class_='list-group', *[html.li(class_='list-group-item', *[
+                                html.a(href=dir_url('', name, item), *[item])
+                            ]) for item in items]
+                        ),
+                    ]),
+                ]),
+            ),
+        )
 
     def render_image (self, request, image, name):
         """
@@ -65,11 +148,22 @@ class ImageApplication (BaseApplication):
             ),
         )
 
-    def handle (self, request):
+    def handle_dir (self, request, name, path):
         """
-            Handle request for an image
+            Generate response for directory listing.
         """
-         
+
+        items = sorted(dir_list(path))
+
+        html = self.render_dir(request, name, items)
+
+        return Response(html, content_type="text/html")
+
+    def handle_image (self, request, name, path):
+        """
+            Generate Response for image request.
+        """
+        
         try:
             image, name = self.get_image(request.path)
         except pypngtile.Error as error:
@@ -79,4 +173,31 @@ class ImageApplication (BaseApplication):
 
         return Response(html, content_type="text/html")
 
+    def handle (self, request):
+        """
+            Handle request for an image
+        """
 
+        name, path = self.lookup_path(request.path)
+        
+        # determine type
+        if '/' in name:
+            _, name_base = name.rsplit('/', 1)
+        else:
+            name_base = name
+
+        if '.' in name_base:
+            name_base, name_type = name_base.rsplit('.', 1)
+        else:
+            name_type = None
+
+        # determine handler
+        if os.path.isdir(path):
+            return self.handle_dir(request, name, path)
+        
+        elif name_type and name_type in self.IMAGE_TYPES:
+            return self.handle_image(request, name, path)
+
+        else:
+            raise exceptions.NotFound(path)
+        
