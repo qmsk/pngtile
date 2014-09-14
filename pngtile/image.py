@@ -47,6 +47,8 @@ class ImageApplication (BaseApplication):
             tile_size       = pngtile.tile.TILE_SIZE,
             tile_zoom       = pngtile.tile.MAX_ZOOM,
             
+            image_url       = 'http://zovoweix.qmsk.net:8080/{name}?w={w}&h={h}&x={x}&y={y}&zoom={z}',
+            image_name      = name,
             image_width     = image_info['img_width'],
             image_height    = image_info['img_height'],
         )

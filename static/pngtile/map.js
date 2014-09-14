@@ -1,6 +1,53 @@
 var map_config;
 var map;
 
+L.Control.Link = L.Control.extend({
+    options: {
+        position: 'topright',
+        url: null,
+    },
+
+    onAdd: function (map) {
+        var container = L.DomUtil.create('div', 'leaflet-control-link');
+
+        var link = this.link = L.DomUtil.create('a', 'leaflet-control-link-link', container);
+
+        map.on('move', this._update, this);
+
+        return container;
+    },
+
+    onRemove: function (map) {
+        map.off('move', this._update, this);
+    },
+
+    _update: function (e) {
+        var map_center = map.getCenter();
+        var map_zoom = map.getZoom();
+        var size = map.getSize();
+        
+        var state = {
+            w: size.x,
+            h: size.y,
+            x: (+map_center.lng) << map_config.tile_zoom,
+            y: (-map_center.lat) << map_config.tile_zoom,
+            z: map_config.tile_zoom - map_zoom,
+        };
+
+        var url = L.Util.template(this.options.url, L.extend(state, this.options));
+        
+        this.link.href = url;
+
+        with (state) {
+            this.link.innerHTML = w + 'x' + h + ' @ (' + x + ', ' + y + ') @ ' + z;
+        }
+    },
+});
+
+L.control.link = function (options) {
+    return new L.Control.Link(options);
+};
+
 function map_init (_config) {
     map_config = _config;
     
@@ -34,6 +81,12 @@ function map_init (_config) {
         noWrap:             true,
         zoomReverse:        true,
         bounds:             bounds
+    }).addTo(map);
+
+    // controls
+    L.control.link({
+        url:        map_config.image_url,
+        name:       map_config.image_name,
     }).addTo(map);
 
     // set position
