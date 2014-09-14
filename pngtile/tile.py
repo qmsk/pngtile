@@ -9,8 +9,10 @@ import pypngtile
 
 ## Coordinates
 # width of a tile
-TILE_WIDTH = 256
-TILE_HEIGHT = 256
+TILE_SIZE = 256
+
+# maximum zoom out
+MAX_ZOOM = 4
 
 # max. output resolution to allow
 MAX_PIXELS = 1920 * 1200
@@ -54,9 +56,12 @@ class TileApplication (BaseApplication):
         y = int(request.args['y'])
         zoom = int(request.args.get('zoom', "0"))
 
-        # safely limit
+        # safety limit
         if width * height > MAX_PIXELS:
             raise exceptions.BadRequest("Image size: %d * %d > %d" % (width, height, MAX_PIXELS))
+
+        if zoom > MAX_ZOOM:
+            raise exceptions.BadRequest("Image zoom: %d > %d" % (zoom, MAX_ZOOM))
 
         x = scale(x, zoom)
         y = scale(y, zoom)
@@ -72,14 +77,17 @@ class TileApplication (BaseApplication):
             Handle request for image tile
         """
 
-        width = TILE_WIDTH
-        height = TILE_HEIGHT
-        row = int(request.args['row'])
-        col = int(request.args['col'])
+        width = TILE_SIZE
+        height = TILE_SIZE
+        x = int(request.args['x'])
+        y = int(request.args['y'])
         zoom = int(request.args.get('zoom', "0"))
+        
+        if zoom > MAX_ZOOM:
+            raise exceptions.BadRequest("Image zoom: %d > %d" % (zoom, MAX_ZOOM))
 
-        x = scale(row * width, zoom)
-        y = scale(col * height, zoom)
+        x = scale(x * width, zoom)
+        y = scale(y * height, zoom)
 
         try:
             return image.tile_mem(width, height, x, y, zoom)
@@ -100,7 +108,7 @@ class TileApplication (BaseApplication):
         if 'w' in request.args and 'h' in request.args and 'x' in request.args and 'y' in request.args:
             png = self.render_region(request, image)
 
-        elif 'row' in request.args and 'col' in request.args:
+        elif 'x' in request.args and 'y' in request.args:
             png = self.render_tile(request, image)
 
         else:
