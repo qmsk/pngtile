@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+
+"""
+    Development server for pngtile.tile serving.
+"""
+
+import argparse
+import pngtile.tile
+import werkzeug.serving
+
+def main ():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--listen',     metavar='ADDR', default='0.0.0.0',
+            help="Listen on address")
+    parser.add_argument('--port',       metavar='PORT', type=int, default=8080,
+            help="Listen on port")
+
+    parser.add_argument('--reload',     action='store_true',
+            help="Reload")
+    parser.add_argument('--debugger',   action='store_true',
+            help="Debugger")
+
+    parser.add_argument('image_root',   metavar='PATH',
+            help="Path to images")
+
+    args = parser.parse_args()
+
+    application = pngtile.tile.Application(
+        image_root  = args.image_root,
+    )
+
+    werkzeug.serving.run_simple(args.listen, args.port, application,
+            use_reloader    = args.reload,
+            use_debugger    = args.debugger,
+    )
+
+if __name__ == '__main__':
+    main()
