@@ -13,7 +13,7 @@ app = werkzeug.DispatcherMiddleware(pngtile.wsgi.application, {
     }),
 })
 
-def main (host='127.0.0.1', port=8000) :
+def main (host='0.0.0.0', port=8000) :
     httpd = wsgiref.simple_server.make_server(host, port, app)
 
     print "Listening on %s:%d" % (host, port)
