@@ -18,13 +18,14 @@ class ImageApplication (BaseApplication):
         'https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css',
         'https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css',
         'http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css',
-        '/static/pngtile/image.css',
+        '/static/pngtile/map.css',
     )
 
     SCRIPTS = (
         'https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js',
         'https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js',
         'http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js',
+        '/static/pngtile/map.js',
     )
 
     def __init__ (self, **opts):
@@ -39,7 +40,7 @@ class ImageApplication (BaseApplication):
 
         image_info = image.info()
 
-        config = dict(
+        map_config = dict(
             tile_url        = 'http://zovoweix.qmsk.net:8080/{name}?x={x}&y={y}&zoom={z}',
             tile_name       = name,
 
@@ -58,38 +59,7 @@ class ImageApplication (BaseApplication):
                 ]),
             ),
             end         = (
-                html.script("""\
-                    $(function() {{
-                        var config = {config};
-
-                        var bounds = [
-                            [ 0, config.image_height ],
-                            [ -config.image_width, 0 ]
-                        ];
-                        var center = [
-                            -256, 512
-                        ];
-                        var zoom = config.tile_zoom;
-                        
-                        var map = L.map('map', {{
-                            crs: L.CRS.Simple,
-                            center: center,
-                            zoom: zoom,
-                            maxBounds: bounds
-                        }});
-
-                        L.tileLayer(config.tile_url, {{
-                            name: config.tile_name,
-                            minZoom: 0,
-                            maxZoom: config.tile_zoom,
-                            tileSize: config.tile_size,
-                            continuousWorld: true,
-                            noWrap: true,
-                            zoomReverse: true,
-                            bounds: bounds
-                        }}).addTo(map);
-                    }});
-                """.format(config=json.dumps(config))),
+                html.script("""$(function() {{ map_init({map_config}); }});""".format(map_config=json.dumps(map_config))),
             ),
         )
 
