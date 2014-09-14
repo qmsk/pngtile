@@ -10,10 +10,10 @@ try :
 except ImportError :
     CYTHON = False
 
-if CYTHON:
-    pypngtile_sources = [ "python/pypngtile.pyx" ]
+if CYTHON and os.path.exists('python/pypngtile.pyx'):
+    pypngtile_sources = [ 'python/pypngtile.pyx' ]
 elif os.path.exists("python/pypngtile.c"):
-    pypngtile_sources = [ "python/pypngtile.c" ]
+    pypngtile_sources = [ 'python/pypngtile.c' ]
 else:
     raise Exception("Building from source requires Cython")
 
