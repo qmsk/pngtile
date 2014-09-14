@@ -3,17 +3,24 @@ var map;
 
 function map_init (_config) {
     map_config = _config;
-
+    
+    // pixel coordinates
     var bounds = L.latLngBounds(
         L.latLng(-map_config.image_height, 0),
         L.latLng(0, +map_config.image_width)
     );
     
+    // in zoom-scaled coordinates
+    var map_bounds = [
+        [ -(map_config.image_height >> map_config.tile_zoom), 0 ],
+        [ 0, +(map_config.image_width >> map_config.tile_zoom) ], 
+    ];
+
     map = L.map('map', {
         crs: L              .CRS.Simple,
         minZoom:            0,
         maxZoom:            map_config.tile_zoom,
-        maxBounds:          bounds
+        maxBounds:          map_bounds
     });
 
     map.on('move', map_move);
