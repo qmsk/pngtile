@@ -1,5 +1,5 @@
 import pngtile.tile
 
-application = pngtile.tile.Application(
+application = pngtile.tile.TileApplication(
     image_root  = './var',
 )

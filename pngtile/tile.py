@@ -2,8 +2,7 @@
     Raw tile handling.
 """
 
-import os.path
-
+from pngtile.application import BaseApplication
 from werkzeug import Request, Response, exceptions
 
 import pypngtile
@@ -40,63 +39,10 @@ def scale_center (val, dim, zoom):
 
     return scale(val - dim / 2, zoom)
 
-class Application (object):
-    def __init__ (self, image_root):
-        if not os.path.isdir(image_root) :
-            raise Exception("Given image_root does not exist: {image_root}".format(image_root=image_root))
-
-        self.image_root = os.path.abspath(image_root)
-
-        self.image_cache = { }
-
-    def lookup_image (self, url):
-        """
-            Lookup image by request path.
-
-            Returns image_name, image_path.
-        """
-
-        if not os.path.isdir(self.image_root):
-            raise exceptions.InternalServerError("Server image_root has gone missing")
-    
-        # path to image
-        name = url.lstrip('/')
+class TileApplication (BaseApplication):
+    def __init__ (self, **opts):
+        BaseApplication.__init__(self, **opts)
         
-        # build absolute path
-        path = os.path.abspath(os.path.join(self.image_root, name))
-
-        # ensure the path points inside the data root
-        if not path.startswith(self.image_root):
-            raise exceptions.NotFound(name)
-
-        return name, path
-
-    def get_image (self, url):
-        """
-            Return Image object.
-        """
-
-        name, path = self.lookup_image(url)
-
-        # get Image object
-        image = self.image_cache.get(path)
-
-        if not image:
-            # open
-            image = pypngtile.Image(path)
-
-            # check
-            if image.status() not in (pypngtile.CACHE_FRESH, pypngtile.CACHE_STALE):
-                raise exceptions.InternalServerError("Image cache not available: {name}".format(name=name))
-
-            # load
-            image.open()
-
-            # cache
-            self.image_cache[path] = image
-        
-        return image
-
     def render_region (self, request, image):
         """
             Handle request for an image region
@@ -147,7 +93,7 @@ class Application (object):
         """
         
         try:
-            image = self.get_image(request.path)
+            image, name = self.get_image(request.path)
         except pypngtile.Error as error:
             raise exceptions.BadRequest(str(error))
 
@@ -161,16 +107,3 @@ class Application (object):
             raise exceptions.BadRequest("Unknown args")
 
         return Response(png, content_type='image/png')
-
-    @Request.application
-    def __call__ (self, request):
-        """
-            WSGI entry point.
-        """
-
-        try:
-            return self.handle(request)
-
-        except exceptions.HTTPException as error:
-            return error
-

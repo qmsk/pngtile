@@ -25,7 +25,7 @@ def main ():
 
     args = parser.parse_args()
 
-    application = pngtile.tile.Application(
+    application = pngtile.tile.TileApplication(
         image_root  = args.image_root,
     )
 
