@@ -12,3 +12,4 @@ doc/html
 lib/
 opt/
 python/pypngtile.c
+var/
