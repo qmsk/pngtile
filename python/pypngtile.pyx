@@ -32,7 +32,7 @@ CACHE_NONE      = PT_CACHE_NONE
 CACHE_STALE     = PT_CACHE_STALE
 CACHE_INCOMPAT  = PT_CACHE_INCOMPAT
 
-class Error (BaseException) :
+class Error (Exception) :
     """
         Base class for errors raised by pypngtile.
     """
