@@ -39,7 +39,7 @@ def scale_center (val, dim, zoom):
         Scale value about center by zoom.
     """
 
-    return scale(val - dim / 2, zoom)
+    return scale(val, zoom) - dim / 2
 
 class TileApplication (BaseApplication):
     def __init__ (self, **opts):
@@ -63,8 +63,8 @@ class TileApplication (BaseApplication):
         if zoom > MAX_ZOOM:
             raise exceptions.BadRequest("Image zoom: %d > %d" % (zoom, MAX_ZOOM))
 
-        x = scale(x, zoom)
-        y = scale(y, zoom)
+        x = scale_center(x, width, zoom)
+        y = scale_center(y, height, zoom)
         
         try:
             return image.tile_mem(width, height, x, y, zoom)
