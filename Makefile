@@ -1,101 +1,83 @@
-# :set noexpandtab
-CFLAGS_ALL = -Wall -std=gnu99
-LDFLAGS_ALL =
+# debug
 CFLAGS_DBG = -g
-CFLAGS_REL = -O2
+LDFLAGS_DBG = 
+
+# profile
 CFLAGS_PRF = -g -O2 -pg
 LDFLAGS_PRF = -pg
 
-CFLAGS_SEL = ${CFLAGS_REL}
-LDFLAGS_SEL = ${LDFLAGS_REL}
-
-# warnings, and use C99 with GNU extensions
-CFLAGS = ${CFLAGS_ALL} ${CFLAGS_SEL}
-LDFLAGS = ${LDFLAGS_ALL} ${LDFLAGS_SEL}
+# release
+CFLAGS_REL = -O2
+LDFLAGS_REL =
 
 # preprocessor flags
 CPPFLAGS = -Iinclude -Isrc/
+CFLAGS = -Wall -std=gnu99 -fPIC -pthread ${CFLAGS_REL}
+LDFLAGS = ${LDFLAGS_ALL} ${LDFLAGS_REL}
+LDLIBS = -lpng -lpthread
 
-# libraries to use
-LOADLIBES = -lpng -lpthread
+all: build lib bin lib/libpngtile.so bin/pngtile
 
-# output name
+# binary deps
+lib/libpngtile.so : \
+	build/lib/ctx.o build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o \
+	build/shared/util.o build/shared/log.o
+
+lib/libpngtile.a : \
+	build/lib/ctx.o build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o \
+	build/shared/util.o build/shared/log.o
+
+bin/pngtile : \
+	build/pngtile/main.o \
+	lib/libpngtile.so build/shared/log.o
+
+bin/pngtile-static : \
+	build/pngtile/main.o \
+	lib/libpngtile.a
+
+SRC_PATHS = $(wildcard src/*/*.c)
+SRC_DIRS = $(dir $(SRC_PATHS))
+
+build:
+	mkdir -p $(SRC_DIRS:src/%=build/%)
+
+lib: 
+	mkdir -p lib 
+
+bin: 
+	mkdir -p bin
+
+# build obj files from src, with header deps
+build/%.o: src/%.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) src/$*.c -o build/$*.o
+	$(CC) -MM $(CPPFLAGS) src/$*.c -MT build/$*.o -MF build/$*.d
+
+-include $(wildcard build/*/*.d)
+
+# output libraries
+lib/lib%.so:
+	$(CC) -shared $(LDFLAGS) $+ $(LDLIBS) -o $@
+
+lib/lib%.a:
+	$(AR) rc $@ $+
+
+# output binaries
+bin/%:
+	$(CC) $(LDFLAGS) $+ -o $@ $(LDLIBS)
+
+clean:
+	rm -f build/*/*.o build/*/*.d
+	rm -f bin/pngtile bin/pngtile-static lib/*.so lib/*.a
+
+# dist builds
 DIST_NAME = pngtile-${shell hg id -i}
 DIST_DEPS = 
 DIST_RESOURCES = README pngtile/ static/ bin/
 
-all: depend lib/libpngtile.so bin/pngtile
+dist-clean: clean dirs
 
-lib/libpngtile.so : \
-	build/obj/lib/ctx.o build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/png.o build/obj/lib/error.o \
-	build/obj/shared/util.o build/obj/shared/log.o
-
-lib/libpngtile.a : \
-	build/obj/lib/ctx.o build/obj/lib/image.o build/obj/lib/cache.o build/obj/lib/tile.o build/obj/lib/png.o build/obj/lib/error.o \
-	build/obj/shared/util.o build/obj/shared/log.o
-
-bin/pngtile : \
-	build/obj/pngtile/main.o \
-	lib/libpngtile.so build/obj/shared/log.o
-
-bin/pngtile-static : \
-	build/obj/pngtile/main.o \
-	lib/libpngtile.a
-
-SRC_PATHS = $(wildcard src/*/*.c)
-SRC_NAMES = $(patsubst src/%,%,$(SRC_PATHS))
-SRC_DIRS = $(dir $(SRC_NAMES))
-
-.PHONY : dirs clean depend dist
-
-dist-clean : clean dirs
-
-dirs: 
-	mkdir -p bin lib dist
-	mkdir -p $(SRC_DIRS:%=build/deps/%)
-	mkdir -p $(SRC_DIRS:%=build/obj/%)
-
-clean:
-	rm -f build/obj/*/*.o build/deps/*/*.d
-	rm -f bin/pngtile bin/pngtile-static lib/*.so lib/*.a
-	rm -f */.*.swp */*/.*.swp
-
-# .h dependencies
-depend: $(SRC_NAMES:%.c=build/deps/%.d)
-
-build/deps/%.d : src/%.c
-	@set -e; rm -f $@; \
-	 $(CC) -MM -MT __ $(CPPFLAGS) $< > $@.$$$$; \
-	 sed 's,__[ :]*,build/obj/$*.o $@ : ,g' < $@.$$$$ > $@; \
-	 rm -f $@.$$$$
-
-include $(wildcard build/deps/*/*.d)
-
-# build (potential) library targets with specific cflags
-# XXX: just build everything with -fPIC?
-build/obj/shared/%.o : src/shared/%.c
-	$(CC) -c -fPIC $(CPPFLAGS) $(CFLAGS) $< -o $@
-
-# XXX: hax in -pthread
-build/obj/lib/%.o : src/lib/%.c
-	$(CC) -c -fPIC -pthread $(CPPFLAGS) $(CFLAGS) $< -o $@
-
-# general binary objects
-build/obj/%.o : src/%.c
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
-
-# output binaries
-bin/% :
-	$(CC) $(LDFLAGS) $+ $(LOADLIBES) $(LDLIBS) -o $@
-
-# output libraries
-lib/lib%.so :
-	$(CC) -shared $(LDFLAGS) $+ $(LOADLIBES) $(LDLIBS) -o $@
-
-lib/lib%.a :
-	$(AR) rc $@ $+
-
-dist: $(DIST_DEPS)
+dist: dist-clean $(DIST_DEPS)
+	mkdir -p dist
 	rm -rf dist/$(DIST_NAME)
 	mkdir -p dist/$(DIST_NAME)
 	cp -rv Makefile $(DIST_RESOURCES) src/ include/  dist/$(DIST_NAME)/
@@ -103,3 +85,5 @@ dist: $(DIST_DEPS)
 	tar -C dist -czvf dist/$(DIST_NAME).tar.gz $(DIST_NAME)
 	@echo "*** Output at dist/$(DIST_NAME).tar.gz"
 
+
+.PHONY : dirs clean depend dist-clean dist
