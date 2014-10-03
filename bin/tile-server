@@ -19,6 +19,8 @@ def main ():
             help="Reload")
     parser.add_argument('--debugger',   action='store_true',
             help="Debugger")
+    parser.add_argument('--threaded',   action='store_true',
+            help="Use threaded requests")
 
     parser.add_argument('--image-server',    metavar='URL', required=True,
             help="http://.../ URL to imageserver root")
@@ -36,6 +38,7 @@ def main ():
     werkzeug.serving.run_simple(args.listen, args.port, application,
             use_reloader    = args.reload,
             use_debugger    = args.debugger,
+            threaded        = args.threaded,
     )
 
 if __name__ == '__main__':
