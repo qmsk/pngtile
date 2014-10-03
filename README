@@ -77,8 +77,14 @@ Python extension for pngtile
     * python-cython
     * python-dev
 
-## Build
+## Development
 
     $ python setup.py build_ext
+
+## Install
+    
+    $ make install PREFIX=/opt/pngtile
+    $ /opt/pngtile/bin/python setup.py build_ext -I /opt/pngtile/include -L /opt/pngtile/lib -R /opt/pngtile/lib
+    $ /opt/pngtile/bin/python setup.py install
 
 
