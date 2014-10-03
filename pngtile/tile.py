@@ -2,10 +2,11 @@
     Raw tile handling.
 """
 
-from pngtile.application import BaseApplication, url
 from werkzeug import Request, Response, exceptions
 from werkzeug.utils import redirect
+import werkzeug.urls
 
+import pngtile.application
 import pypngtile
 
 ## Coordinates
@@ -42,16 +43,19 @@ def scale_center (val, dim, zoom):
 
     return scale(val, zoom) - dim / 2
 
-class TileApplication (BaseApplication):
+class TileApplication (pngtile.application.PNGTileApplication):
     def __init__ (self, image_server, **opts):
         """
             image_server:       http://.../ url to image-server frontend
         """
 
-        BaseApplication.__init__(self, **opts)
+        super(TileApplication, self).__init__(**opts)
 
         self.image_server = image_server
         
+    def image_url (self, name):
+        return werkzeug.urls.Href(self.image_server)(path)
+
     def render_region (self, request, image):
         """
             Handle request for an image region
@@ -77,7 +81,7 @@ class TileApplication (BaseApplication):
             return image.tile_mem(width, height, x, y, zoom)
 
         except pypngtile.Error as error:
-            raise exceptions.BadRequest(str(error))
+            raise exceptions.InternalServerError(str(error))
         
     def render_tile (self, request, image):
         """
@@ -100,7 +104,7 @@ class TileApplication (BaseApplication):
             return image.tile_mem(width, height, x, y, zoom)
 
         except pypngtile.Error as error:
-            raise exceptions.BadRequest(str(error))
+            raise exceptions.InternalServerError(str(error))
 
     def handle_dir (self, request, name, path):
         """
@@ -111,24 +115,21 @@ class TileApplication (BaseApplication):
             # avoid an additional redirect
             name += '/'
 
-        return redirect(url(self.image_server, name))
+        return redirect(self.image_url(name))
 
     def handle_image (self, request, name, path):
         """
             Redirect to the image frontend for a non-tile request.
         """
 
-        return redirect(url(self.image_server, name))
+        return redirect(self.image_url(name))
 
     def handle_region (self, request):
         """
             Return image/png for given region.
         """
 
-        try:
-            image, name = self.get_image(request.path)
-        except pypngtile.Error as error:
-            raise exceptions.BadRequest(str(error))
+        image, name = self.open(request.path)
  
         png = self.render_region(request, image)
         
@@ -139,10 +140,7 @@ class TileApplication (BaseApplication):
             Return image/png for given tile.
         """
 
-        try:
-            image, name = self.get_image(request.path)
-        except pypngtile.Error as error:
-            raise exceptions.BadRequest(str(error))
+        image, name = self.open(request.path)
             
         png = self.render_tile(request, image)
         
@@ -152,8 +150,8 @@ class TileApplication (BaseApplication):
         """
             Handle request for an image
         """
-
-        name, path, type = self.lookup_path(request.path)
+        
+        name, path, type = self.lookup(request.path)
         
         # determine handler
         if not type:
