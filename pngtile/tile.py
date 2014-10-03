@@ -46,6 +46,9 @@ def scale_center (val, dim, zoom):
     return scale(val, zoom) - dim / 2
 
 class TileApplication (pngtile.application.PNGTileApplication):
+    # age in seconds for caching an unknown-mtime image for revalidates
+    MIN_AGE = 10 # 10 seconds
+
     # age in seconds for caching a known-mtime image
     MAX_AGE = 7 * 24 * 60 * 60 # 1 week
 
@@ -178,7 +181,7 @@ class TileApplication (pngtile.application.PNGTileApplication):
 
         if not ttime:
             # cached item may change while url stays the same
-            response.headers['Cache-Control'] = 'must-revalidate'
+            response.headers['Cache-Control'] = 'max-age={min_age:d}'.format(min_age=self.MIN_AGE)
 
         elif ttime == mtime:
             # url will change if content changes
