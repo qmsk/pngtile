@@ -30,18 +30,11 @@ Constant-time/memory tile-based handling of large PNG images.
         * libpng12-dev      png.h       1.2.15~beta5-3ubuntu0.1
         * libc6-dev         pthread.h   NPTL 2.7 (glibc 2.7-10ubuntu5)
 
-    To compile dist versions, simply execute
+    To compile:
 
-        $ make
-
-    To compile source versions, execute:
-        
-        $ make dirs
         $ make
 
     The libpngtile.so and pypngtile.so libraries will be placed under lib/, and the 'pngtile' binary under bin/.
-
-    XXX: If compiling the pypngtile.so library with make fails, then `setup.py build_ext -i` should build it.
 
 ## Usage
     Store the .png data files in a directory. You must have write access to the directory when updating the caches,

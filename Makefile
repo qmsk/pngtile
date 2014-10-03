@@ -1,6 +1,8 @@
+PREFIX = opt
+
 # debug
-CFLAGS_DBG = -g
-LDFLAGS_DBG = 
+CFLAGS_DEV = -g
+LDFLAGS_DEV = -Wl,-Rlib
 
 # profile
 CFLAGS_PRF = -g -O2 -pg
@@ -8,30 +10,31 @@ LDFLAGS_PRF = -pg
 
 # release
 CFLAGS_REL = -O2
-LDFLAGS_REL =
+LDFLAGS_REL = -Wl,-R${PREFIX}/lib
 
 # preprocessor flags
-CPPFLAGS = -Iinclude -Isrc/
+CPPFLAGS = -Iinclude -Isrc
 CFLAGS = -Wall -std=gnu99 -fPIC -pthread ${CFLAGS_REL}
-LDFLAGS = ${LDFLAGS_ALL} ${LDFLAGS_REL}
-LDLIBS = -lpng -lpthread
+LDFLAGS = -Llib ${LDFLAGS_REL}
+LDLIBS_LIB = -lpng -lpthread
+LDLIBS_BIN = -lpngtile
 
 all: build lib bin lib/libpngtile.so bin/pngtile
 
 # binary deps
-lib/libpngtile.so : \
+lib/libpngtile.so: \
 	build/lib/ctx.o build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o \
 	build/shared/util.o build/shared/log.o
 
-lib/libpngtile.a : \
+lib/libpngtile.a: \
 	build/lib/ctx.o build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o \
 	build/shared/util.o build/shared/log.o
 
-bin/pngtile : \
+bin/pngtile: \
 	build/pngtile/main.o \
 	lib/libpngtile.so build/shared/log.o
 
-bin/pngtile-static : \
+bin/pngtile-static: \
 	build/pngtile/main.o \
 	lib/libpngtile.a
 
@@ -56,18 +59,29 @@ build/%.o: src/%.c
 
 # output libraries
 lib/lib%.so:
-	$(CC) -shared $(LDFLAGS) $+ $(LDLIBS) -o $@
+	$(CC) -shared $(LDFLAGS) $+ $(LDLIBS_LIB) -o $@
 
 lib/lib%.a:
 	$(AR) rc $@ $+
 
 # output binaries
 bin/%:
-	$(CC) $(LDFLAGS) $+ -o $@ $(LDLIBS)
+	$(CC) $(LDFLAGS) $+ -o $@ $(LDLIBS_BIN)
 
 clean:
 	rm -f build/*/*.o build/*/*.d
 	rm -f bin/pngtile bin/pngtile-static lib/*.so lib/*.a
+
+# install
+INSTALL_INCLUDE = include/pngtile.h
+INSTALL_LIB = lib/libpngtile.so
+INSTALL_BIN = bin/pngtile
+
+install: $(INSTALL_INCLUDE) $(INSTALL_LIB) $(INSTALL_BIN)
+	install -d $(PREFIX)/bin $(PREFIX)/lib $(PREFIX)/include
+	install -t $(PREFIX)/include $(INSTALL_INCLUDE)
+	install -t $(PREFIX)/lib $(INSTALL_LIB)
+	install -t $(PREFIX)/bin $(INSTALL_BIN)
 
 # dist builds
 DIST_NAME = pngtile-${shell hg id -i}
@@ -84,6 +98,5 @@ dist: dist-clean $(DIST_DEPS)
 	make -C dist/$(DIST_NAME) dist-clean
 	tar -C dist -czvf dist/$(DIST_NAME).tar.gz $(DIST_NAME)
 	@echo "*** Output at dist/$(DIST_NAME).tar.gz"
-
 
 .PHONY : dirs clean depend dist-clean dist
