@@ -20,7 +20,7 @@ def main ():
     parser.add_argument('--debugger',   action='store_true',
             help="Debugger")
     
-    parser.add_argument('--tile-server',    metavar='URL', required=True,
+    parser.add_argument('--tiles-server',    metavar='URL', required=True,
             help="http://.../ URL to tileserver root")
     parser.add_argument('--static',     metavar='PATH', default='./static',
             help="Path to /static")
@@ -32,7 +32,7 @@ def main ():
     application = pngtile.image.ImageApplication(
         image_root  = args.image_root,
 
-        tile_server = args.tile_server,
+        tiles_server = args.tiles_server,
     )
 
     werkzeug.serving.run_simple(args.listen, args.port, application,

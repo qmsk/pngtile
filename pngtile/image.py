@@ -5,46 +5,16 @@
 
 from werkzeug import Request, Response, exceptions
 from werkzeug.utils import html, redirect
+import werkzeug.urls
 
 import pngtile.tile
-from pngtile.application import url, BaseApplication
+import pngtile.application
 import pypngtile
 
 import json
 import os, os.path
 
-def dir_list (root):
-    """
-        Yield a series of directory items to show for the given dir
-    """
-
-    for name in os.listdir(root):
-        path = os.path.join(root, name)
-
-        # skip dotfiles
-        if name.startswith('.'):
-            continue
-        
-        # show dirs
-        if os.path.isdir(path):
-            if not os.access(path, os.R_OK):
-                # skip inaccessible dirs
-                continue
-
-            yield name + '/'
-
-        # examine ext
-        if '.' in name:
-            name_base, name_type = name.rsplit('.', 1)
-        else:
-            name_base = name
-            name_type = None
-
-        # show .png files with a .cache file
-        if name_type in ImageApplication.IMAGE_TYPES and os.path.exists(os.path.join(root, name_base + '.cache')):
-            yield name
-
-class ImageApplication (BaseApplication):
+class ImageApplication (pngtile.application.PNGTileApplication):
 
     STYLESHEETS = (
         'https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css',
@@ -60,16 +30,42 @@ class ImageApplication (BaseApplication):
         '/static/pngtile/map.js',
     )
 
-    def __init__ (self, tile_server=None, **opts):
+    def __init__ (self, tiles_server=None, **opts):
         """
             http://.../ path to tileserver root
         """
 
-        BaseApplication.__init__(self, **opts)
+        super(ImageApplication, self).__init__(**opts)
                 
-        self.tile_server = tile_server
+        self.tiles_server = tiles_server
+
+    def tiles_url (self, name, **args):
+        return werkzeug.urls.Href(self.tiles_server)(name, **args)
+
+    def render_html (self, title, body, stylesheets=None, scripts=None, end=()):
+        if stylesheets is None:
+            stylesheets = self.STYLESHEETS
+
+        if scripts is None:
+            scripts = self.SCRIPTS
+
+        return html.html(lang='en', *[
+            html.head(
+                html.title(title),
+                *[
+                    html.link(rel='stylesheet', href=href) for href in stylesheets
+                ]
+            ),
+            html.body(
+                *(body + tuple(
+                    html.script(src=src) for src in scripts
+                ) + end)
+            ),
+        ])
+
 
     def render_dir_breadcrumb (self, name):
+        href = werkzeug.urls.Href('/')
         path = []
 
         yield html.li(html.a(href='/', *[u"Index"]))
@@ -78,7 +74,7 @@ class ImageApplication (BaseApplication):
             for part in name.split('/'):
                 path.append(part)
 
-                yield html.li(html.a(href=url('/', *path), *[part]))
+                yield html.li(html.a(href=href(*path), *[part]))
 
     def render_dir (self, request, name, items):
         """
@@ -120,16 +116,13 @@ class ImageApplication (BaseApplication):
         image_info = image.info()
 
         map_config = dict(
-            tile_url        = '{server}/{name}?x={x}&y={y}&zoom={z}',
-            tile_server     = self.tile_server.rstrip('/'),
-            tile_name       = name,
+            tiles_url       = self.tiles_url(name),
 
+            tile_url        = '{tiles_url}?x={x}&y={y}&zoom={z}',
             tile_size       = pngtile.tile.TILE_SIZE,
             tile_zoom       = pngtile.tile.MAX_ZOOM,
             
-            image_url       = '{server}/{name}?w={w}&h={h}&x={x}&y={y}&zoom={z}',
-            image_server    = self.tile_server.rstrip('/'),
-            image_name      = name,
+            image_url       = '{tiles_url}?w={w}&h={h}&x={x}&y={y}&zoom={z}',
             image_width     = image_info['img_width'],
             image_height    = image_info['img_height'],
         )
@@ -155,7 +148,7 @@ class ImageApplication (BaseApplication):
             # we generate HTML with relative links
             return redirect(request.path + '/')
 
-        items = sorted(dir_list(path))
+        items = sorted(self.list(request.path))
 
         html = self.render_dir(request, name, items)
 
@@ -168,7 +161,7 @@ class ImageApplication (BaseApplication):
 
         # backwards-compat redirect from frontend -> tile-server
         if all(attr in request.args for attr in ('cx', 'cy', 'w', 'h', 'zl')):
-            return redirect(url(self.tile_server, name,
+            return redirect(self.tiles_url(name,
                 w       = request.args['w'],
                 h       = request.args['h'],
                 x       = request.args['cx'],
@@ -176,10 +169,7 @@ class ImageApplication (BaseApplication):
                 zoom    = request.args['zl'],
             ))
 
-        try:
-            image, name = self.get_image(request.path)
-        except pypngtile.Error as error:
-            raise exceptions.BadRequest(str(error))
+        image, name = self.open(request.path)
 
         html = self.render_image(request, image, name)
 
@@ -190,7 +180,7 @@ class ImageApplication (BaseApplication):
             Handle request for an image
         """
 
-        name, path, type = self.lookup_path(request.path)
+        name, path, type = self.lookup(request.path)
         
         # determine handler
         if not type:
@@ -198,4 +188,16 @@ class ImageApplication (BaseApplication):
         
         else:
             return self.handle_image(request, name, path)
+
+    @Request.application
+    def __call__ (self, request):
+        """
+            WSGI entry point.
+        """
+
+        try:
+            return self.handle(request)
+
+        except exceptions.HTTPException as error:
+            return error
 
