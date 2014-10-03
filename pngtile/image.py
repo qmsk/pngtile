@@ -27,6 +27,10 @@ def dir_list (root):
         
         # show dirs
         if os.path.isdir(path):
+            if not os.access(path, os.R_OK):
+                # skip inaccessible dirs
+                continue
+
             yield name + '/'
 
         # examine ext
