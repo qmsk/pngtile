@@ -124,28 +124,6 @@ class TileApplication (pngtile.application.PNGTileApplication):
 
         return redirect(self.image_url(name))
 
-    def handle_region (self, request):
-        """
-            Return image/png for given region.
-        """
-
-        image, name = self.open(request.path)
- 
-        png = self.render_region(request, image)
-        
-        return Response(png, content_type='image/png')
-
-    def handle_tile (self, request):
-        """
-            Return image/png for given tile.
-        """
-
-        image, name = self.open(request.path)
-            
-        png = self.render_tile(request, image)
-        
-        return Response(png, content_type='image/png')
-
     def handle (self, request):
         """
             Handle request for an image
@@ -161,11 +139,30 @@ class TileApplication (pngtile.application.PNGTileApplication):
             return self.handle_image(request, name, path)
 
         elif 'w' in request.args and 'h' in request.args and 'x' in request.args and 'y' in request.args:
-            return self.handle_region(request)
+            render_func = self.render_region
 
         elif 'x' in request.args and 'y' in request.args:
-            return self.handle_tile(request)
+            render_func = self.render_tile
 
         else:
             raise exceptions.BadRequest("Unknown args")
+        
+        # handle image
+        image, name = self.open(request.path)
+
+        # http caching
+        mtime = image.cache_mtime()
+
+        if request.if_modified_since and mtime == request.if_modified_since:
+            return Response(status=304)
+            
+        # render
+        png = render_func(request, image)
+        
+        # response
+        response = Response(png, content_type='image/png')
+        response.last_modified = mtime
+
+        return response
+
 
