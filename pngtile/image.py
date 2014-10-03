@@ -190,26 +190,12 @@ class ImageApplication (BaseApplication):
             Handle request for an image
         """
 
-        name, path = self.lookup_path(request.path)
+        name, path, type = self.lookup_path(request.path)
         
-        # determine type
-        if '/' in name:
-            _, name_base = name.rsplit('/', 1)
-        else:
-            name_base = name
-
-        if '.' in name_base:
-            name_base, name_type = name_base.rsplit('.', 1)
-        else:
-            name_type = None
-
         # determine handler
-        if os.path.isdir(path):
+        if not type:
             return self.handle_dir(request, name, path)
         
-        elif name_type and name_type in self.IMAGE_TYPES:
+        else:
             return self.handle_image(request, name, path)
 
-        else:
-            raise exceptions.NotFound(path)
-        

@@ -31,7 +31,7 @@ class BaseApplication (object):
         """
             Lookup image by request path.
 
-            Returns name, path.
+            Returns name, path, type. For dirs, type will be None.
         """
 
         if not os.path.isdir(self.image_root):
@@ -49,23 +49,24 @@ class BaseApplication (object):
         
         if not os.path.exists(path):
             raise exceptions.NotFound(name)
-
-        return name, path
+        
+        # determine time
+        if os.path.isdir(path):
+            return name, path, None
+        else:
+            basename, type = path.rsplit('.', 1)
+ 
+            return name, path, type
 
     def get_image (self, url):
         """
             Return Image object.
         """
 
-        name, path = self.lookup_path(url)
+        name, path, type = self.lookup_path(url)
 
-        if os.path.isdir(path):
-            raise exceptions.BadRequest("Is a directory: {name}".format(name=name))
-
-        basename, file_type = path.rsplit('.', 1)
-
-        if file_type not in self.IMAGE_TYPES:
-            raise exceptions.BadRequest("Not a supported image: {name}: {type}".format(name=name, type=file_type))
+        if type not in self.IMAGE_TYPES:
+            raise exceptions.BadRequest("Not a supported image: {name}: {type}".format(name=name, type=type))
 
         # get Image object
         image = self.image_cache.get(path)
