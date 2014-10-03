@@ -32,7 +32,7 @@ lib/libpngtile.a: \
 
 bin/pngtile: \
 	build/pngtile/main.o \
-	lib/libpngtile.so build/shared/log.o
+	build/shared/log.o
 
 bin/pngtile-static: \
 	build/pngtile/main.o \
