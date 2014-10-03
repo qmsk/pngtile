@@ -31,5 +31,9 @@ setup(
     
     packages        = [ 'pngtile' ],
     ext_modules     = ext_modules,
+    scripts         = [
+        'bin/pypngtile',
+        'bin/tile-server',
+    ],
 )
 
