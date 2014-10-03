@@ -9,6 +9,8 @@ import werkzeug.urls
 import pngtile.application
 import pypngtile
 
+import datetime
+
 ## Coordinates
 # width of a tile
 TILE_SIZE = 256
@@ -44,6 +46,9 @@ def scale_center (val, dim, zoom):
     return scale(val, zoom) - dim / 2
 
 class TileApplication (pngtile.application.PNGTileApplication):
+    # age in seconds for caching a known-mtime image
+    MAX_AGE = 7 * 24 * 60 * 60 # 1 week
+
     def __init__ (self, image_server, **opts):
         """
             image_server:       http://.../ url to image-server frontend
@@ -153,6 +158,14 @@ class TileApplication (pngtile.application.PNGTileApplication):
         # http caching
         mtime = image.cache_mtime()
 
+        if 't' in request.args:
+            try:
+                ttime = datetime.datetime.utcfromtimestamp(int(request.args['t']))
+            except ValueError:
+                ttime = None
+        else:
+            ttime = None
+
         if request.if_modified_since and mtime == request.if_modified_since:
             return Response(status=304)
             
@@ -162,6 +175,18 @@ class TileApplication (pngtile.application.PNGTileApplication):
         # response
         response = Response(png, content_type='image/png')
         response.last_modified = mtime
+
+        if not ttime:
+            # cached item may change while url stays the same
+            response.headers['Cache-Control'] = 'must-revalidate'
+
+        elif ttime == mtime:
+            # url will change if content changes
+            response.headers['Cache-Control'] = 'max-age={max_age:d}'.format(max_age=self.MAX_AGE)
+
+        else:
+            # XXX: mismatch wtf
+            response.headers['Cache-Control'] = 'must-revalidate'
 
         return response
 

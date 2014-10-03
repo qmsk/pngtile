@@ -74,6 +74,7 @@ function map_init (_config) {
 
     L.tileLayer(map_config.tile_url, {
         tiles_url:          map_config.tiles_url,
+        tiles_mtime:        map_config.tiles_mtime,
         minZoom:            0,
         maxZoom:            map_config.tile_zoom,
         tileSize:           map_config.tile_size,
@@ -87,6 +88,7 @@ function map_init (_config) {
     L.control.link({
         url:        map_config.image_url,
         tiles_url:  map_config.tiles_url,
+        tiles_mtime:        map_config.tiles_mtime,
     }).addTo(map);
 
     // set position

@@ -117,11 +117,13 @@ class ImageApplication (pngtile.application.PNGTileApplication):
 
         map_config = dict(
             tiles_url       = self.tiles_url(name),
+            tiles_mtime     = image_info['cache_mtime'],
 
-            tile_url        = '{tiles_url}?x={x}&y={y}&zoom={z}',
+            tile_url        = '{tiles_url}?t={tiles_mtime}&x={x}&y={y}&zoom={z}',
             tile_size       = pngtile.tile.TILE_SIZE,
             tile_zoom       = pngtile.tile.MAX_ZOOM,
             
+            # do NOT include a mtime in these urls.. we should always revalidate them
             image_url       = '{tiles_url}?w={w}&h={h}&x={x}&y={y}&zoom={z}',
             image_width     = image_info['img_width'],
             image_height    = image_info['img_height'],
