@@ -73,6 +73,7 @@ function map_init (_config) {
     map.on('move', map_move);
 
     L.tileLayer(map_config.tile_url, {
+        server:             map_config.tile_server,
         name:               map_config.tile_name,
         minZoom:            0,
         maxZoom:            map_config.tile_zoom,
@@ -86,6 +87,7 @@ function map_init (_config) {
     // controls
     L.control.link({
         url:        map_config.image_url,
+        server:     map_config.image_server,
         name:       map_config.image_name,
     }).addTo(map);
 

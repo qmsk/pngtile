@@ -4,28 +4,14 @@
 
 
 from werkzeug import Request, Response, exceptions
-from werkzeug.utils import html
+from werkzeug.utils import html, redirect
 
 import pngtile.tile
-from pngtile.application import BaseApplication
+from pngtile.application import url, BaseApplication
 import pypngtile
 
 import json
 import os, os.path
-
-def dir_url (prefix, name, item):
-    """
-        Join together an absolute URL prefix, an optional directory name, and a directory item
-    """
-
-    url = prefix
-
-    if name:
-        url += '/' + name
-    
-    url += '/' + item
-
-    return url
 
 def dir_list (root):
     """
@@ -41,7 +27,7 @@ def dir_list (root):
         
         # show dirs
         if os.path.isdir(path):
-            yield name
+            yield name + '/'
 
         # examine ext
         if '.' in name:
@@ -70,8 +56,14 @@ class ImageApplication (BaseApplication):
         '/static/pngtile/map.js',
     )
 
-    def __init__ (self, **opts):
+    def __init__ (self, tile_server=None, **opts):
+        """
+            http://.../ path to tileserver root
+        """
+
         BaseApplication.__init__(self, **opts)
+                
+        self.tile_server = tile_server
 
     def render_dir_breadcrumb (self, name):
         path = []
@@ -82,7 +74,7 @@ class ImageApplication (BaseApplication):
             for part in name.split('/'):
                 path.append(part)
 
-                yield html.li(html.a(href='/'.join(path), *[part]))
+                yield html.li(html.a(href=url('/', *path), *[part]))
 
     def render_dir (self, request, name, items):
         """
@@ -106,7 +98,7 @@ class ImageApplication (BaseApplication):
                     ]),
                     html.div(class_='list', *[
                         html.ul(class_='list-group', *[html.li(class_='list-group-item', *[
-                                html.a(href=dir_url('', name, item), *[item])
+                                html.a(href=item, *[item])
                             ]) for item in items]
                         ),
                     ]),
@@ -118,19 +110,21 @@ class ImageApplication (BaseApplication):
         """
             request:    werkzeug.Request
             image:      pypngtile.Image
-            name:       request path for .png image
+            name:       request path for .../.../*.png image
         """
 
         image_info = image.info()
 
         map_config = dict(
-            tile_url        = 'http://zovoweix.qmsk.net:8080/{name}?x={x}&y={y}&zoom={z}',
+            tile_url        = '{server}/{name}?x={x}&y={y}&zoom={z}',
+            tile_server     = self.tile_server.rstrip('/'),
             tile_name       = name,
 
             tile_size       = pngtile.tile.TILE_SIZE,
             tile_zoom       = pngtile.tile.MAX_ZOOM,
             
-            image_url       = 'http://zovoweix.qmsk.net:8080/{name}?w={w}&h={h}&x={x}&y={y}&zoom={z}',
+            image_url       = '{server}/{name}?w={w}&h={h}&x={x}&y={y}&zoom={z}',
+            image_server    = self.tile_server.rstrip('/'),
             image_name      = name,
             image_width     = image_info['img_width'],
             image_height    = image_info['img_height'],
@@ -153,6 +147,10 @@ class ImageApplication (BaseApplication):
             Generate response for directory listing.
         """
 
+        if not request.path.endswith('/'):
+            # we generate HTML with relative links
+            return redirect(request.path + '/')
+
         items = sorted(dir_list(path))
 
         html = self.render_dir(request, name, items)
@@ -163,7 +161,17 @@ class ImageApplication (BaseApplication):
         """
             Generate Response for image request.
         """
-        
+
+        # backwards-compat redirect from frontend -> tile-server
+        if all(attr in request.args for attr in ('cx', 'cy', 'w', 'h', 'zl')):
+            return redirect(url(self.tile_server, name,
+                w       = request.args['w'],
+                h       = request.args['h'],
+                x       = request.args['cx'],
+                y       = request.args['cy'],
+                zoom    = request.args['zl'],
+            ))
+
         try:
             image, name = self.get_image(request.path)
         except pypngtile.Error as error:
