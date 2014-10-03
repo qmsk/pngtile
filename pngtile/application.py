@@ -1,9 +1,18 @@
 from werkzeug import Request, Response, exceptions
 from werkzeug.utils import html
+import werkzeug.urls
 
 import pypngtile
 
 import os.path
+
+def url (server, *path, **args):
+    """
+        >>> url('http://foo/', 'bar, 'quux.png', x=5, y=2)
+        'http://foo/bar/quux.png?x=5&y=2'
+    """
+
+    return werkzeug.urls.Href(server)(*path, **args)
 
 class BaseApplication (object):
     IMAGE_TYPES = (
