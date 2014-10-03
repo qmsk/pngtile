@@ -1,91 +1,67 @@
 from werkzeug import Request, Response, exceptions
-from werkzeug.utils import html
-import werkzeug.urls
 
 import pypngtile
+import pngtile.store
 
-import os.path
-
-def url (server, *path, **args):
+class PNGTileApplication (pngtile.store.PNGTileStore):
     """
-        >>> url('http://foo/', 'bar, 'quux.png', x=5, y=2)
-        'http://foo/bar/quux.png?x=5&y=2'
+        Web application with a PNGTileStore.
     """
-
-    return werkzeug.urls.Href(server)(*path, **args)
-
-class BaseApplication (object):
-    IMAGE_TYPES = (
-        'png',
-    )
-
-    def __init__ (self, image_root):
-        if not os.path.isdir(image_root) :
-            raise Exception("Given image_root does not exist: {image_root}".format(image_root=image_root))
-
-        self.image_root = os.path.abspath(image_root)
-
-        self.image_cache = { }
-
-    def lookup_path (self, url):
-        """
-            Lookup image by request path.
-
-            Returns name, path, type. For dirs, type will be None.
-        """
-
-        if not os.path.isdir(self.image_root):
-            raise exceptions.InternalServerError("Server image_root has gone missing")
     
-        # path to image
-        name = url.lstrip('/')
-        
-        # build absolute path
-        path = os.path.abspath(os.path.join(self.image_root, name))
-
-        # ensure the path points inside the data root
-        if not path.startswith(self.image_root):
-            raise exceptions.NotFound(name)
-        
-        if not os.path.exists(path):
-            raise exceptions.NotFound(name)
-        
-        # determine time
-        if os.path.isdir(path):
-            return name, path, None
-        else:
-            basename, type = path.rsplit('.', 1)
- 
-            return name, path, type
-
-    def get_image (self, url):
+    def list (self, url):
         """
-            Return Image object.
+            Yield names by request.url.
+
+            Raises HTTPException
         """
 
-        name, path, type = self.lookup_path(url)
+        try:
+            return super(PNGTileApplication, self).list(url)
+        except pngtile.store.NotFound as error:
+            raise exceptions.NotFound(str(error))
+        except pngtile.store.InvalidImage as error:
+            raise exceptions.BadRequest(str(error))
+   
+    def lookup (self, url):
+        """
+            Lookup neme, path, type by request.url.
 
-        if type not in self.IMAGE_TYPES:
-            raise exceptions.BadRequest("Not a supported image: {name}: {type}".format(name=name, type=type))
+            Raises HTTPException
+        """
 
-        # get Image object
-        image = self.image_cache.get(path)
+        try:
+            return super(PNGTileApplication, self).lookup(url)
+        except pngtile.store.Error as error:
+            raise exceptions.InternalServerError(str(error))
+        except pngtile.store.NotFound as error:
+            raise exceptions.NotFound(str(error))
+        except pngtile.store.InvalidImage  as error:
+            raise exceptions.BadRequest(str(error))
 
-        if not image:
-            # open
-            image = pypngtile.Image(path)
+    def open (self, url):
+        """
+            Return Image, name by request.url
 
-            # check
-            if image.status() not in (pypngtile.CACHE_FRESH, pypngtile.CACHE_STALE):
-                raise exceptions.InternalServerError("Image cache not available: {name}".format(name=name))
+            Raises HTTPException.
+        """
 
-            # load
-            image.open()
+        try:
+            return super(PNGTileApplication, self).open(url)
 
-            # cache
-            self.image_cache[path] = image
-        
-        return image, name
+        except pypngtile.Error as error:
+            raise exceptions.InternalServerError(str(error))
+
+        except pngtile.store.Error as error:
+            raise exceptions.InternalServerError(str(error))
+
+        except pngtile.store.NotFound as error:
+            raise exceptions.NotFound(str(error))
+
+        except pngtile.store.InvalidImage  as error:
+            raise exceptions.BadRequest(str(error))
+
+        except pngtile.store.UncachedImage as error:
+            raise exceptions.InternalServerError("Requested image has not yet been cached: {image}".format(image=error))
 
     def handle (self, request):
         """
@@ -105,29 +81,4 @@ class BaseApplication (object):
 
         except exceptions.HTTPException as error:
             return error
-
-    STYLESHEETS = ( )
-    SCRIPTS = ( )
-
-    def render_html (self, title, body, stylesheets=None, scripts=None, end=()):
-        if stylesheets is None:
-            stylesheets = self.STYLESHEETS
-
-        if scripts is None:
-            scripts = self.SCRIPTS
-
-        return html.html(lang='en', *[
-            html.head(
-                html.title(title),
-                *[
-                    html.link(rel='stylesheet', href=href) for href in stylesheets
-                ]
-            ),
-            html.body(
-                *(body + tuple(
-                    html.script(src=src) for src in scripts
-                ) + end)
-            ),
-        ])
-
 
