@@ -28,7 +28,8 @@ if CYTHON:
 setup(
     name            = 'pngtile',
     version         = '1.0-dev',
-
+    
+    packages        = [ 'pngtile' ],
     ext_modules     = ext_modules,
 )
 

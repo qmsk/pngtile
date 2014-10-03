@@ -13,3 +13,4 @@ lib/
 opt/
 python/pypngtile.c
 var/
+MANIFEST
