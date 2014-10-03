@@ -82,8 +82,9 @@ Python extension for pngtile
     $ python setup.py build_ext
 
 ## Install
-    
-    $ make install PREFIX=/opt/pngtile
+    $ virtualenv /opt/pngtile
+    $ make -B install PREFIX=/opt/pngtile
+    $ /opt/pngtile/bin/pip install -r requirements.txt
     $ /opt/pngtile/bin/python setup.py build_ext -I /opt/pngtile/include -L /opt/pngtile/lib -R /opt/pngtile/lib
     $ /opt/pngtile/bin/python setup.py install
 
