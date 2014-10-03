@@ -32,6 +32,8 @@ CACHE_NONE      = PT_CACHE_NONE
 CACHE_STALE     = PT_CACHE_STALE
 CACHE_INCOMPAT  = PT_CACHE_INCOMPAT
 
+import datetime
+
 class Error (Exception) :
     """
         Base class for errors raised by pypngtile.
@@ -102,7 +104,15 @@ cdef class Image :
         
         # return as a struct
         return infop[0]
+    
+    def cache_mtime (self) :
+        """
+            Return cache's mtime as an UTC datetime.
+        """
 
+        info = self.info()
+
+        return datetime.datetime.utcfromtimestamp(info['cache_mtime'])
 
     def status (self) :
         """
