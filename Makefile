@@ -19,7 +19,8 @@ LDFLAGS = -Llib ${LDFLAGS_REL}
 LDLIBS_LIB = -lpng -lpthread
 LDLIBS_BIN = -lpngtile
 
-all: build lib bin lib/libpngtile.so bin/pngtile
+DIRS = build lib bin
+all: $(DIRS) lib/libpngtile.so bin/pngtile
 
 # binary deps
 lib/libpngtile.so: \
@@ -40,6 +41,7 @@ bin/pngtile-static: \
 
 SRC_PATHS = $(wildcard src/*/*.c)
 SRC_DIRS = $(dir $(SRC_PATHS))
+
 
 build:
 	mkdir -p $(SRC_DIRS:src/%=build/%)
@@ -77,7 +79,7 @@ INSTALL_INCLUDE = include/pngtile.h
 INSTALL_LIB = lib/libpngtile.so
 INSTALL_BIN = bin/pngtile
 
-install: $(INSTALL_INCLUDE) $(INSTALL_LIB) $(INSTALL_BIN)
+install: $(DIRS) $(INSTALL_INCLUDE) $(INSTALL_LIB) $(INSTALL_BIN)
 	install -d $(PREFIX)/bin $(PREFIX)/lib $(PREFIX)/include
 	install -t $(PREFIX)/include $(INSTALL_INCLUDE)
 	install -t $(PREFIX)/lib $(INSTALL_LIB)
