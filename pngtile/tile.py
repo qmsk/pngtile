@@ -2,8 +2,9 @@
     Raw tile handling.
 """
 
-from pngtile.application import BaseApplication
+from pngtile.application import BaseApplication, url
 from werkzeug import Request, Response, exceptions
+from werkzeug.utils import redirect
 
 import pypngtile
 
@@ -42,8 +43,14 @@ def scale_center (val, dim, zoom):
     return scale(val, zoom) - dim / 2
 
 class TileApplication (BaseApplication):
-    def __init__ (self, **opts):
+    def __init__ (self, image_server, **opts):
+        """
+            image_server:       http://.../ url to image-server frontend
+        """
+
         BaseApplication.__init__(self, **opts)
+
+        self.image_server = image_server
         
     def render_region (self, request, image):
         """
@@ -95,23 +102,72 @@ class TileApplication (BaseApplication):
         except pypngtile.Error as error:
             raise exceptions.BadRequest(str(error))
 
-    def handle (self, request):
+    def handle_dir (self, request, name, path):
         """
-            Handle request for an image
+            Redirect to the image frontend for a non-tile request.
         """
-        
+
+        if not name.endswith('/'):
+            # avoid an additional redirect
+            name += '/'
+
+        return redirect(url(self.image_server, name))
+
+    def handle_image (self, request, name, path):
+        """
+            Redirect to the image frontend for a non-tile request.
+        """
+
+        return redirect(url(self.image_server, name))
+
+    def handle_region (self, request):
+        """
+            Return image/png for given region.
+        """
+
         try:
             image, name = self.get_image(request.path)
         except pypngtile.Error as error:
             raise exceptions.BadRequest(str(error))
+ 
+        png = self.render_region(request, image)
+        
+        return Response(png, content_type='image/png')
 
-        if 'w' in request.args and 'h' in request.args and 'x' in request.args and 'y' in request.args:
-            png = self.render_region(request, image)
+    def handle_tile (self, request):
+        """
+            Return image/png for given tile.
+        """
+
+        try:
+            image, name = self.get_image(request.path)
+        except pypngtile.Error as error:
+            raise exceptions.BadRequest(str(error))
+            
+        png = self.render_tile(request, image)
+        
+        return Response(png, content_type='image/png')
+
+    def handle (self, request):
+        """
+            Handle request for an image
+        """
+
+        name, path, type = self.lookup_path(request.path)
+        
+        # determine handler
+        if not type:
+            return self.handle_dir(request, name, path)
+
+        elif not request.args:
+            return self.handle_image(request, name, path)
+
+        elif 'w' in request.args and 'h' in request.args and 'x' in request.args and 'y' in request.args:
+            return self.handle_region(request)
 
         elif 'x' in request.args and 'y' in request.args:
-            png = self.render_tile(request, image)
+            return self.handle_tile(request)
 
         else:
             raise exceptions.BadRequest("Unknown args")
 
-        return Response(png, content_type='image/png')

@@ -22,7 +22,6 @@ def main ():
     
     parser.add_argument('--tile-server',    metavar='URL', required=True,
             help="http://.../ URL to tileserver root")
-
     parser.add_argument('--static',     metavar='PATH', default='./static',
             help="Path to /static")
     parser.add_argument('image_root',   metavar='PATH',

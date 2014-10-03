@@ -20,13 +20,17 @@ def main ():
     parser.add_argument('--debugger',   action='store_true',
             help="Debugger")
 
+    parser.add_argument('--image-server',    metavar='URL', required=True,
+            help="http://.../ URL to imageserver root")
     parser.add_argument('image_root',   metavar='PATH',
             help="Path to images")
 
     args = parser.parse_args()
 
     application = pngtile.tile.TileApplication(
-        image_root  = args.image_root,
+        image_root      = args.image_root,
+
+        image_server    = args.image_server,
     )
 
     werkzeug.serving.run_simple(args.listen, args.port, application,
