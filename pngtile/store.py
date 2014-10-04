@@ -102,7 +102,7 @@ class PNGTileStore (object):
                     # skip inaccessible dirs
                     continue
 
-                yield name + '/'
+                yield name, None
 
             # examine ext
             if '.' in name:
@@ -113,7 +113,7 @@ class PNGTileStore (object):
 
             # show .png files with a .cache file
             if name_type in self.IMAGE_TYPES and os.path.exists(os.path.join(root, name_base + '.cache')):
-                yield name
+                yield name, name_type
 
     def open (self, url):
         """

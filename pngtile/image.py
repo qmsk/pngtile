@@ -76,6 +76,13 @@ class ImageApplication (pngtile.application.PNGTileApplication):
 
                 yield html.li(html.a(href=href(*path), *[part]))
 
+    def render_dir_item (self, name, type):
+        if type:
+            return html.a(href=name, *[name])
+        else:
+            dir = name + '/'
+            return html.a(href=dir, *[dir])
+
     def render_dir (self, request, name, items):
         """
             request:    werkzeug.Request
@@ -97,10 +104,11 @@ class ImageApplication (pngtile.application.PNGTileApplication):
                         html.ol(class_='breadcrumb', *self.render_dir_breadcrumb(name)),
                     ]),
                     html.div(class_='list', *[
-                        html.ul(class_='list-group', *[html.li(class_='list-group-item', *[
-                                html.a(href=item, *[item])
-                            ]) for item in items]
-                        ),
+                        html.ul(class_='list-group', *[
+                            html.li(class_='list-group-item', *[
+                                self.render_dir_item(name, type) for name, type in items
+                            ]) for name, type in items
+                        ]),
                     ]),
                 ]),
             ),
