@@ -26,12 +26,16 @@ L.Control.Link = L.Control.extend({
         var map_zoom = map.getZoom();
         var size = map.getSize();
         
+        var x = (+map_center.lng) * Math.pow(2, map_config.tile_zoom);
+        var y = (-map_center.lat) * Math.pow(2, map_config.tile_zoom);
+        var zoom = map_config.tile_zoom - map_zoom;
+
         var state = {
             w: size.x,
             h: size.y,
-            x: (+map_center.lng) << map_config.tile_zoom,
-            y: (-map_center.lat) << map_config.tile_zoom,
-            z: map_config.tile_zoom - map_zoom,
+            x: x >> zoom,
+            y: y >> zoom,
+            z: zoom
         };
 
         var url = L.Util.template(this.options.url, L.extend(state, this.options));

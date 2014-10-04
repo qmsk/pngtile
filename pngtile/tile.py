@@ -43,7 +43,7 @@ def scale_center (val, dim, zoom):
         Scale value about center by zoom.
     """
 
-    return scale(val, zoom) - dim / 2
+    return scale(val - dim / 2, zoom)
 
 class TileApplication (pngtile.application.PNGTileApplication):
     # age in seconds for caching an unknown-mtime image for revalidates
