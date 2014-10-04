@@ -170,13 +170,14 @@ class TileApplication (pngtile.application.PNGTileApplication):
             ttime = None
 
         if request.if_modified_since and mtime == request.if_modified_since:
-            return Response(status=304)
-            
-        # render
-        png = render_func(request, image)
+            response = Response(status=304)
+        else:
+            # render 
+            png = render_func(request, image)
         
-        # response
-        response = Response(png, content_type='image/png')
+            response = Response(png, content_type='image/png')
+        
+        # cache out
         response.last_modified = mtime
 
         if not ttime:
