@@ -3,6 +3,7 @@
 #include "shared/log.h" // only FATAL
 
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 int pt_tile_mem_write (struct pt_tile_mem *buf, void *data, size_t len)

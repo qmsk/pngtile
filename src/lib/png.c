@@ -3,6 +3,7 @@
 #include "shared/log.h" // debug only
 
 #include <png.h> // sysmtem libpng header
+#include <string.h>
 #include <assert.h>
 
 
