@@ -1,5 +1,4 @@
 #include "image.h"
-#include "ctx.h"
 #include "png.h"
 #include "cache.h"
 #include "tile.h"
@@ -13,7 +12,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-static int pt_image_new (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *path)
+static int pt_image_new (struct pt_image **image_ptr, const char *path)
 {
     struct pt_image *image;
     int err = 0;
@@ -24,9 +23,6 @@ static int pt_image_new (struct pt_image **image_ptr, struct pt_ctx *ctx, const 
 
     if ((image->path = strdup(path)) == NULL)
         JUMP_SET_ERROR(err, PT_ERR_MEM);
-
-    // init
-    image->ctx = ctx;
 
     // ok
     *image_ptr = image;
@@ -51,7 +47,7 @@ static int pt_image_cache_path (struct pt_image *image, char *buf, size_t len)
     return 0;
 }
 
-int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *path, int cache_mode)
+int pt_image_open (struct pt_image **image_ptr, const char *path, int cache_mode)
 {
     struct pt_image *image;
     char cache_path[1024];
@@ -66,7 +62,7 @@ int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *
         RETURN_ERROR(PT_ERR_IMG_FORMAT);
 
     // alloc
-    if ((err = pt_image_new(&image, ctx, path)))
+    if ((err = pt_image_new(&image, path)))
         return err;
 
     // compute cache file path
@@ -209,56 +205,6 @@ int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, 
 
 error:
     pt_tile_abort(&tile);
-
-    return err;
-}
-
-/**
- * Async work func for pt_image_tile_async
- */
-static void _pt_image_tile_async (void *arg)
-{
-    struct pt_tile *tile = arg;
-    int err;
-
-    // do render op
-    if ((err = pt_tile_render(tile)))
-        log_warn_errno("pt_tile_render: %s", pt_strerror(err));
-
-    // signal done
-    if (fclose(tile->out.file))
-        log_warn_errno("fclose");
-
-    // cleanup
-    pt_tile_destroy(tile);
-}
-
-int pt_image_tile_async (struct pt_image *image, const struct pt_tile_info *info, FILE *out)
-{
-    struct pt_tile *tile;
-    int err;
-
-    // need a ctx for this
-    if (!image->ctx)
-        return -1;
-
-    // alloc
-    if ((err = pt_tile_new(&tile)))
-        return err;
-
-    // init
-    if ((err = pt_tile_init_file(tile, image->cache, info, out)))
-        JUMP_ERROR(err);
-
-    // enqueue work
-    if ((err = pt_ctx_work(image->ctx, _pt_image_tile_async, tile)))
-        JUMP_ERROR(err);
-
-    // ok, running
-    return 0;
-
-error:
-    pt_tile_destroy(tile);
 
     return err;
 }

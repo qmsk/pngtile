@@ -25,10 +25,9 @@ Constant-time/memory tile-based handling of large PNG images.
     be omitted in the cache file, which may provide significant gains in space efficiency.
 
 ## Build
-    The library depends on libpng and pthreads. The code was developed and tested using:
-        
-        * libpng12-dev      png.h       1.2.15~beta5-3ubuntu0.1
-        * libc6-dev         pthread.h   NPTL 2.7 (glibc 2.7-10ubuntu5)
+    The library depends on libpng. The code is developed and tested using:
+
+        * libpng12-dev      png.h       1.2.54-1ubuntu1
 
     To compile:
 
@@ -44,12 +43,12 @@ Constant-time/memory tile-based handling of large PNG images.
     updated if the cache doesn't exist yet, or is stale:
 
         pngtile -v data/*.png
-    
+
     Use -v/--verbose for more detailed output.
 
 
     To render a tile from some image, provide appropriate -W/-H and -x/-y options to pngtile:
-        
+
         pngtile data/*.png -W 1024 -H 1024 -x 8000 -y 4000
 
     The output PNG tiles will be written to temporary files, the names of which are shown in the [INFO] output.
@@ -87,5 +86,3 @@ Python extension for pngtile
     $ /opt/pngtile/bin/pip install -r requirements.txt
     $ /opt/pngtile/bin/python setup.py build_ext -I /opt/pngtile/include -L /opt/pngtile/lib -R /opt/pngtile/lib
     $ /opt/pngtile/bin/python setup.py install
-
-

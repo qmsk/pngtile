@@ -31,9 +31,6 @@ const char *error_names[PT_ERR_MAX] = {
     [PT_ERR_CACHE_MUNMAP]       = "munmap(cache->file)",
     [PT_ERR_CACHE_CLOSE]        = "close(cache->fd)",
 
-    [PT_ERR_PTHREAD_CREATE]     = "pthread_create",
-    [PT_ERR_CTX_SHUTDOWN]       = "pt_ctx is shutting down",
-
     [PT_ERR_TILE_DIM]           = "Invalid tile dimensions",
     [PT_ERR_TILE_CLIP]          = "Tile outside of image",
     [PT_ERR_TILE_ZOOM]          = "Invalid zoom level",

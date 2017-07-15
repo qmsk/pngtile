@@ -9,9 +9,6 @@
 #include "pngtile.h"
 
 struct pt_image {
-    /** Associated global state */
-    struct pt_ctx *ctx;
-
     /** Path to .png */
     char *path;
 

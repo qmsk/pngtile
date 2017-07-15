@@ -14,9 +14,9 @@ LDFLAGS_REL = -Wl,-R${PREFIX}/lib
 
 # preprocessor flags
 CPPFLAGS = -Iinclude -Isrc
-CFLAGS = -Wall -std=gnu99 -fPIC -pthread ${CFLAGS_REL}
+CFLAGS = -Wall -std=gnu99 -fPIC ${CFLAGS_REL}
 LDFLAGS = -Llib ${LDFLAGS_REL}
-LDLIBS_LIB = -lpng -lpthread
+LDLIBS_LIB = -lpng
 LDLIBS_BIN = -lpngtile
 
 DIRS = build lib bin
@@ -24,11 +24,11 @@ all: $(DIRS) lib/libpngtile.so bin/pngtile
 
 # binary deps
 lib/libpngtile.so: \
-	build/lib/ctx.o build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o \
+	build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o \
 	build/shared/util.o build/shared/log.o
 
 lib/libpngtile.a: \
-	build/lib/ctx.o build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o \
+	build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o \
 	build/shared/util.o build/shared/log.o
 
 bin/pngtile: \

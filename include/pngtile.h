@@ -12,11 +12,6 @@
 #include <sys/types.h> // for time_t
 
 /**
- * "Global" context shared between images
- */
-struct pt_ctx;
-
-/**
  * Per-image state
  */
 struct pt_image;
@@ -39,7 +34,7 @@ enum pt_open_mode {
 enum pt_cache_status {
     /** Cache status could not be determined */
     PT_CACHE_ERROR      = -1,
-    
+
     /** Cache is fresh */
     PT_CACHE_FRESH      = 0,
 
@@ -66,7 +61,7 @@ struct pt_image_info {
 
     /** Size of image file in bytes */
     size_t image_bytes;
-    
+
     /** Cache format version or -err */
     int cache_version;
 
@@ -89,7 +84,7 @@ struct pt_image_params {
 };
 
 /**
- * Info for image tile 
+ * Info for image tile
  *
  * The tile may safely overlap with the edge of the image, but it should not be entirely outside of the image
  */
@@ -105,34 +100,12 @@ struct pt_tile_info {
 };
 
 /**
- * Construct a new pt_ctx for use with further pt_image's.
- *
- * @param ctx_ptr returned pt_ctx handle
- * @param threads number of worker threads to use for parralel operations, or zero to disable
- */
-int pt_ctx_new (struct pt_ctx **ctx_ptr, int threads);
-
-/**
- * Shut down the given pt_ctx, waiting for any ongoing/pending operations to finish.
- */
-int pt_ctx_shutdown (struct pt_ctx *ctx);
-
-/**
- * Release the given pt_ctx without waiting for any ongoing operations to finish.
- */
-void pt_ctx_destroy (struct pt_ctx *ctx);
-
-/**
  * Open a new pt_image for use.
  *
- * The pt_ctx is optional, but required for pt_image_tile_async.
- *
- * @param img_ptr returned pt_image handle
- * @param ctx global state to use (optional)
- * @param path filesystem path to .png file
+ * @param img_ptr returned pt_image handle * @param path filesystem path to .png file
  * @param mode combination of PT_OPEN_* flags
  */
-int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *png_path, int cache_mode);
+int pt_image_open (struct pt_image **image_ptr, const char *png_path, int cache_mode);
 
 /**
  * Get the image's metadata.
@@ -187,21 +160,6 @@ int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info,
 int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, char **buf_ptr, size_t *len_ptr);
 
 /**
- * Render a PNG tile to FILE* in a parralel manner.
- *
- * The PNG data will be written to \a out, which will be fclose()'d once done.
- *
- * This function may return before the PNG has been rendered.
- *
- * Fails with PT_ERR if not pt_ctx was given to pt_image_open.
- *
- * @param image render from image's cache. The cache must have been opened previously!
- * @param info tile parameters
- * @param out IO stream to write PNG data to, and close once done
- */
-int pt_image_tile_async (struct pt_image *image, const struct pt_tile_info *info, FILE *out);
-
-/**
  * Release the given pt_image without any clean shutdown
  */
 void pt_image_destroy (struct pt_image *image);
@@ -212,7 +170,7 @@ void pt_image_destroy (struct pt_image *image);
 enum pt_error {
     /** No error */
     PT_SUCCESS = 0,
-    
+
     /** Generic error */
     PT_ERR = 1,
 
@@ -220,14 +178,14 @@ enum pt_error {
 
     PT_ERR_PATH,
     PT_ERR_OPEN_MODE,
-    
+
     PT_ERR_IMG_STAT,
     PT_ERR_IMG_OPEN,
     PT_ERR_IMG_FORMAT,
-    
+
     PT_ERR_PNG_CREATE,
     PT_ERR_PNG,
-   
+
     PT_ERR_CACHE_STAT,
     PT_ERR_CACHE_OPEN_READ,
     PT_ERR_CACHE_OPEN_TMP,
@@ -240,13 +198,10 @@ enum pt_error {
     PT_ERR_CACHE_VERSION,
     PT_ERR_CACHE_MUNMAP,
     PT_ERR_CACHE_CLOSE,
-    
+
     PT_ERR_TILE_DIM,
     PT_ERR_TILE_CLIP,
     PT_ERR_TILE_ZOOM,
-
-    PT_ERR_PTHREAD_CREATE,
-    PT_ERR_CTX_SHUTDOWN,
 
 
     PT_ERR_MAX,

@@ -33,7 +33,6 @@ static const struct option options[] = {
     { "y",              true,   NULL,   'y' },
     { "zoom",           true,   NULL,   'z' },
     { "out",            true,   NULL,   'o' },
-    { "threads",        true,   NULL,   'j' },
 
     // --long-only options
     { "benchmark",      true,   NULL,   OPT_BENCHMARK   },
@@ -64,7 +63,6 @@ void help (const char *argv0)
         "\t-y, --y          PX      set tile y offset\n"
         "\t-z, --zoom       ZL      set zoom factor (<0)\n"
         "\t-o, --out        FILE    set tile output file\n"
-        "\t-j, --threads    N       number of threads\n"
         "\t--benchmark      N       do N tile renders\n"
         "\t--randomize              randomize tile x/y coords\n"
     );
@@ -119,7 +117,7 @@ void randomize_tile (struct pt_tile_info *ti, const struct pt_image_info *info)
 /**
  * Render a tile
  */
-int do_tile (struct pt_ctx *ctx, struct pt_image *image, const struct pt_tile_info *ti, const char *out_path)
+int do_tile (struct pt_image *image, const struct pt_tile_info *ti, const char *out_path)
 {
     FILE *out_file = NULL;
     char tmp_name[] = "pt-tile-XXXXXX";
@@ -158,27 +156,12 @@ int do_tile (struct pt_ctx *ctx, struct pt_image *image, const struct pt_tile_in
 
     }
 
+    // render
+    log_info("\tRender tile %zux%zu@(%zu,%zu) -> %s", ti->width, ti->height, ti->x, ti->y, out_path);
 
-    if (ctx) {
-        // render
-        log_info("\tAsync render tile %zux%zu@(%zu,%zu) -> %s", ti->width, ti->height, ti->x, ti->y, out_path);
-
-        if ((err = pt_image_tile_async(image, ti, out_file))) {
-            log_errno("pt_image_tile_async: %s", pt_strerror(err));
-            goto error;
-        }
-
-        // will close it itself
-        out_file = NULL;
-
-    } else {
-        // render
-        log_info("\tRender tile %zux%zu@(%zu,%zu) -> %s", ti->width, ti->height, ti->x, ti->y, out_path);
-
-        if ((err = pt_image_tile_file(image, ti, out_file))) {
-            log_errno("pt_image_tile_file: %s", pt_strerror(err));
-            goto error;
-        }
+    if ((err = pt_image_tile_file(image, ti, out_file))) {
+        log_errno("pt_image_tile_file: %s", pt_strerror(err));
+        goto error;
     }
 
 error:
@@ -202,7 +185,7 @@ int main (int argc, char **argv)
     };
     struct pt_image_params update_params = { };
     const char *out_path = NULL;
-    int threads = 0, benchmark = 0;
+    int benchmark = 0;
     int err;
 
     // parse arguments
@@ -267,9 +250,6 @@ int main (int argc, char **argv)
                 // output file
                 out_path = optarg; break;
 
-            case 'j':
-                threads = parse_uint(optarg, "--threads"); break;
-
             case OPT_BENCHMARK:
                 benchmark = parse_uint(optarg, "--benchmark"); break;
 
@@ -293,18 +273,8 @@ int main (int argc, char **argv)
         EXIT_WARN(EXIT_FAILURE, "No images given");
 
 
-
-    struct pt_ctx *ctx = NULL;
     struct pt_image *image = NULL;
     enum pt_cache_status status;
-
-    if (threads) {
-        // build ctx
-        log_debug("Construct pt_ctx with %d threads", threads);
-
-        if ((err = pt_ctx_new(&ctx, threads)))
-            EXIT_ERROR(EXIT_FAILURE, "pt_ctx_new: threads=%d", threads);
-    }
 
     // process each image in turn
     log_debug("Processing %d images...", argc - optind);
@@ -315,7 +285,7 @@ int main (int argc, char **argv)
         log_debug("Loading image from: %s...", img_path);
 
         // open
-        if ((err = pt_image_open(&image, ctx, img_path, PT_OPEN_UPDATE))) {
+        if ((err = pt_image_open(&image, img_path, PT_OPEN_UPDATE))) {
             log_errno("pt_image_open: %s: %s", img_path, pt_strerror(err));
             continue;
         }
@@ -395,7 +365,7 @@ int main (int argc, char **argv)
                 if (randomize)
                     randomize_tile(&ti, info);
 
-                if (do_tile(ctx, image, &ti, out_path))
+                if (do_tile(image, &ti, out_path))
                     goto error;
             }
 
@@ -405,27 +375,18 @@ int main (int argc, char **argv)
                 randomize_tile(&ti, info);
 
             // just once
-            if (do_tile(ctx, image, &ti, out_path))
+            if (do_tile(image, &ti, out_path))
                 goto error;
 
         }
         // cleanup
-        // XXX: leak because of async
-        if (!ctx)
-            pt_image_destroy(image);
+        pt_image_destroy(image);
 
         continue;
 
 error:
         // quit
         EXIT_ERROR(EXIT_FAILURE, "Processing image failed: %s", img_path);
-    }
-
-    if (ctx) {
-        log_info("Waiting for images to finish...");
-
-        // wait for tile operations to finish...
-        pt_ctx_shutdown(ctx);
     }
 
     log_info("Done");
