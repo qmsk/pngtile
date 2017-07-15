@@ -62,7 +62,7 @@ class TileApplication (pngtile.application.PNGTileApplication):
         self.image_server = image_server
         
     def image_url (self, name):
-        return werkzeug.urls.Href(self.image_server)(path)
+        return werkzeug.urls.Href(self.image_server)(name)
 
     def render_region (self, request, image):
         """
