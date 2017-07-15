@@ -2,7 +2,7 @@
 #include "png.h"
 #include "cache.h"
 #include "tile.h"
-#include "shared/util.h"
+#include "path.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -42,7 +42,7 @@ error:
  */
 static int pt_image_cache_path (struct pt_image *image, char *buf, size_t len)
 {
-    if (path_with_fext(image->path, buf, len, ".cache")) {
+    if (pt_path_make_ext(buf, len, image->path, ".cache")) {
         return -PT_ERR_PATH;
     }
 

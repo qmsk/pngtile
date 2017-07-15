@@ -1,6 +1,6 @@
 #include "cache.h"
 #include "log.h"
-#include "shared/util.h"
+#include "path.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -203,7 +203,7 @@ void pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
 static int pt_cache_tmp_name (struct pt_cache *cache, char tmp_path[], size_t tmp_len)
 {
     // get .tmp path
-    if (path_with_fext(cache->path, tmp_path, tmp_len, ".tmp"))
+    if (pt_path_make_ext(tmp_path, tmp_len, cache->path, ".tmp"))
         return -PT_ERR_PATH;
 
     return 0;

@@ -24,12 +24,10 @@ all: $(DIRS) lib/libpngtile.so bin/pngtile
 
 # binary deps
 lib/libpngtile.so: \
-	build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o build/lib/log.o \
-	build/shared/util.o
+	build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o build/lib/log.o build/lib/path.o
 
 lib/libpngtile.a: \
-	build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o build/lib/log.o \
-	build/shared/util.o
+	build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o build/lib/log.o build/lib/path.o
 
 bin/pngtile: \
 	build/pngtile/main.o \
