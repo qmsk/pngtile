@@ -22,8 +22,8 @@ int pt_png_check (const char *path)
     // read
     if (fread(header, 1, sizeof(header), fp) != sizeof(header))
         JUMP_SET_ERROR(ret, PT_ERR_IMG_FORMAT);
-      
-    // compare signature  
+
+    // compare signature
     if (png_sig_cmp(header, 0, sizeof(header)))
         // not a PNG file
         ret = 1;
@@ -45,7 +45,7 @@ int pt_png_open (struct pt_image *image, struct pt_png_img *img)
 
     // init
     memset(img, 0, sizeof(*img));
-    
+
     // open I/O
     if ((err = pt_image_open_file(image, &img->fh)))
         JUMP_ERROR(err);
@@ -61,11 +61,11 @@ int pt_png_open (struct pt_image *image, struct pt_png_img *img)
     // setup error trap for the I/O
     if (setjmp(png_jmpbuf(img->png)))
         JUMP_SET_ERROR(err, PT_ERR_PNG);
-    
+
     // setup error trap
     if (setjmp(png_jmpbuf(img->png)))
         JUMP_SET_ERROR(err, PT_ERR_PNG);
-    
+
 
     // setup I/O to FILE
     png_init_io(img->png, img->fh);
@@ -80,7 +80,7 @@ int pt_png_open (struct pt_image *image, struct pt_png_img *img)
 error:
     // cleanup
     pt_png_release_read(img);
-    
+
     return err;
 }
 
@@ -103,7 +103,7 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
     header->bit_depth = png_get_bit_depth(img->png, img->info);
     header->color_type = png_get_color_type(img->png, img->info);
 
-    log_debug("width=%u, height=%u, bit_depth=%u, color_type=%u", 
+    log_debug("width=%u, height=%u, bit_depth=%u, color_type=%u",
             header->width, header->height, header->bit_depth, header->color_type
     );
 
@@ -119,7 +119,7 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
     header->col_bytes = png_get_channels(img->png, img->info) * (header->bit_depth == 16 ? 2 : 1);
 
     log_debug("row_bytes=%u, col_bytes=%u", header->row_bytes, header->col_bytes);
-    
+
     // palette etc.
     if (header->color_type == PNG_COLOR_TYPE_PALETTE) {
         int num_palette;
@@ -128,20 +128,20 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
         if (png_get_PLTE(img->png, img->info, &palette, &num_palette) == 0)
             // PLTE chunk not read?
             RETURN_ERROR(PT_ERR_PNG);
-        
+
         // should only be 256 of them at most
         assert(num_palette <= PNG_MAX_PALETTE_LENGTH);
-    
+
         // copy
         header->num_palette = num_palette;
         memcpy(&header->palette, palette, num_palette * sizeof(*palette));
-        
+
         log_debug("num_palette=%u", num_palette);
     }
 
     // calculate data size
     *data_size = header->height * header->row_bytes;
-    
+
     return 0;
 }
 
@@ -175,7 +175,7 @@ static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_hea
     for (size_t row = 0; row < header->height; row++) {
         // read row data, non-interlaced
         png_read_row(img->png, row_buf, NULL);
-        
+
         // skip background-colored regions to keep the cache file sparse
         // ...in blocks of PT_CACHE_BLOCK_SIZE bytes
         for (size_t col_base = 0; col_base < header->width; col_base += PT_IMG_BLOCK_SIZE) {
@@ -187,7 +187,7 @@ static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_hea
                     size_t col = col_base;
 
                     // BLOCK_SIZE * col_bytes wide, don't go over the edge
-                    col < col_base + block_size; 
+                    col < col_base + block_size;
 
                     col += header->col_bytes
             ) {
@@ -195,11 +195,11 @@ static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_hea
                 if (bcmp(row_buf + col, params->background_color, header->col_bytes)) {
                     // differs
                     memcpy(
-                            out + row * header->row_bytes + col_base, 
+                            out + row * header->row_bytes + col_base,
                             row_buf + col_base,
                             block_size
                     );
-                    
+
                     // skip to next block
                     break;
                 }
@@ -224,10 +224,10 @@ int pt_png_decode (struct pt_png_img *img, const struct pt_png_header *header, c
 
     else
         err = pt_png_decode_direct(img, header, params, out);
-    
+
     if (err)
         return err;
-    
+
     // finish off, ignore trailing data
     png_read_end(img->png, NULL);
 
@@ -244,21 +244,21 @@ int pt_png_info (struct pt_png_header *header, struct pt_image_info *info)
     return 0;
 }
 
-/** 
+/**
  * libpng I/O callback: write out data
  */
 static void pt_png_mem_write (png_structp png, png_bytep data, png_size_t length)
 {
     struct pt_tile_mem *buf = png_get_io_ptr(png);
     int err;
-    
+
     // write to buffer
     if ((err = pt_tile_mem_write(buf, data, length)))
         // drop err, because png_error doesn't do formatted output
         png_error(png, "pt_tile_mem_write: ...");
 }
 
-/** 
+/**
  * libpng I/O callback: flush buffered data
  */
 static void pt_png_mem_flush (png_structp png_ptr)
@@ -304,7 +304,7 @@ static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_he
 {
     png_byte *rowbuf;
     size_t row;
-    
+
     // image data goes from (ti->x ... clip_x, ti->y ... clip_y), remaining region is filled
     size_t clip_x, clip_y;
 
@@ -338,7 +338,7 @@ static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_he
 
     // generate the data for the remaining, clipped, rows
     tile_row_fill_clip(header, rowbuf, ti->width);
-    
+
     // write out the remaining rows as clipped data
     for (; row < ti->y + ti->height; row++)
         png_write_row(img->png, rowbuf);
@@ -369,7 +369,7 @@ static int pt_png_encode_unzoomed (struct pt_png_img *img, const struct pt_png_h
 
     // our pixel data is packed into 1 pixel per byte (8bpp or 16bpp)
     png_set_packing(img->png);
-    
+
     // figure out if the tile clips
     if (ti->x + ti->width <= header->width && ti->y + ti->height <= header->height)
         // doesn't clip, just use the raw data
@@ -378,7 +378,7 @@ static int pt_png_encode_unzoomed (struct pt_png_img *img, const struct pt_png_h
     else
         // fill in clipped regions
         err = pt_png_encode_clipped(img, header, data, ti);
-    
+
     return err;
 }
 
@@ -415,7 +415,7 @@ static inline void png_pixel_data (const png_color **outp, const struct pt_png_h
                     p = *((uint8_t *) tile_row_col(header, data, row, col));
 
                     break;
-                
+
                 default :
                     // unknown
                     return;
@@ -423,10 +423,10 @@ static inline void png_pixel_data (const png_color **outp, const struct pt_png_h
 
             // hrhr - assume our working data is valid (or we have 255 palette entries, so it doesn't matter...)
             assert(p < header->num_palette);
-            
+
             // reference data from palette
             *outp = &header->palette[p];
-            
+
             return;
 
         default :
@@ -458,10 +458,10 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
 
     // buffer to hold output rows
     uint8_t *row_buf;
-                
+
     // color entry for pixel
     const png_color *c = &header->palette[0];
-    
+
     // only supports zooming out...
     if (ti->zoom < 0)
         RETURN_ERROR(PT_ERR_TILE_ZOOM);
@@ -476,7 +476,7 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
     png_set_IHDR(img->png, img->info, ti->width, ti->height, 8, PNG_COLOR_TYPE_RGB,
             PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT
     );
-    
+
     // write meta-info
     png_write_info(img->png, img->info);
 
@@ -486,7 +486,7 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
 
         // ...includes pixels starting from this row.
         size_t in_row_offset = ti->y + scale_by_zoom_factor(out_row, ti->zoom);
-        
+
         // ...each out row includes pixel_size in rows
         for (size_t in_row = in_row_offset; in_row < in_row_offset + pixel_size && in_row < header->height; in_row++) {
             // and includes each input pixel
@@ -494,11 +494,11 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
 
                 // ...for this output pixel
                 size_t out_col = scale_by_zoom_factor(in_col - ti->x, -ti->zoom);
-                
+
                 // get pixel RGB data
                 png_pixel_data(&c, header, data, in_row, in_col);
-                
-                // average the RGB data        
+
+                // average the RGB data
                 ADD_AVG(row_buf[out_col * pixel_bytes + 0], c->red);
                 ADD_AVG(row_buf[out_col * pixel_bytes + 1], c->green);
                 ADD_AVG(row_buf[out_col * pixel_bytes + 2], c->blue);
@@ -526,18 +526,18 @@ int pt_png_tile (const struct pt_png_header *header, const uint8_t *data, struct
     if (ti->x >= header->width || ti->y >= header->height)
         // completely outside
         RETURN_ERROR(PT_ERR_TILE_CLIP);
-    
+
     // open PNG writer
     if ((img->png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL)
         JUMP_SET_ERROR(err, PT_ERR_PNG_CREATE);
-    
+
     if ((img->info = png_create_info_struct(img->png)) == NULL)
         JUMP_SET_ERROR(err, PT_ERR_PNG_CREATE);
 
     // libpng error trap
     if (setjmp(png_jmpbuf(img->png)))
         JUMP_SET_ERROR(err, PT_ERR_PNG);
- 
+
 
 
     // setup output I/O
@@ -560,7 +560,7 @@ int pt_png_tile (const struct pt_png_header *header, const uint8_t *data, struct
     }
 
 
-  
+
     // unscaled or scaled?
     if (ti->zoom)
         err = pt_png_encode_zoomed(img, header, data, ti);
@@ -570,7 +570,7 @@ int pt_png_tile (const struct pt_png_header *header, const uint8_t *data, struct
 
     if (err)
         goto error;
-    
+
 
     // flush remaining output
     png_write_flush(img->png);
@@ -589,7 +589,7 @@ error:
 void pt_png_release_read (struct pt_png_img *img)
 {
     png_destroy_read_struct(&img->png, &img->info, NULL);
-    
+
     // close possible filehandle
     if (img->fh) {
         if (fclose(img->fh))
@@ -608,4 +608,3 @@ void pt_png_release_write (struct pt_png_img *img)
     }
 
 }
-

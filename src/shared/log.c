@@ -63,7 +63,7 @@ size_t str_append_fmt (char *buf_ptr, size_t *buf_size, const char *fmt, ...)
 {
     va_list vargs;
     size_t ret;
-    
+
     va_start(vargs, fmt);
     ret = str_append_fmt_va(buf_ptr, buf_size, fmt, vargs);
     va_end(vargs);
@@ -85,7 +85,7 @@ void log_output_tag_va (enum log_level level, const char *tag, const char *func,
     // output the user data
     if (user_fmt)
         buf_ptr += str_append_fmt_va(buf_ptr, &buf_size, user_fmt, user_fmtargs);
-    
+
     // output the suffix
     if (log_fmt)
         buf_ptr += str_append_fmt_va(buf_ptr, &buf_size, log_fmt, log_fmtargs);
@@ -107,7 +107,7 @@ void log_output_tag (enum log_level level, const char *tag, const char *func, co
 void _log_msg (enum log_level level, const char *func, const char *format, ...)
 {
     va_list vargs;
-    
+
     // formatted output: no suffix
     va_start(vargs, format);
     log_output_tag(level, log_level_name(level), func, format, vargs, NULL);
@@ -141,4 +141,3 @@ void _log_exit (enum log_level level, int exit_code, const char *func, const cha
     // exit
     exit(exit_code);
 }
-

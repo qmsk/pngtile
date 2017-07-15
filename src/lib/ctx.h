@@ -38,7 +38,7 @@ struct pt_work {
 
     /** Work info */
     void *arg;
-    
+
     /** @see pt_ctx::work */
     TAILQ_ENTRY(pt_work) ctx_work;
 };

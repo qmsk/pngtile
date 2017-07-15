@@ -27,7 +27,7 @@ static int pt_image_new (struct pt_image **image_ptr, struct pt_ctx *ctx, const 
 
     // init
     image->ctx = ctx;
-    
+
     // ok
     *image_ptr = image;
 
@@ -35,7 +35,7 @@ static int pt_image_new (struct pt_image **image_ptr, struct pt_ctx *ctx, const 
 
 error:
     pt_image_destroy(image);
-    
+
     return err;
 }
 
@@ -60,7 +60,7 @@ int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *
     // verify that the path exists and looks like a PNG file
     if ((err = pt_png_check(path)) < 0)
         return err;
-    
+
     if (err)
         // fail, not a PNG
         RETURN_ERROR(PT_ERR_IMG_FORMAT);
@@ -68,7 +68,7 @@ int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *
     // alloc
     if ((err = pt_image_new(&image, ctx, path)))
         return err;
-    
+
     // compute cache file path
     if ((err = pt_image_cache_path(image, cache_path, sizeof(cache_path))))
         JUMP_ERROR(err);
@@ -76,7 +76,7 @@ int pt_image_open (struct pt_image **image_ptr, struct pt_ctx *ctx, const char *
     // create the cache object for this image (doesn't yet open it)
     if ((err = pt_cache_new(&image->cache, cache_path, cache_mode)))
         JUMP_ERROR(err);
-    
+
     // ok, ready for access
     *image_ptr = image;
 
@@ -91,7 +91,7 @@ error:
 int pt_image_open_file (struct pt_image *image, FILE **file_ptr)
 {
     FILE *fp;
-    
+
     // open
     if ((fp = fopen(image->path, "rb")) == NULL)
         RETURN_ERROR(PT_ERR_IMG_OPEN);
@@ -117,7 +117,7 @@ int pt_image_update (struct pt_image *image, const struct pt_image_params *param
     // open .png
     if ((err = pt_png_open(image, &img)))
         return err;
-    
+
     // pass to cache object
     if ((err = pt_cache_update(image->cache, &img, params)))
         JUMP_ERROR(err);
@@ -148,7 +148,7 @@ int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr
         image->info.image_mtime = st.st_mtime;
         image->info.image_bytes = st.st_size;
     }
-    
+
     // return pointer
     *info_ptr = &image->info;
 
@@ -249,7 +249,7 @@ int pt_image_tile_async (struct pt_image *image, const struct pt_tile_info *info
     // init
     if ((err = pt_tile_init_file(tile, image->cache, info, out)))
         JUMP_ERROR(err);
-    
+
     // enqueue work
     if ((err = pt_ctx_work(image->ctx, _pt_image_tile_async, tile)))
         JUMP_ERROR(err);
@@ -266,10 +266,9 @@ error:
 void pt_image_destroy (struct pt_image *image)
 {
     free(image->path);
-    
+
     if (image->cache)
         pt_cache_destroy(image->cache);
 
     free(image);
 }
-

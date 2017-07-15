@@ -12,7 +12,7 @@ struct pt_tile;
 #include "cache.h"
 
 /** Types of tile output */
-enum pt_tile_output { 
+enum pt_tile_output {
     PT_TILE_OUT_FILE,
     PT_TILE_OUT_MEM,
 };
@@ -36,7 +36,7 @@ struct pt_tile {
     union {
         /** Output file */
         FILE *file;
-        
+
         /** Output buffer */
         struct pt_tile_mem {
             char *base;

@@ -13,7 +13,7 @@
 static void pt_mutex_unlock (void *arg)
 {
     pthread_mutex_t *mutex = arg;
-    
+
     log_debug("cleanup");
 
     assert(!pthread_mutex_unlock(mutex));
@@ -35,7 +35,7 @@ static void pt_work_enqueue (struct pt_ctx *ctx, struct pt_work *work)
     // if there's a thread waiting, wake one up. Otherwise, some thread will find it once it finishes its current work
     assert(!pthread_cond_signal(&ctx->work_cond));
 
-    // release 
+    // release
     assert(!pthread_mutex_unlock(&ctx->work_mutex));
 }
 
@@ -54,7 +54,7 @@ static bool pt_work_dequeue (struct pt_ctx *ctx, struct pt_work **work_ptr)
     while (ctx->running && TAILQ_EMPTY(&ctx->work))
         // we can expect to get pthread_cancel'd here
         assert(!pthread_cond_wait(&ctx->work_cond, &ctx->work_mutex));
-    
+
     // still got work?
     if (!TAILQ_EMPTY(&ctx->work)) {
         // pop work
@@ -70,7 +70,7 @@ static bool pt_work_dequeue (struct pt_ctx *ctx, struct pt_work **work_ptr)
 
         // work empty, idle
         assert(!pthread_cond_signal(&ctx->idle_cond));
-        
+
         log_debug("idle/dead");
 
         // no more work
@@ -90,13 +90,13 @@ static void pt_work_shutdown (struct pt_ctx *ctx)
 {
     // acquire
     assert(!pthread_mutex_lock(&ctx->work_mutex));
-    
+
     // indicate to terminate
     ctx->running = false;
 
     // wake up any idle workers
     assert(!pthread_cond_broadcast(&ctx->work_cond));
-    
+
     // wait for it to drain...
     while (!TAILQ_EMPTY(&ctx->work))
         assert(!pthread_cond_wait(&ctx->idle_cond, &ctx->work_mutex));
@@ -128,7 +128,7 @@ static void* pt_thread_main (void *arg)
 {
     struct pt_thread *thread = arg;
     struct pt_work *work;
-    
+
     log_debug("start");
 
     // if only life were so simple...
@@ -176,10 +176,10 @@ static void pt_thread_destroy (struct pt_thread *thread)
             perror("pthread_detach");
 
     }
-        
+
     // remove from pool
     TAILQ_REMOVE(&thread->ctx->threads, thread, ctx_threads);
-    
+
     free(thread);
 }
 
@@ -243,7 +243,7 @@ int pt_ctx_new (struct pt_ctx **ctx_ptr, int threads)
     *ctx_ptr = ctx;
 
     return 0;
-        
+
 error:
     // cleanup
     pt_ctx_destroy(ctx);
@@ -304,14 +304,13 @@ void pt_ctx_destroy (struct pt_ctx *ctx)
     // destroy mutex/conds
     if (pthread_cond_destroy(&ctx->idle_cond))
         perror("pthread_cond_destroy(idle_cond)");
-    
+
     if (pthread_cond_destroy(&ctx->work_cond))
         perror("pthread_cond_destroy(work_cond)");
 
     if (pthread_mutex_destroy(&ctx->work_mutex))
         perror("pthread_mutex_destroy(work_mutex)");
-   
+
 
     free(ctx);
 }
-

@@ -14,7 +14,7 @@ struct pt_image {
 
     /** Path to .png */
     char *path;
-    
+
     /** Cache object */
     struct pt_cache *cache;
 

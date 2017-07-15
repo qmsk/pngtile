@@ -28,7 +28,7 @@ int pt_tile_mem_write (struct pt_tile_mem *buf, void *data, size_t len)
     memcpy(buf->base + buf->off, data, len);
 
     buf->off += len;
-    
+
     return 0;
 }
 
@@ -65,7 +65,7 @@ int pt_tile_init_file (struct pt_tile *tile, struct pt_cache *cache, const struc
 int pt_tile_init_mem (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_info *info)
 {
     pt_tile_init(tile, cache, info, PT_TILE_OUT_MEM);
-    
+
     // init buffer
     if ((tile->out.mem.base = malloc(PT_TILE_BUF_SIZE)) == NULL)
         RETURN_ERROR(PT_ERR_MEM);
@@ -108,4 +108,3 @@ void pt_tile_destroy (struct pt_tile *tile)
 
     free(tile);
 }
-

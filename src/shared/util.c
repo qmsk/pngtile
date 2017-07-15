@@ -21,7 +21,7 @@ int chfext (char *buf, size_t len, const char *newext)
 
     // change to .foo
     strcpy(ext, newext);
-    
+
     // ok
     return 0;
 }

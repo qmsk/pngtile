@@ -34,7 +34,7 @@ static const struct option options[] = {
     { "zoom",           true,   NULL,   'z' },
     { "out",            true,   NULL,   'o' },
     { "threads",        true,   NULL,   'j' },
-    
+
     // --long-only options
     { "benchmark",      true,   NULL,   OPT_BENCHMARK   },
     { "randomize",      false,  NULL,   OPT_RANDOMIZE   },
@@ -124,10 +124,10 @@ int do_tile (struct pt_ctx *ctx, struct pt_image *image, const struct pt_tile_in
     FILE *out_file = NULL;
     char tmp_name[] = "pt-tile-XXXXXX";
     int err = 0;
-    
+
     if (!out_path) {
         int fd;
-        
+
         // temporary file for output
         if ((fd = mkstemp(tmp_name)) < 0) {
             log_errno("mkstemp");
@@ -158,7 +158,7 @@ int do_tile (struct pt_ctx *ctx, struct pt_image *image, const struct pt_tile_in
 
     }
 
-    
+
     if (ctx) {
         // render
         log_info("\tAsync render tile %zux%zu@(%zu,%zu) -> %s", ti->width, ti->height, ti->x, ti->y, out_path);
@@ -204,14 +204,14 @@ int main (int argc, char **argv)
     const char *out_path = NULL;
     int threads = 0, benchmark = 0;
     int err;
-    
+
     // parse arguments
     while ((opt = getopt_long(argc, argv, "hqvDUNB:W:H:x:y:z:o:j:", options, NULL)) != -1) {
         switch (opt) {
             case 'h':
                 // display help
                 help(argv[0]);
-                
+
                 return EXIT_SUCCESS;
 
             case 'q':
@@ -222,11 +222,11 @@ int main (int argc, char **argv)
             case 'D':
                 // display additional output
                 set_log_level(LOG_DEBUG); break;
-            
+
             case 'U':
                 // force update of image caches
                 force_update = true; break;
-            
+
             case 'N':
                 // supress update of image caches
                 no_update = true; break;
@@ -235,11 +235,11 @@ int main (int argc, char **argv)
                 // background pattern
                 {
                     unsigned int b1 = 0, b2 = 0, b3 = 0, b4 = 0;
-                    
+
                     // parse 0xXXXXXXXX
                     if (sscanf(optarg, "0x%02x%02x%02x%02x", &b1, &b2, &b3, &b4) < 1)
                         FATAL("Invalid hex value for -B/--background: %s", optarg);
-                    
+
                     // store
                     update_params.background_color[0] = b1;
                     update_params.background_color[1] = b2;
@@ -272,7 +272,7 @@ int main (int argc, char **argv)
 
             case OPT_BENCHMARK:
                 benchmark = parse_uint(optarg, "--benchmark"); break;
-            
+
             case OPT_RANDOMIZE:
                 randomize = true; break;
 
@@ -287,17 +287,17 @@ int main (int argc, char **argv)
                 FATAL("getopt_long returned unknown code %d", opt);
         }
     }
-    
+
     // end-of-arguments?
     if (!argv[optind])
         EXIT_WARN(EXIT_FAILURE, "No images given");
-    
+
 
 
     struct pt_ctx *ctx = NULL;
     struct pt_image *image = NULL;
     enum pt_cache_status status;
-    
+
     if (threads) {
         // build ctx
         log_debug("Construct pt_ctx with %d threads", threads);
@@ -305,7 +305,7 @@ int main (int argc, char **argv)
         if ((err = pt_ctx_new(&ctx, threads)))
             EXIT_ERROR(EXIT_FAILURE, "pt_ctx_new: threads=%d", threads);
     }
-    
+
     // process each image in turn
     log_debug("Processing %d images...", argc - optind);
 
@@ -321,13 +321,13 @@ int main (int argc, char **argv)
         }
 
         log_info("Opened image at: %s", img_path);
-        
+
         // check if stale
         if ((status = pt_image_status(image)) < 0) {
             log_errno("pt_image_status: %s: %s", img_path, pt_strerror(status));
             goto error;
         }
-        
+
         // update if stale
         if (status != PT_CACHE_FRESH || force_update) {
             if (status == PT_CACHE_NONE)
@@ -335,7 +335,7 @@ int main (int argc, char **argv)
 
             else if (status == PT_CACHE_STALE)
                 log_info("\tImage cache is stale");
-            
+
             else if (status == PT_CACHE_INCOMPAT)
                 log_info("\tImage cache is incompatible");
 
@@ -344,7 +344,7 @@ int main (int argc, char **argv)
 
             else
                 log_warn("\tImage cache status is unknown");
-            
+
             if (!no_update) {
                 log_info("\tUpdating image cache...");
 
@@ -359,7 +359,7 @@ int main (int argc, char **argv)
                 log_warn("\tSupressing cache update");
             }
 
-        } else {    
+        } else {
             log_debug("\tImage cache is fresh");
 
             // ensure it's loaded
@@ -373,14 +373,14 @@ int main (int argc, char **argv)
 
         // show info
         const struct pt_image_info *info;
-        
+
         if ((err = pt_image_info(image, &info))) {
             log_warn_errno("pt_image_info: %s: %s", img_path, pt_strerror(err));
 
         } else {
             log_info("\tImage dimensions: %zux%zu (%zu bpp)", info->img_width, info->img_height, info->img_bpp);
             log_info("\tImage mtime=%ld, bytes=%zu", (long) info->image_mtime, info->image_bytes);
-            log_info("\tCache mtime=%ld, bytes=%zu, blocks=%zu (%zu bytes), version=%d", 
+            log_info("\tCache mtime=%ld, bytes=%zu, blocks=%zu (%zu bytes), version=%d",
                     (long) info->cache_mtime, info->cache_bytes, info->cache_blocks, info->cache_blocks * 512, info->cache_version
             );
         }
@@ -413,14 +413,14 @@ int main (int argc, char **argv)
         // XXX: leak because of async
         if (!ctx)
             pt_image_destroy(image);
-        
+
         continue;
 
 error:
         // quit
         EXIT_ERROR(EXIT_FAILURE, "Processing image failed: %s", img_path);
     }
-    
+
     if (ctx) {
         log_info("Waiting for images to finish...");
 
@@ -432,4 +432,3 @@ error:
 
     return 0;
 }
-

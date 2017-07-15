@@ -69,7 +69,7 @@ static void pt_cache_abort (struct pt_cache *cache)
 static int pt_cache_open_read_fd (struct pt_cache *cache, int *fd_ptr)
 {
     int fd;
-    
+
     // actual open()
     if ((fd = open(cache->path, O_RDONLY)) < 0)
         RETURN_ERROR_ERRNO(PT_ERR_OPEN_MODE, EACCES);
@@ -95,7 +95,7 @@ static int pt_cache_read_header (int fd, struct pt_cache_header *header)
     // write out full header
     while (len) {
         ssize_t ret;
-        
+
         // try and write out the header
         if ((ret = read(fd, buf, len)) <= 0)
             RETURN_ERROR(PT_ERR_CACHE_READ);
@@ -132,11 +132,11 @@ static int pt_cache_version (struct pt_cache *cache)
 
     // ok
     ret = header.version;
-    
+
 error:
     // close
     close(fd);
-    
+
     return ret;
 }
 
@@ -144,11 +144,11 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
 {
     struct stat st_img, st_cache;
     int ver;
-    
+
     // test original file
     if (stat(img_path, &st_img) < 0)
         RETURN_ERROR(PT_ERR_IMG_STAT);
-    
+
     // test cache file
     if (stat(cache->path, &st_cache) < 0) {
         // always stale if it doesn't exist yet
@@ -161,7 +161,7 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
     // compare mtime
     if (st_img.st_mtime > st_cache.st_mtime)
         return PT_CACHE_STALE;
-    
+
     // read version
     if ((ver = pt_cache_version(cache)) < 0)
         // fail
@@ -170,7 +170,7 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
     // compare version
     if (ver != PT_CACHE_VERSION)
         return PT_CACHE_INCOMPAT;
-    
+
     // ok, should be in order
     return PT_CACHE_FRESH;
 }
@@ -319,7 +319,7 @@ static int pt_cache_write_header (struct pt_cache *cache, const struct pt_cache_
     // write out full header
     while (len) {
         ssize_t ret;
-        
+
         // try and write out the header
         if ((ret = write(cache->fd, buf, len)) <= 0)
             RETURN_ERROR(PT_ERR_CACHE_WRITE);
@@ -375,7 +375,7 @@ static int pt_cache_create_done (struct pt_cache *cache)
 {
     char tmp_path[1024];
     int err;
-    
+
     // get .tmp path
     if ((err = pt_cache_tmp_name(cache, tmp_path, sizeof(tmp_path))))
         return err;
@@ -395,14 +395,14 @@ static void pt_cache_create_abort (struct pt_cache *cache)
 {
     char tmp_path[1024];
     int err;
-    
+
     // close open stuff
     pt_cache_abort(cache);
 
     // get .tmp path
     if ((err = pt_cache_tmp_name(cache, tmp_path, sizeof(tmp_path)))) {
         log_warn_errno("pt_cache_tmp_name: %s: %s", cache->path, pt_strerror(err));
-        
+
         return;
     }
 
@@ -423,7 +423,7 @@ int pt_cache_update (struct pt_cache *cache, struct pt_png_img *img, const struc
     // close if open
     if ((err = pt_cache_close(cache)))
         return err;
-    
+
     // prep header
     header.version = PT_CACHE_VERSION;
     header.format = PT_IMG_PNG;
@@ -447,7 +447,7 @@ int pt_cache_update (struct pt_cache *cache, struct pt_png_img *img, const struc
     // done, commit .tmp
     if ((err = pt_cache_create_done(cache)))
         goto error;
-    
+
     return 0;
 
 error:
@@ -499,4 +499,3 @@ void pt_cache_destroy (struct pt_cache *cache)
     free(cache->path);
     free(cache);
 }
-

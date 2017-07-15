@@ -33,15 +33,15 @@ struct pt_cache_header {
     enum pt_img_format {
         PT_IMG_PNG,     ///< @see pt_png
     } format;
-    
+
     /** Data header by format  */
     union {
         struct pt_png_header png;
     };
-    
+
     /** Parameters used */
     struct pt_image_params params;
-    
+
     /** Size of the data segment */
     size_t data_size;
 };
@@ -69,7 +69,7 @@ struct pt_cache {
 
     /** The mode we are operating in, bitmask of PT_IMG_* */
     int mode;
-    
+
     /** Opened file */
     int fd;
 

@@ -31,7 +31,7 @@ struct pt_png_img {
 struct pt_png_header {
     /** Pixel dimensions of image */
     uint32_t width, height;
-    
+
     /** Pixel format */
     uint8_t bit_depth, color_type;
 
@@ -40,7 +40,7 @@ struct pt_png_header {
 
     /** Number of bytes per row */
     uint32_t row_bytes;
-    
+
     /** Number of bytes per pixel */
     uint8_t col_bytes;
 

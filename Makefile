@@ -46,10 +46,10 @@ SRC_DIRS = $(dir $(SRC_PATHS))
 build:
 	mkdir -p $(SRC_DIRS:src/%=build/%)
 
-lib: 
-	mkdir -p lib 
+lib:
+	mkdir -p lib
 
-bin: 
+bin:
 	mkdir -p bin
 
 # build obj files from src, with header deps
@@ -87,7 +87,7 @@ install: $(DIRS) $(INSTALL_INCLUDE) $(INSTALL_LIB) $(INSTALL_BIN)
 
 # dist builds
 DIST_NAME = pngtile-${shell hg id -i}
-DIST_DEPS = 
+DIST_DEPS =
 DIST_RESOURCES = README pngtile/ static/ bin/
 
 dist-clean: clean dirs
