@@ -24,19 +24,17 @@ all: $(DIRS) lib/libpngtile.so bin/pngtile
 
 # binary deps
 lib/libpngtile.so: \
-	build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o build/lib/log.o build/lib/path.o
-
-lib/libpngtile.a: \
-	build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o build/lib/log.o build/lib/path.o
+	build/lib/image.o \
+	build/lib/cache.o \
+	build/lib/tile.o \
+	build/lib/png.o \
+	build/lib/error.o \
+	build/lib/log.o \
+	 build/lib/path.o
 
 bin/pngtile: \
 	build/pngtile/main.o \
 	build/pngtile/log.o
-
-bin/pngtile-static: \
-	build/pngtile/main.o \
-	build/pngtile/log.o \
-	lib/libpngtile.a
 
 SRC_PATHS = $(wildcard src/*/*.c)
 SRC_DIRS = $(dir $(SRC_PATHS))
@@ -62,16 +60,13 @@ build/%.o: src/%.c
 lib/lib%.so:
 	$(CC) -shared $(LDFLAGS) $+ $(LDLIBS_LIB) -o $@
 
-lib/lib%.a:
-	$(AR) rc $@ $+
-
 # output binaries
 bin/%:
 	$(CC) $(LDFLAGS) $+ -o $@ $(LDLIBS_BIN)
 
 clean:
 	rm -f build/*/*.o build/*/*.d
-	rm -f bin/pngtile bin/pngtile-static lib/*.so lib/*.a
+	rm -f bin/pngtile bin/pngtile-static lib/*.so
 
 # install
 INSTALL_INCLUDE = include/pngtile.h
