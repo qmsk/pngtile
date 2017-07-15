@@ -1,5 +1,5 @@
-#ifndef SHARED_LOG_H
-#define SHARED_LOG_H
+#ifndef PNGTILE_LOG_H
+#define PNGTILE_LOG_H
 
 #include <stdarg.h>
 

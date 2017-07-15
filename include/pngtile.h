@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <stdio.h> // for FILE*
 #include <stdint.h>
+#include <stdbool.h>
 #include <sys/types.h> // for time_t
 
 /**
@@ -100,6 +101,18 @@ struct pt_tile_info {
 };
 
 /**
+ * Enable/Disable DEBUG logging to stderr.
+ */
+extern bool pt_log_debug;
+
+/**
+ * Enable/Disable WARN logging to stderr.
+ *
+ * Warnings are logged on errors that happen during error recovery.
+ */
+extern bool pt_log_warn;
+
+/**
  * Open a new pt_image for use.
  *
  * @param img_ptr returned pt_image handle * @param path filesystem path to .png file
@@ -182,6 +195,7 @@ enum pt_error {
     PT_ERR_IMG_STAT,
     PT_ERR_IMG_OPEN,
     PT_ERR_IMG_FORMAT,
+    PT_ERR_IMG_FORMAT_INTERLACE,
 
     PT_ERR_PNG_CREATE,
     PT_ERR_PNG,

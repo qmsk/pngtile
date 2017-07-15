@@ -1,5 +1,4 @@
 #include "tile.h"
-#include "shared/log.h" // only FATAL
 
 #include <stdlib.h>
 #include <string.h>

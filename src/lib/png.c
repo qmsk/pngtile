@@ -1,5 +1,5 @@
 #include "png.h" // pt_png header
-#include "shared/log.h" // debug only
+#include "log.h"
 
 #include <png.h> // sysmtem libpng header
 #include <string.h>
@@ -95,12 +95,8 @@ error:
 int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, size_t *data_size)
 {
     // check image doesn't use any options we don't handle
-    if (png_get_interlace_type(img->png, img->info) != PNG_INTERLACE_NONE) {
-        log_warn("Can't handle interlaced PNG");
-
-        return -PT_ERR_IMG_FORMAT;
-    }
-
+    if (png_get_interlace_type(img->png, img->info) != PNG_INTERLACE_NONE)
+        return -PT_ERR_IMG_FORMAT_INTERLACE;
 
     // initialize
     memset(header, 0, sizeof(*header));
@@ -111,7 +107,7 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
     header->bit_depth = png_get_bit_depth(img->png, img->info);
     header->color_type = png_get_color_type(img->png, img->info);
 
-    log_debug("width=%u, height=%u, bit_depth=%u, color_type=%u",
+    PT_DEBUG("width=%u, height=%u, bit_depth=%u, color_type=%u",
             header->width, header->height, header->bit_depth, header->color_type
     );
 
@@ -126,7 +122,7 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
     // this assumes the packed bit depth will be either 8 or 16
     header->col_bytes = png_get_channels(img->png, img->info) * (header->bit_depth == 16 ? 2 : 1);
 
-    log_debug("row_bytes=%u, col_bytes=%u", header->row_bytes, header->col_bytes);
+    PT_DEBUG("row_bytes=%u, col_bytes=%u", header->row_bytes, header->col_bytes);
 
     // palette etc.
     if (header->color_type == PNG_COLOR_TYPE_PALETTE) {
@@ -144,7 +140,7 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
         header->num_palette = num_palette;
         memcpy(&header->palette, palette, num_palette * sizeof(*palette));
 
-        log_debug("num_palette=%u", num_palette);
+        PT_DEBUG("num_palette=%u", num_palette);
     }
 
     // calculate data size
@@ -568,7 +564,7 @@ int pt_png_tile (const struct pt_png_header *header, const uint8_t *data, struct
             break;
 
         default:
-            FATAL("tile->out_type: %d", tile->out_type);
+            PT_ABORT("tile->out_type: %d", tile->out_type);
     }
 
 
@@ -605,7 +601,7 @@ void pt_png_release_read (struct pt_png_img *img)
     // close possible filehandle
     if (img->fh) {
         if (fclose(img->fh))
-            log_warn_errno("fclose");
+            PT_WARN_ERRNO("fclose");
     }
 }
 
@@ -616,7 +612,7 @@ void pt_png_release_write (struct pt_png_img *img)
     // close possible filehandle
     if (img->fh) {
         if (fclose(img->fh))
-            log_warn_errno("fclose");
+            PT_WARN_ERRNO("fclose");
     }
 
 }

@@ -14,8 +14,8 @@ LDFLAGS_REL = -Wl,-R${PREFIX}/lib
 
 # preprocessor flags
 CPPFLAGS = -Iinclude -Isrc
-CFLAGS = -Wall -std=gnu99 -fPIC ${CFLAGS_REL}
-LDFLAGS = -Llib ${LDFLAGS_REL}
+CFLAGS = -Wall -std=gnu99 -fPIC ${CFLAGS_DEV}
+LDFLAGS = -Llib ${LDFLAGS_DEV}
 LDLIBS_LIB = -lpng
 LDLIBS_BIN = -lpngtile
 
@@ -24,19 +24,20 @@ all: $(DIRS) lib/libpngtile.so bin/pngtile
 
 # binary deps
 lib/libpngtile.so: \
-	build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o \
-	build/shared/util.o build/shared/log.o
+	build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o build/lib/log.o \
+	build/shared/util.o
 
 lib/libpngtile.a: \
-	build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o \
-	build/shared/util.o build/shared/log.o
+	build/lib/image.o build/lib/cache.o build/lib/tile.o build/lib/png.o build/lib/error.o build/lib/log.o \
+	build/shared/util.o
 
 bin/pngtile: \
 	build/pngtile/main.o \
-	build/shared/log.o
+	build/pngtile/log.o
 
 bin/pngtile-static: \
 	build/pngtile/main.o \
+	build/pngtile/log.o \
 	lib/libpngtile.a
 
 SRC_PATHS = $(wildcard src/*/*.c)

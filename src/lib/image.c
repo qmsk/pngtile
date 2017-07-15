@@ -3,7 +3,6 @@
 #include "cache.h"
 #include "tile.h"
 #include "shared/util.h"
-#include "shared/log.h"
 
 #include <stdlib.h>
 #include <string.h>

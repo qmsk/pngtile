@@ -1,6 +1,5 @@
-#include "shared/log.h"
-
 #include "pngtile.h"
+#include "log.h"
 
 #include <getopt.h>
 #include <string.h>
@@ -199,12 +198,18 @@ int main (int argc, char **argv)
 
             case 'q':
                 // supress excess log output
-                set_log_level(LOG_WARN); break;
+                pt_log_warn = false;
+                set_log_level(LOG_WARN);
+
+                break;
 
             case 'v':
             case 'D':
                 // display additional output
-                set_log_level(LOG_DEBUG); break;
+                pt_log_debug = true;
+                set_log_level(LOG_DEBUG);
+
+                break;
 
             case 'U':
                 // force update of image caches

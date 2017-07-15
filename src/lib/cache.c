@@ -1,6 +1,6 @@
 #include "cache.h"
+#include "log.h"
 #include "shared/util.h"
-#include "shared/log.h" // only LOG_DEBUG
 
 #include <stdlib.h>
 #include <string.h>
@@ -51,14 +51,14 @@ static void pt_cache_abort (struct pt_cache *cache)
 {
     if (cache->file != NULL) {
         if (munmap(cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size))
-            log_warn_errno("munmap: %p, %zu", cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size);
+            PT_WARN_ERRNO("munmap %p, %zu", cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size);
 
         cache->file = NULL;
     }
 
     if (cache->fd >= 0) {
         if (close(cache->fd))
-            log_warn_errno("close: %d", cache->fd);
+            PT_WARN_ERRNO("close %d", cache->fd);
 
         cache->fd = -1;
     }
@@ -406,14 +406,14 @@ static void pt_cache_create_abort (struct pt_cache *cache)
 
     // get .tmp path
     if ((err = pt_cache_tmp_name(cache, tmp_path, sizeof(tmp_path)))) {
-        log_warn_errno("pt_cache_tmp_name: %s: %s", cache->path, pt_strerror(err));
+        PT_WARN("pt_cache_tmp_name %s: %s", cache->path, pt_strerror(err));
 
         return;
     }
 
     // remove .tmp
     if (unlink(tmp_path))
-        log_warn_errno("unlink: %s", tmp_path);
+        PT_WARN_ERRNO("unlink %s", tmp_path);
 }
 
 int pt_cache_update (struct pt_cache *cache, struct pt_png_img *img, const struct pt_image_params *params)
