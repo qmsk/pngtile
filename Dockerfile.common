@@ -5,16 +5,15 @@ RUN apt-get update && apt-get install -y \
     libc6-dev libpng-dev \
     python python-dev python-pip virtualenv
 
-ADD . /src/pngtile
+RUN mkdir -p /src/pngtile && virtualenv /opt/pngtile
+ADD requirements.txt /src/pngtile
 
 WORKDIR /src/pngtile
+RUN /opt/pngtile/bin/pip install -r requirements.txt
 
-RUN make
-
-RUN virtualenv /opt/pngtile
+ADD . /src/pngtile
 
 RUN make -B install PREFIX=/opt/pngtile
-RUN /opt/pngtile/bin/pip install -r requirements.txt
 RUN /opt/pngtile/bin/python setup.py build_ext -I /opt/pngtile/include -L /opt/pngtile/lib -R /opt/pngtile/lib
 RUN /opt/pngtile/bin/python setup.py install
 
