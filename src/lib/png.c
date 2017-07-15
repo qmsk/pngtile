@@ -1,5 +1,4 @@
 #include "png.h" // pt_png header
-#include "error.h"
 #include "shared/log.h" // debug only
 
 #include <png.h> // sysmtem libpng header
@@ -17,11 +16,13 @@ int pt_png_check (const char *path)
 
     // fopen
     if ((fp = fopen(path, "rb")) == NULL)
-        RETURN_ERROR(PT_ERR_IMG_OPEN);
+        return -PT_ERR_IMG_OPEN;
 
     // read
-    if (fread(header, 1, sizeof(header), fp) != sizeof(header))
-        JUMP_SET_ERROR(ret, PT_ERR_IMG_FORMAT);
+    if (fread(header, 1, sizeof(header), fp) != sizeof(header)) {
+        ret = -PT_ERR_IMG_FORMAT;
+        goto error;
+      }
 
     // compare signature
     if (png_sig_cmp(header, 0, sizeof(header)))
@@ -48,24 +49,31 @@ int pt_png_open (struct pt_image *image, struct pt_png_img *img)
 
     // open I/O
     if ((err = pt_image_open_file(image, &img->fh)))
-        JUMP_ERROR(err);
+        goto error;
 
     // create the struct
-    if ((img->png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL)
-        JUMP_SET_ERROR(err, PT_ERR_PNG_CREATE);
+    if ((img->png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL) {
+        err = -PT_ERR_PNG_CREATE;
+        goto error;
+    }
 
     // create the info
-    if ((img->info = png_create_info_struct(img->png)) == NULL)
-        JUMP_SET_ERROR(err, PT_ERR_PNG_CREATE);
+    if ((img->info = png_create_info_struct(img->png)) == NULL) {
+        err = -PT_ERR_PNG_CREATE;
+        goto error;
+    }
 
     // setup error trap for the I/O
-    if (setjmp(png_jmpbuf(img->png)))
-        JUMP_SET_ERROR(err, PT_ERR_PNG);
+    if (setjmp(png_jmpbuf(img->png))) {
+        err = -PT_ERR_PNG;
+        goto error;
+    }
 
     // setup error trap
-    if (setjmp(png_jmpbuf(img->png)))
-        JUMP_SET_ERROR(err, PT_ERR_PNG);
-
+    if (setjmp(png_jmpbuf(img->png))) {
+        err = -PT_ERR_PNG;
+        goto error;
+    }
 
     // setup I/O to FILE
     png_init_io(img->png, img->fh);
@@ -90,7 +98,7 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
     if (png_get_interlace_type(img->png, img->info) != PNG_INTERLACE_NONE) {
         log_warn("Can't handle interlaced PNG");
 
-        RETURN_ERROR(PT_ERR_IMG_FORMAT);
+        return -PT_ERR_IMG_FORMAT;
     }
 
 
@@ -127,7 +135,7 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
 
         if (png_get_PLTE(img->png, img->info, &palette, &num_palette) == 0)
             // PLTE chunk not read?
-            RETURN_ERROR(PT_ERR_PNG);
+            return -PT_ERR_PNG;
 
         // should only be 256 of them at most
         assert(num_palette <= PNG_MAX_PALETTE_LENGTH);
@@ -169,7 +177,7 @@ static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_hea
 
     // alloc
     if ((row_buf = malloc(header->row_bytes)) == NULL)
-        RETURN_ERROR(PT_ERR_MEM);
+        return -PT_ERR_MEM;
 
     // decode each row at a time
     for (size_t row = 0; row < header->height; row++) {
@@ -316,7 +324,7 @@ static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_he
 
     // allocate buffer for a single row of image data
     if ((rowbuf = malloc(ti->width * header->col_bytes)) == NULL)
-        RETURN_ERROR(PT_ERR_MEM);
+        return -PT_ERR_MEM;
 
     // how much data we actually have for each row, in px and bytes
     // from [(tile x)---](clip x)
@@ -464,10 +472,10 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
 
     // only supports zooming out...
     if (ti->zoom < 0)
-        RETURN_ERROR(PT_ERR_TILE_ZOOM);
+        return -PT_ERR_TILE_ZOOM;
 
     if ((row_buf = malloc(row_bytes)) == NULL)
-        RETURN_ERROR(PT_ERR_MEM);
+        return -PT_ERR_MEM;
 
     // suppress warning...
     (void) data_height;
@@ -525,20 +533,24 @@ int pt_png_tile (const struct pt_png_header *header, const uint8_t *data, struct
     // check within bounds
     if (ti->x >= header->width || ti->y >= header->height)
         // completely outside
-        RETURN_ERROR(PT_ERR_TILE_CLIP);
+        return -PT_ERR_TILE_CLIP;
 
     // open PNG writer
-    if ((img->png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL)
-        JUMP_SET_ERROR(err, PT_ERR_PNG_CREATE);
+    if ((img->png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL) {
+        err = -PT_ERR_PNG_CREATE;
+        goto error;
+    }
 
-    if ((img->info = png_create_info_struct(img->png)) == NULL)
-        JUMP_SET_ERROR(err, PT_ERR_PNG_CREATE);
+    if ((img->info = png_create_info_struct(img->png)) == NULL) {
+        err = -PT_ERR_PNG_CREATE;
+        goto error;
+    }
 
     // libpng error trap
-    if (setjmp(png_jmpbuf(img->png)))
-        JUMP_SET_ERROR(err, PT_ERR_PNG);
-
-
+    if (setjmp(png_jmpbuf(img->png))) {
+        err = -PT_ERR_PNG;
+        goto error;
+    }
 
     // setup output I/O
     switch (tile->out_type) {

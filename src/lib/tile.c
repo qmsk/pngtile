@@ -1,5 +1,4 @@
 #include "tile.h"
-#include "error.h"
 #include "shared/log.h" // only FATAL
 
 #include <stdlib.h>
@@ -18,7 +17,7 @@ int pt_tile_mem_write (struct pt_tile_mem *buf, void *data, size_t len)
         char *tmp;
 
         if ((tmp = realloc(buf->base, buf_len)) == NULL)
-            RETURN_ERROR(PT_ERR_MEM);
+            return -PT_ERR_MEM;
 
         buf->base = tmp;
         buf->len = buf_len;
@@ -68,7 +67,7 @@ int pt_tile_init_mem (struct pt_tile *tile, struct pt_cache *cache, const struct
 
     // init buffer
     if ((tile->out.mem.base = malloc(PT_TILE_BUF_SIZE)) == NULL)
-        RETURN_ERROR(PT_ERR_MEM);
+        return -PT_ERR_MEM;
 
     tile->out.mem.len = PT_TILE_BUF_SIZE;
     tile->out.mem.off = 0;
@@ -81,7 +80,7 @@ int pt_tile_render (struct pt_tile *tile)
 {
     // validate dimensions
     if (!tile->info.width || !tile->info.height)
-        RETURN_ERROR(PT_ERR_TILE_DIM);
+        return -PT_ERR_TILE_DIM;
 
     return pt_cache_tile(tile->cache, tile);
 }

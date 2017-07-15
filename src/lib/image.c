@@ -2,7 +2,6 @@
 #include "png.h"
 #include "cache.h"
 #include "tile.h"
-#include "error.h"
 #include "shared/util.h"
 #include "shared/log.h"
 
@@ -18,11 +17,14 @@ static int pt_image_new (struct pt_image **image_ptr, const char *path)
     int err = 0;
 
     // alloc
-    if ((image = calloc(1, sizeof(*image))) == NULL)
-        JUMP_SET_ERROR(err, PT_ERR_MEM);
+    if ((image = calloc(1, sizeof(*image))) == NULL) {
+        return -PT_ERR_MEM;
+    }
 
-    if ((image->path = strdup(path)) == NULL)
-        JUMP_SET_ERROR(err, PT_ERR_MEM);
+    if ((image->path = strdup(path)) == NULL) {
+        err = -PT_ERR_MEM;
+        goto error;
+    }
 
     // ok
     *image_ptr = image;
@@ -41,8 +43,9 @@ error:
  */
 static int pt_image_cache_path (struct pt_image *image, char *buf, size_t len)
 {
-    if (path_with_fext(image->path, buf, len, ".cache"))
-        RETURN_ERROR(PT_ERR_PATH);
+    if (path_with_fext(image->path, buf, len, ".cache")) {
+        return -PT_ERR_PATH;
+    }
 
     return 0;
 }
@@ -58,8 +61,8 @@ int pt_image_open (struct pt_image **image_ptr, const char *path, int cache_mode
         return err;
 
     if (err)
-        // fail, not a PNG
-        RETURN_ERROR(PT_ERR_IMG_FORMAT);
+      // fail, not a PNG
+        return -PT_ERR_IMG_FORMAT;
 
     // alloc
     if ((err = pt_image_new(&image, path)))
@@ -67,11 +70,11 @@ int pt_image_open (struct pt_image **image_ptr, const char *path, int cache_mode
 
     // compute cache file path
     if ((err = pt_image_cache_path(image, cache_path, sizeof(cache_path))))
-        JUMP_ERROR(err);
+        goto error;
 
     // create the cache object for this image (doesn't yet open it)
     if ((err = pt_cache_new(&image->cache, cache_path, cache_mode)))
-        JUMP_ERROR(err);
+        goto error;
 
     // ok, ready for access
     *image_ptr = image;
@@ -90,7 +93,7 @@ int pt_image_open_file (struct pt_image *image, FILE **file_ptr)
 
     // open
     if ((fp = fopen(image->path, "rb")) == NULL)
-        RETURN_ERROR(PT_ERR_IMG_OPEN);
+        return -PT_ERR_IMG_OPEN;
 
     // ok
     *file_ptr = fp;
@@ -108,7 +111,7 @@ int pt_image_update (struct pt_image *image, const struct pt_image_params *param
 
     // pre-check enabled
     if (!(image->cache->mode & PT_OPEN_UPDATE))
-        RETURN_ERROR_ERRNO(PT_ERR_OPEN_MODE, EACCES);
+        return -PT_ERR_OPEN_MODE;
 
     // open .png
     if ((err = pt_png_open(image, &img)))
@@ -116,7 +119,7 @@ int pt_image_update (struct pt_image *image, const struct pt_image_params *param
 
     // pass to cache object
     if ((err = pt_cache_update(image->cache, &img, params)))
-        JUMP_ERROR(err);
+        goto error;
 
 error:
     // clean up
@@ -124,7 +127,6 @@ error:
 
     return err;
 }
-
 
 int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr)
 {
@@ -173,7 +175,7 @@ int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info,
 
     // render
     if ((err = pt_tile_render(&tile)))
-        JUMP_ERROR(err);
+        goto error;
 
     // ok
     return 0;
@@ -195,7 +197,7 @@ int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, 
 
     // render
     if ((err = pt_tile_render(&tile)))
-        JUMP_ERROR(err);
+        goto error;
 
     // ok
     *buf_ptr = tile.out.mem.base;

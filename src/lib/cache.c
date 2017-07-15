@@ -1,7 +1,6 @@
 #include "cache.h"
 #include "shared/util.h"
 #include "shared/log.h" // only LOG_DEBUG
-#include "error.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -21,10 +20,12 @@ int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode)
 
     // alloc
     if ((cache = calloc(1, sizeof(*cache))) == NULL)
-        RETURN_ERROR(PT_ERR_MEM);
+        return -PT_ERR_MEM;
 
-    if ((cache->path = strdup(path)) == NULL)
-        JUMP_SET_ERROR(err, PT_ERR_MEM);
+    if ((cache->path = strdup(path)) == NULL) {
+        err = -PT_ERR_MEM;
+        goto error;
+    }
 
     // init
     cache->fd = -1;
@@ -72,7 +73,7 @@ static int pt_cache_open_read_fd (struct pt_cache *cache, int *fd_ptr)
 
     // actual open()
     if ((fd = open(cache->path, O_RDONLY)) < 0)
-        RETURN_ERROR_ERRNO(PT_ERR_OPEN_MODE, EACCES);
+        return -PT_ERR_OPEN_MODE;
 
     // ok
     *fd_ptr = fd;
@@ -90,7 +91,7 @@ static int pt_cache_read_header (int fd, struct pt_cache_header *header)
 
     // seek to start
     if (lseek(fd, 0, SEEK_SET) != 0)
-        RETURN_ERROR(PT_ERR_CACHE_SEEK);
+        return -PT_ERR_CACHE_SEEK;
 
     // write out full header
     while (len) {
@@ -98,7 +99,7 @@ static int pt_cache_read_header (int fd, struct pt_cache_header *header)
 
         // try and write out the header
         if ((ret = read(fd, buf, len)) <= 0)
-            RETURN_ERROR(PT_ERR_CACHE_READ);
+            return -PT_ERR_CACHE_READ;
 
         // update offset
         buf += ret;
@@ -128,7 +129,7 @@ static int pt_cache_version (struct pt_cache *cache)
 
     // read header
     if ((ret = pt_cache_read_header(fd, &header)))
-        JUMP_ERROR(ret);
+        goto error;
 
     // ok
     ret = header.version;
@@ -147,7 +148,7 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
 
     // test original file
     if (stat(img_path, &st_img) < 0)
-        RETURN_ERROR(PT_ERR_IMG_STAT);
+        return -PT_ERR_IMG_STAT;
 
     // test cache file
     if (stat(cache->path, &st_cache) < 0) {
@@ -155,7 +156,7 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
         if (errno == ENOENT)
             return PT_CACHE_NONE;
         else
-            RETURN_ERROR(PT_ERR_CACHE_STAT);
+            return -PT_ERR_CACHE_STAT;
     }
 
     // compare mtime
@@ -203,7 +204,7 @@ static int pt_cache_tmp_name (struct pt_cache *cache, char tmp_path[], size_t tm
 {
     // get .tmp path
     if (path_with_fext(cache->path, tmp_path, tmp_len, ".tmp"))
-        RETURN_ERROR(PT_ERR_PATH);
+        return -PT_ERR_PATH;
 
     return 0;
 }
@@ -233,7 +234,7 @@ static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
 
     // open for write, create, fail if someone else already opened it for update
     if ((fd = open(tmp_path, O_RDWR | O_CREAT | O_EXCL, 0644)) < 0)
-        RETURN_ERROR(PT_ERR_CACHE_OPEN_TMP);
+        return -PT_ERR_CACHE_OPEN_TMP;
 
     // ok
     *fd_ptr = fd;
@@ -261,7 +262,7 @@ static int pt_cache_open_mmap (struct pt_cache *cache, struct pt_cache_file **fi
 
     // mmap() the full file including header
     if ((addr = mmap(NULL, pt_cache_size(data_size), prot, MAP_SHARED, cache->fd, 0)) == MAP_FAILED)
-        RETURN_ERROR(PT_ERR_CACHE_MMAP);
+        return -PT_ERR_CACHE_MMAP;
 
     // ok
     *file_ptr = addr;
@@ -284,15 +285,17 @@ int pt_cache_open (struct pt_cache *cache)
 
     // read in header
     if ((err = pt_cache_read_header(cache->fd, &header)))
-        JUMP_ERROR(err);
+        goto error;
 
     // check version
-    if (header.version != PT_CACHE_VERSION)
-        JUMP_SET_ERROR(err, PT_ERR_CACHE_VERSION);
+    if (header.version != PT_CACHE_VERSION) {
+        err = -PT_ERR_CACHE_VERSION;
+        goto error;
+    }
 
     // mmap the header + data
     if ((err = pt_cache_open_mmap(cache, &cache->file, header.data_size, true)))
-        JUMP_ERROR(err);
+        goto error;
 
     // done
     return 0;
@@ -314,7 +317,7 @@ static int pt_cache_write_header (struct pt_cache *cache, const struct pt_cache_
 
     // seek to start
     if (lseek(cache->fd, 0, SEEK_SET) != 0)
-        RETURN_ERROR(PT_ERR_CACHE_SEEK);
+        return -PT_ERR_CACHE_SEEK;
 
     // write out full header
     while (len) {
@@ -322,7 +325,7 @@ static int pt_cache_write_header (struct pt_cache *cache, const struct pt_cache_
 
         // try and write out the header
         if ((ret = write(cache->fd, buf, len)) <= 0)
-            RETURN_ERROR(PT_ERR_CACHE_WRITE);
+            return -PT_ERR_CACHE_WRITE;
 
         // update offset
         buf += ret;
@@ -348,15 +351,17 @@ static int pt_cache_create (struct pt_cache *cache, struct pt_cache_header *head
 
     // write header
     if ((err = pt_cache_write_header(cache, header)))
-        JUMP_ERROR(err);
+        goto error;
 
     // grow file
-    if (ftruncate(cache->fd, pt_cache_size(header->data_size)) < 0)
-        JUMP_SET_ERROR(err, PT_ERR_CACHE_TRUNC);
+    if (ftruncate(cache->fd, pt_cache_size(header->data_size)) < 0) {
+        err = -PT_ERR_CACHE_TRUNC;
+        goto error;
+      }
 
     // mmap header and data
     if ((err = pt_cache_open_mmap(cache, &cache->file, header->data_size, false)))
-        JUMP_ERROR(err);
+      goto error;
 
     // done
     return 0;
@@ -382,7 +387,7 @@ static int pt_cache_create_done (struct pt_cache *cache)
 
     // rename
     if (rename(tmp_path, cache->path) < 0)
-        RETURN_ERROR(PT_ERR_CACHE_RENAME_TMP);
+        return -PT_ERR_CACHE_RENAME_TMP;
 
     // ok
     return 0;
@@ -418,7 +423,7 @@ int pt_cache_update (struct pt_cache *cache, struct pt_png_img *img, const struc
 
     // check mode
     if (!(cache->mode & PT_OPEN_UPDATE))
-        RETURN_ERROR(PT_ERR_OPEN_MODE);
+        return -PT_ERR_OPEN_MODE;
 
     // close if open
     if ((err = pt_cache_close(cache)))
@@ -476,14 +481,14 @@ int pt_cache_close (struct pt_cache *cache)
 {
     if (cache->file != NULL) {
         if (munmap(cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size))
-            RETURN_ERROR(PT_ERR_CACHE_MUNMAP);
+            return -PT_ERR_CACHE_MUNMAP;
 
         cache->file = NULL;
     }
 
     if (cache->fd >= 0) {
         if (close(cache->fd))
-            RETURN_ERROR(PT_ERR_CACHE_CLOSE);
+            return -PT_ERR_CACHE_CLOSE;
 
         cache->fd = -1;
     }

@@ -1,4 +1,4 @@
-#include "error.h"
+#include "pngtile.h"
 
 /*
  * Mapping for error codes
