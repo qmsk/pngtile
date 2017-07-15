@@ -1,4 +1,4 @@
-FROM qmsk/pngtile
+FROM qmsk/pngtile.common
 
 RUN apt-get update && apt-get install -y \
     uwsgi uwsgi uwsgi-plugin-python
@@ -15,8 +15,8 @@ USER pngtile
 CMD uwsgi --ini /srv/pngtile/etc/uwsgi.ini --http-socket :9090
 EXPOSE 9090/tcp
 
-VOLUME /srv/pngtile/var
+VOLUME /srv/pngtile/images
 
 ENV \
-    QMSK_PNGTILE_PATH=/srv/pngtile/var \
+    QMSK_PNGTILE_PATH=/srv/pngtile/images \
     QMSK_PNGTILE_IMAGES_URL= \
