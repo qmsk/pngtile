@@ -1,6 +1,11 @@
 # libpngtile
 
-Constant-time/memory tile-based handling of large PNG images.
+Constant-time/memory handling of large PNG images as smaller tiles.
+
+Language support:
+
+* [Python](python/)
+* [Go](go/)
 
 ## About
 pngtile is a C library (and associated command-line utility) offering efficient random access to partial regions of
@@ -26,6 +31,7 @@ hexadecimal notation (`--background 0xFFFFFF` - for 24bpp RGB white), and consec
 be omitted in the cache file, which may provide significant gains in space efficiency.
 
 ## Build
+
 The library depends on `libpng`. The code is developed and tested using:
 
 * `libpng12-dev` `png.h` (Ubuntu xenial `1.2.54-1ubuntu1`)
@@ -37,13 +43,36 @@ To compile:
 The `libpngtile.so` and `pypngtile.so` libraries will be placed under `lib/`, and the `pngtile` binary under `bin/`.
 
 ## Usage
-Store the `.png` data files in a directory. You must have write access to the directory when updating the caches,
-which are written as a .cache file alongside the .png file.
+
+```
+Usage: ./bin/pngtile [options] <image> [...]
+Open each of the given image files, check cache status, optionally update their cache, display image info, and
+optionally render a tile of each.
+
+        -h, --help               show this help and exit
+        -q, --quiet              supress informational output
+        -v, --verbose            display more informational output
+        -D, --debug              equivalent to -v
+        -U, --force-update       unconditionally update image caches
+        -N, --no-update          do not update the image cache
+        -B, --background         set background pattern for sparse cache file: 0xHH..
+        -W, --width      PX      set tile width
+        -H, --height     PX      set tile height
+        -x, --x          PX      set tile x offset
+        -y, --y          PX      set tile y offset
+        -z, --zoom       ZL      set zoom factor (<0)
+        -o, --out        FILE    set tile output file
+        --benchmark      N       do N tile renders
+        --randomize              randomize tile x/y coords
+```
+
 
 Provide any number of `*.png` paths as arguments to the `./bin/pngtile` command. Each will be opened, and automatically
 updated if the cache doesn't exist yet, or is stale:
 
     pngtile -v data/*.png
+
+You must have write access to the directory when updating the caches, which are written as a .cache file alongside the .png file.
 
 Use `-v/--verbose` for more detailed output.
 
@@ -63,24 +92,3 @@ Alternatively, to not update an image's cache, use the `-N/--no-update` option.
 ## Issues
 At this stage, the library is primarily designed to handle a specific set of PNG images, and hence does not support
 all aspects of the PNG format, nor any other image formats.
-
-# pypngtile
-
-Python extension for pngtile
-
-## Dependencies
-
-* python-cython
-* python-dev
-
-## Development
-
-    $ python setup.py build_ext
-
-## Install
-
-    $ virtualenv /opt/pngtile
-    $ make -B install PREFIX=/opt/pngtile
-    $ /opt/pngtile/bin/pip install -r requirements.txt
-    $ /opt/pngtile/bin/python setup.py build_ext -I /opt/pngtile/include -L /opt/pngtile/lib -R /opt/pngtile/lib
-    $ /opt/pngtile/bin/python setup.py install

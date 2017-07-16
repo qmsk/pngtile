@@ -10,10 +10,10 @@ try :
 except ImportError :
     CYTHON = False
 
-if CYTHON and os.path.exists('python/pypngtile.pyx'):
-    pypngtile_sources = [ 'python/pypngtile.pyx' ]
-elif os.path.exists("python/pypngtile.c"):
-    pypngtile_sources = [ 'python/pypngtile.c' ]
+if CYTHON and os.path.exists('pypngtile.pyx'):
+    pypngtile_sources = [ 'pypngtile.pyx' ]
+elif os.path.exists("pypngtile.c"):
+    pypngtile_sources = [ 'pypngtile.c' ]
 else:
     raise Exception("Building from source requires Cython")
 
@@ -30,12 +30,9 @@ setup(
     version         = '1.0-dev',
 
     packages        = [ 'pngtile' ],
-    package_dir     = {
-        'pngtile': 'python/pngtile',
-    },
     ext_modules     = ext_modules,
     scripts         = [
-        'python/bin/pypngtile',
-        'python/bin/tile-server',
+        'bin/pypngtile',
+        'bin/tile-server',
     ],
 )
