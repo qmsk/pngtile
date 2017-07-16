@@ -298,6 +298,10 @@ static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
     if ((err = pt_cache_tmp_name(cache, tmp_path, sizeof(tmp_path))))
         return err;
 
+    // replace any old .tmp file
+    if (unlink(tmp_path) < 0 && errno != ENOENT)
+        return -PT_ERR_CACHE_UNLINK_TMP;
+
     // open for write, create, fail if someone else already opened it for update
     if ((fd = open(tmp_path, O_RDWR | O_CREAT | O_EXCL, 0644)) < 0)
         return -PT_ERR_CACHE_OPEN_TMP;

@@ -22,6 +22,7 @@ const char *error_names[PT_ERR_MAX] = {
 
     [PT_ERR_CACHE_STAT]         = "stat(.cache)",
     [PT_ERR_CACHE_OPEN_READ]    = "open(.cache)",
+    [PT_ERR_CACHE_UNLINK_TMP]   = "unlink(tmp)",
     [PT_ERR_CACHE_OPEN_TMP]     = "open(.tmp)",
     [PT_ERR_CACHE_SEEK]         = "seek(.cache)",
     [PT_ERR_CACHE_READ]         = "read(.cache)",
