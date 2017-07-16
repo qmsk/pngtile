@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/gorilla/schema"
 	"github.com/qmsk/pngtile/go"
-	"log"
 	"net/http"
 	"net/url"
 )
@@ -48,7 +47,7 @@ func (params TileParams) zoomScaleCentered(xy uint, wh uint) uint {
 	}
 }
 
-func (params TileParams) tileParams(imageInfo pngtile.ImageInfo) (pngtile.TileParams, error) {
+func (params TileParams) tileParams() (pngtile.TileParams, error) {
 	var tileParams = pngtile.TileParams{
 		Zoom: params.Zoom,
 	}
@@ -69,8 +68,6 @@ func (params TileParams) tileParams(imageInfo pngtile.ImageInfo) (pngtile.TilePa
 		return tileParams, fmt.Errorf("Invalid parameters: use either ?tx=&ty= or ?w=&h=")
 	}
 
-	log.Printf("%#v image=%#v -> %#v", params, imageInfo, tileParams)
-
 	if params.Zoom > TileZoomMax || params.Zoom < TileZoomMin {
 		return tileParams, fmt.Errorf("Invalid zoom level: %d (limit %d-%d)", params.Zoom, TileZoomMin, TileZoomMax)
 	}
@@ -83,24 +80,16 @@ func (params TileParams) tileParams(imageInfo pngtile.ImageInfo) (pngtile.TilePa
 	return tileParams, nil
 }
 
-func renderResponseTile(image *Image, params TileParams) (httpResponse, error) {
-	if tileParams, err := params.tileParams(image.pngtileInfo); err != nil {
-		return httpResponse{Status: 400}, err
-	} else if tileData, err := image.pngtileImage.Tile(tileParams); err != nil {
-		return httpResponse{}, err
-	} else {
-		return renderResponsePNG(tileData)
-	}
-}
-
 func (server *Server) HandleImageTile(r *http.Request, name string, query url.Values) (httpResponse, error) {
 	var params TileParams
 
 	if err := schema.NewDecoder().Decode(&params, query); err != nil {
 		return httpResponse{Status: 400}, err
-	} else if image, err := server.Image(name); err != nil {
+	} else if tileParams, err := params.tileParams(); err != nil {
+		return httpResponse{Status: 400}, err
+	} else if tileData, err := server.ImageTile(name, tileParams); err != nil {
 		return httpResponse{}, err
 	} else {
-		return renderResponseTile(image, params)
+		return renderResponsePNG(tileData)
 	}
 }

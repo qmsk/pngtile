@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"github.com/qmsk/pngtile/go"
 	"path/filepath"
 )
 
@@ -11,7 +10,7 @@ func makeServer(config Config) (*Server, error) {
 		config: config,
 
 		path:   filepath.Clean(config.Path) + "/",
-		images: make(map[string]*pngtile.Image),
+		images: make(map[string]*Image),
 	}
 
 	return &server, nil
@@ -20,7 +19,7 @@ func makeServer(config Config) (*Server, error) {
 type Server struct {
 	config Config
 	path   string
-	images map[string]*pngtile.Image
+	images map[string]*Image
 }
 
 func (server *Server) URL(name string) string {

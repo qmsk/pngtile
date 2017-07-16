@@ -67,7 +67,7 @@ func (server *Server) Handle(r *http.Request) (httpResponse, error) {
 			return httpResponse{}, err
 		}
 	} else if stat.IsDir() {
-		return server.HandleIndex(r, name, path)
+		return server.HandleIndex(r, name)
 	} else if r.URL.RawQuery == "" {
 		return server.HandleImage(r, name)
 	} else {
