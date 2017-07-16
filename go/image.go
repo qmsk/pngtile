@@ -53,6 +53,16 @@ func (image *Image) Update() error {
 	return nil
 }
 
+func (image *Image) Info() (ImageInfo, error) {
+	var image_info C.struct_pt_image_info
+
+	if ret, err := C.pt_image_info(image.pt_image, &image_info); ret < 0 {
+		return ImageInfo{}, makeError("pt_image_open", ret, err)
+	}
+
+	return makeImageInfo(&image_info), nil
+}
+
 // Close image, and destroy it to release resources.
 // The Image is no longer usable, even after error returns.
 func (image *Image) Close() error {

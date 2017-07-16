@@ -33,6 +33,15 @@ func (options Options) run(path string) error {
 			}
 		}
 
+		if info, err := image.Info(); err != nil {
+			return err
+		} else {
+			fmt.Printf("%s:\n", path)
+			fmt.Printf("\tImage: %dx%d@%d\n", info.ImageWidth, info.ImageHeight, info.ImageBPP)
+			fmt.Printf("\tImage mtime=%v bytes=%d\n", info.ImageModifiedTime, info.ImageBytes)
+			fmt.Printf("\tCache mtime=%v bytes=%d version=%d blocks=%d\n", info.CacheModifiedTime, info.CacheBytes, info.CacheVersion, info.CacheBlocks)
+		}
+
 		return nil
 	})
 }
