@@ -7,7 +7,9 @@ RUN apt-get update && apt-get install -y \
 
 RUN mkdir -p /go
 ENV GOPATH=/go
-RUN go get -v -d github.com/urfave/cli
+RUN go get -v -d \
+  github.com/urfave/cli \
+  github.com/gorilla/schema
 
 ADD . /go/src/github.com/qmsk/pngtile
 WORKDIR /go/src/github.com/qmsk/pngtile

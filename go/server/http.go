@@ -16,6 +16,10 @@ type httpResponse struct {
 	Content     []byte
 }
 
+func renderResponsePNG(data []byte) (httpResponse, error) {
+	return httpResponse{200, "image/png", data}, nil
+}
+
 func renderResponseJSON(data interface{}) (httpResponse, error) {
 	var buffer bytes.Buffer
 
@@ -64,8 +68,10 @@ func (server *Server) Handle(r *http.Request) (httpResponse, error) {
 		}
 	} else if stat.IsDir() {
 		return server.HandleIndex(r, name, path)
+	} else if r.URL.RawQuery == "" {
+		return server.HandleImage(r, name)
 	} else {
-		return server.HandleImage(r, name, path)
+		return server.HandleImageTile(r, name, r.URL.Query())
 	}
 }
 

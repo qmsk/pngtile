@@ -7,16 +7,19 @@ import (
 const baseHTML = `
 <html>
   <head>
+  {{block "head" .}}
     <title>{{block "title" .}}pngtile{{end}}</title>
-    {{block "head" .}}
+
+    {{block "link" .}}
     <link rel="stylesheet" href="/static/app/pngtile.css">
     {{end}}
+  {{end}}
   </head>
   <body>
+  {{block "body" .}}
     <h1>{{template "title"}}</h1>
-    {{block "body" .}}
 
-    {{end}}
+  {{end}}
   </body>
 </html>
 `
@@ -26,6 +29,7 @@ var indexTemplate = template.New("index")
 const indexHTML = `
 {{define "title"}}pngtile :: {{.Name}}{{end}}
 {{define "body"}}
+<h1>{{template "title"}}</h1>
 <ul>
 {{range $name := .Names}}
   <li><a href="{{$name}}">{{$name}}</a></li>
@@ -38,7 +42,7 @@ var imageTemplate = template.New("image")
 
 const imageHTML = `
 {{define "title"}}pngtile :: {{.Name}}{{end}}
-{{define "head"}}
+{{define "link"}}
   <link rel="stylesheet" href="/static/app/pngtile.css">
   <link rel="stylesheet" href="/static/app/pngtile/map.css">
   <link rel="stylesheet" href="/static/node_modules/leaflet/dist/leaflet.css">

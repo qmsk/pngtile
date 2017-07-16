@@ -6,15 +6,13 @@ import (
 )
 
 type Image struct {
+	path         string
+	pngtileImage *pngtile.Image
+	pngtileInfo  pngtile.ImageInfo
+
 	Name   string
 	Config ImageConfig
 }
-
-const TileURL = "{tiles_url}?t={tiles_mtime}&x={x}&y={y}&zoom={z}"
-const TileSize uint = 256
-const TileZoom int = 4
-
-const ImageURL = "{tiles_url}?w={w}&h={h}&x={x}&y={y}&zoom={z}"
 
 type ImageConfig struct {
 	TilesURL          string `json:"tiles_url"`
@@ -38,13 +36,17 @@ func (server *Server) Image(name string) (*Image, error) {
 		return nil, err
 	} else {
 		var image = Image{
+			path:         path,
+			pngtileImage: pngtileImage,
+			pngtileInfo:  pngtileInfo,
+
 			Name: name,
 			Config: ImageConfig{
 				TilesURL:          server.URL(name),
 				TilesModifiedTime: 0, // TODO: caching
 				TileURL:           TileURL,
 				TileSize:          TileSize,
-				TileZoom:          TileZoom,
+				TileZoom:          TileZoomMax,
 				ImageURL:          ImageURL,
 				ImageWidth:        pngtileInfo.ImageWidth,
 				ImageHeight:       pngtileInfo.ImageHeight,
@@ -55,7 +57,7 @@ func (server *Server) Image(name string) (*Image, error) {
 	}
 }
 
-func (server *Server) HandleImage(r *http.Request, name, path string) (httpResponse, error) {
+func (server *Server) HandleImage(r *http.Request, name string) (httpResponse, error) {
 	if image, err := server.Image(name); err != nil {
 		return httpResponse{}, err
 	} else {
