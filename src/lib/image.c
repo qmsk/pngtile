@@ -188,6 +188,8 @@ int pt_image_open (struct pt_image *image)
 
 int pt_image_tile_file (struct pt_image *image, const struct pt_tile_params *params, FILE *out)
 {
+    PT_DEBUG("%s: width=%u height=%u x=%u y=%u zoom=%d", image->path, params->width, params->height, params->x, params->y, params->zoom);
+
     struct pt_tile tile;
     int err;
 
@@ -210,6 +212,8 @@ error:
 
 int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_params *params, char **buf_ptr, size_t *len_ptr)
 {
+    PT_DEBUG("%s: width=%u height=%u x=%u y=%u zoom=%d", image->path, params->width, params->height, params->x, params->y, params->zoom);
+
     struct pt_tile tile;
     int err;
 
