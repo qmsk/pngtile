@@ -15,6 +15,8 @@
 
 int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode)
 {
+    PT_DEBUG("%s: mode=%d", path, mode);
+
     struct pt_cache *cache;
     int err;
 
@@ -49,6 +51,8 @@ error:
  */
 static void pt_cache_abort (struct pt_cache *cache)
 {
+    PT_DEBUG("%s", cache->path);
+
     if (cache->file != NULL) {
         if (munmap(cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size))
             PT_WARN_ERRNO("munmap %p, %zu", cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size);
@@ -69,6 +73,8 @@ static void pt_cache_abort (struct pt_cache *cache)
  */
 static int pt_cache_open_read_fd (struct pt_cache *cache, int *fd_ptr)
 {
+    PT_DEBUG("%s", cache->path);
+
     int fd;
 
     // actual open()
@@ -138,11 +144,15 @@ error:
     // close
     close(fd);
 
+    PT_DEBUG("%s: %d", cache->path, ret);
+
     return ret;
 }
 
 int pt_cache_status (struct pt_cache *cache, const char *img_path)
 {
+    PT_DEBUG("%s", cache->path);
+
     struct stat st_img, st_cache;
     int ver;
 
@@ -272,6 +282,8 @@ static int pt_cache_open_mmap (struct pt_cache *cache, struct pt_cache_file **fi
 
 int pt_cache_open (struct pt_cache *cache)
 {
+    PT_DEBUG("%s", cache->path);
+
     struct pt_cache_header header;
     int err;
 

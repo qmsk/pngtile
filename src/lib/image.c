@@ -3,6 +3,7 @@
 #include "cache.h"
 #include "tile.h"
 #include "path.h"
+#include "log.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -51,6 +52,8 @@ static int pt_image_cache_path (struct pt_image *image, char *buf, size_t len)
 
 int pt_image_new (struct pt_image **image_ptr, const char *path, int cache_mode)
 {
+    PT_DEBUG("%s: cache_mode=%d", path, cache_mode);
+
     struct pt_image *image;
     char cache_path[1024];
     int err;
@@ -112,6 +115,8 @@ int pt_image_open_file (struct pt_image *image, FILE **file_ptr)
  */
 int pt_image_update (struct pt_image *image, const struct pt_image_params *params)
 {
+    PT_DEBUG("%s: params=%p", image->path, params);
+
     struct pt_png_img img;
     int err = 0;
 
@@ -153,6 +158,8 @@ int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr
         image->info.image_bytes = st.st_size;
     }
 
+    PT_DEBUG("%s: image width=%d height=%d", image->path, image->info.img_width, image->info.img_height);
+
     // return pointer
     *info_ptr = &image->info;
 
@@ -161,6 +168,8 @@ int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr
 
 int pt_image_open (struct pt_image *image)
 {
+    PT_DEBUG("%s", image->path);
+
     return pt_cache_open(image->cache);
 }
 
@@ -213,6 +222,8 @@ error:
 
 int pt_image_close (struct pt_image *image)
 {
+  PT_DEBUG("%s", image->path);
+
   int err;
 
   if (image->cache && (err = pt_cache_close(image->cache)))
@@ -223,6 +234,8 @@ int pt_image_close (struct pt_image *image)
 
 void pt_image_destroy (struct pt_image *image)
 {
+    PT_DEBUG("%s", image->path);
+
     free(image->path);
 
     if (image->cache)
