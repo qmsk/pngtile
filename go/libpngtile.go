@@ -1,7 +1,7 @@
 package pngtile
 
 // #cgo CFLAGS: -I${SRCDIR}/../include
-// #cgo LDFLAGS: -L${SRCDIR}/../lib -lpngtile
+// #cgo LDFLAGS: ${SRCDIR}/../lib/libpngtile.a -lpng
 /*
 #include "pngtile.h"
 */
