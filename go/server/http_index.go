@@ -25,7 +25,11 @@ func (item IndexItem) Title() string {
 }
 
 func (item IndexItem) URL() string {
-	return "/" + item.Name
+	if item.Name == "/" {
+		return "/"
+	} else {
+		return "/" + item.Name
+	}
 }
 
 type IndexImage struct {
@@ -74,7 +78,7 @@ func (index *IndexResponse) buildBreadcrumb(path string) []IndexItem {
 		}
 
 		breadcrumb = append(breadcrumb, IndexItem{
-			Name: name,
+			Name: name + "/",
 		})
 	}
 
