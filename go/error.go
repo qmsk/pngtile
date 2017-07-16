@@ -14,6 +14,10 @@ type CallError struct {
 	ret  C.int
 }
 
+func (err CallError) String() string {
+	return C.GoString(C.pt_strerror(err.ret))
+}
+
 type SysCallError struct {
 	CallError
 	errno syscall.Errno
@@ -35,13 +39,13 @@ func makeError(call string, ret C.int, err error) error {
 }
 
 func (err CallError) Error() string {
-	return fmt.Sprintf("%s: %s", err.call, C.pt_strerror(err.ret))
+	return fmt.Sprintf("%s: %s", err.call, err.String())
 }
 
 func (err SysCallError) Error() string {
-	return fmt.Sprintf("%s: %s: %s", err.call, C.pt_strerror(err.ret), err.errno.Error())
+	return fmt.Sprintf("%s: %s: %s", err.call, err.String(), err.errno.Error())
 }
 
 func (err CallErrorError) Error() string {
-	return fmt.Sprintf("%s: %s: %s", err.call, C.pt_strerror(err.ret), err.err.Error())
+	return fmt.Sprintf("%s: %s: %s", err.call, err.String(), err.err.Error())
 }
