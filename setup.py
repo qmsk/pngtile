@@ -35,7 +35,7 @@ setup(
     },
     ext_modules     = ext_modules,
     scripts         = [
-        'bin/pypngtile',
-        'bin/tile-server',
+        'python/bin/pypngtile',
+        'python/bin/tile-server',
     ],
 )
