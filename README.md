@@ -7,6 +7,15 @@ Language support:
 * [Python](python/)
 * [Go](go/)
 
+## Docker
+
+If you have some `.png` files in your current directory:
+
+    $ docker pull qmsk/pngtile
+    $ docker run --rm -v $PWD:/srv/pngtile/images -p 9090:9090 qmsk/pngtile
+
+The default image `CMD` will build the cache files, and then run the server on HTTP port 9090.
+
 ## About
 pngtile is a C library (and associated command-line utility) offering efficient random access to partial regions of
 very large PNG images (gigapixel range).
@@ -41,6 +50,12 @@ To compile:
     $ make
 
 The `libpngtile.so` and `pypngtile.so` libraries will be placed under `lib/`, and the `pngtile` binary under `bin/`.
+
+Alternatively, use the included `Dockerfile` to build:
+
+    $ docker build -t pngtile .
+
+However, this is slower than desired for development purposes.
 
 ## Usage
 
