@@ -109,8 +109,8 @@ long randrange (long start, long end)
  */
 void randomize_tile (struct pt_tile_info *ti, const struct pt_image_info *info)
 {
-    ti->x = randrange(0, info->img_width - ti->width);
-    ti->y = randrange(0, info->img_height - ti->height);
+    ti->x = randrange(0, info->image_width - ti->width);
+    ti->y = randrange(0, info->image_height - ti->height);
 }
 
 /**
@@ -347,16 +347,16 @@ int main (int argc, char **argv)
         }
 
         // show info
-        const struct pt_image_info *info;
+        struct pt_image_info info;
 
         if ((err = pt_image_info(image, &info))) {
             log_warn_errno("pt_image_info: %s: %s", img_path, pt_strerror(err));
 
         } else {
-            log_info("\tImage dimensions: %zux%zu (%zu bpp)", info->img_width, info->img_height, info->img_bpp);
-            log_info("\tImage mtime=%ld, bytes=%zu", (long) info->image_mtime, info->image_bytes);
+            log_info("\tImage dimensions: %zux%zu (%zu bpp)", info.image_width, info.image_height, info.image_bpp);
+            log_info("\tImage mtime=%ld, bytes=%zu", (long) info.image_mtime, info.image_bytes);
             log_info("\tCache mtime=%ld, bytes=%zu, blocks=%zu (%zu bytes), version=%d",
-                    (long) info->cache_mtime, info->cache_bytes, info->cache_blocks, info->cache_blocks * 512, info->cache_version
+                    (long) info.cache_mtime, info.cache_bytes, info.cache_blocks, info.cache_blocks * 512, info.cache_version
             );
         }
 
@@ -368,7 +368,7 @@ int main (int argc, char **argv)
             for (int i = 0; i < benchmark; i++) {
                 // randomize x, y
                 if (randomize)
-                    randomize_tile(&ti, info);
+                    randomize_tile(&ti, &info);
 
                 if (do_tile(image, &ti, out_path))
                     goto error;
@@ -377,7 +377,7 @@ int main (int argc, char **argv)
         } else if (out_path) {
             // randomize x, y
             if (randomize)
-                randomize_tile(&ti, info);
+                randomize_tile(&ti, &info);
 
             // just once
             if (do_tile(image, &ti, out_path))

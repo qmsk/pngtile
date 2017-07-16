@@ -243,9 +243,9 @@ int pt_png_decode (struct pt_png_img *img, const struct pt_png_header *header, c
 int pt_png_info (struct pt_png_header *header, struct pt_image_info *info)
 {
     // fill in info from header
-    info->img_width = header->width;
-    info->img_height = header->height;
-    info->img_bpp = header->bit_depth;
+    info->image_width = header->width;
+    info->image_height = header->height;
+    info->image_bpp = header->bit_depth;
 
     return 0;
 }

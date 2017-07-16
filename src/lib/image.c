@@ -139,7 +139,7 @@ error:
     return err;
 }
 
-int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr)
+int pt_image_info (struct pt_image *image, struct pt_image_info *info_ptr)
 {
     struct stat st;
 
@@ -158,10 +158,10 @@ int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr
         image->info.image_bytes = st.st_size;
     }
 
-    PT_DEBUG("%s: image width=%d height=%d", image->path, image->info.img_width, image->info.img_height);
+    PT_DEBUG("%s: image width=%d height=%d", image->path, image->info.image_width, image->info.image_height);
 
-    // return pointer
-    *info_ptr = &image->info;
+    // copy struct
+    *info_ptr = image->info;
 
     return 0;
 }

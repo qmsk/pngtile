@@ -49,10 +49,10 @@ enum pt_cache_status {
 /** Metadata info for image. Values will be set to zero if not available */
 struct pt_image_info {
     /** Dimensions of image. Only available if the cache is open */
-    size_t img_width, img_height;
+    size_t image_width, image_height;
 
     /** Bits per pixel */
-    size_t img_bpp;
+    size_t image_bpp;
 
     /** Last update of image file */
     time_t image_mtime;
@@ -146,7 +146,7 @@ int pt_image_open (struct pt_image *image);
  * XXX: only valid if open, after open/update?
  * XXX: this never fails, just returns partial info
  */
-int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr);
+int pt_image_info (struct pt_image *image, struct pt_image_info *info_ptr);
 
 /**
  * Render a PNG tile to a FILE*.
