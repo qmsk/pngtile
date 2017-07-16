@@ -12,6 +12,8 @@
 #include <errno.h>
 #include <assert.h>
 
+const uint16_t pt_cache_version = PT_CACHE_VERSION;
+const uint8_t pt_cache_magic[6] = PT_CACHE_MAGIC;
 
 int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode)
 {
@@ -117,44 +119,46 @@ static int pt_cache_read_header (int fd, struct pt_cache_header *header)
 }
 
 /**
- * Read and return the version number from the cache file, temporarily opening it if needed
+ * Read the header from the cache file, temporarily opening it if needed
  */
-static int pt_cache_version (struct pt_cache *cache)
+static int pt_cache_header (struct pt_cache *cache, struct pt_cache_header *header)
 {
-    int fd;
-    struct pt_cache_header header;
-    int ret;
-
     // already open?
-    if (cache->file)
-        return cache->file->header.version;
+    if (cache->file) {
+        *header = cache->file->header;
+        return 0;
+    }
+
+    int fd;
+    int err = 0;
 
     // temp. open
-    if ((ret = pt_cache_open_read_fd(cache, &fd)))
-        return ret;
+    if ((err = pt_cache_open_read_fd(cache, &fd)))
+        return err;
 
     // read header
-    if ((ret = pt_cache_read_header(fd, &header)))
+    if ((err = pt_cache_read_header(fd, header)))
         goto error;
 
-    // ok
-    ret = header.version;
+    if (memcmp(header->magic, pt_cache_magic, sizeof(pt_cache_magic)) != 0)
+        return -PT_ERR_CACHE_MAGIC;
 
 error:
     // close
     close(fd);
 
-    PT_DEBUG("%s: %d", cache->path, ret);
+    PT_DEBUG("%s: %d", cache->path, err);
 
-    return ret;
+    return err;
 }
 
 int pt_cache_status (struct pt_cache *cache, const char *img_path)
 {
     PT_DEBUG("%s", cache->path);
 
+    struct pt_cache_header header;
     struct stat st_img, st_cache;
-    int ver;
+    int err = 0;
 
     // test original file
     if (stat(img_path, &st_img) < 0)
@@ -173,41 +177,48 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
     if (st_img.st_mtime > st_cache.st_mtime)
         return PT_CACHE_STALE;
 
-    // read version
-    if ((ver = pt_cache_version(cache)) < 0)
-        // fail
-        return ver;
+    // read header
+    if ((err = pt_cache_header(cache, &header)) == 0) {
+
+    } else if (err == -PT_ERR_CACHE_MAGIC) {
+      return PT_CACHE_INCOMPAT;
+    } else {
+        return err;
+    }
 
     // compare version
-    if (ver != PT_CACHE_VERSION)
+    if (header.version != pt_cache_version)
         return PT_CACHE_INCOMPAT;
 
     // ok, should be in order
     return PT_CACHE_FRESH;
 }
 
-void pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
+int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
 {
+    struct pt_cache_header header;
+    int err = 0;
     struct stat st;
 
-    if (cache->file)
-        // img info
-        pt_png_info(&cache->file->header.png, info);
-
-    // stat
     if (stat(cache->path, &st) < 0) {
-        // unknown
-        info->cache_mtime = 0;
-        info->cache_bytes = 0;
-        info->cache_blocks = 0;
-
-    } else {
-        // store
-        info->cache_version = pt_cache_version(cache);
-        info->cache_mtime = st.st_mtime;
-        info->cache_bytes = st.st_size;
-        info->cache_blocks = st.st_blocks;
+      return -PT_ERR_CACHE_STAT;
     }
+
+    // cache file info
+    info->cache_mtime = st.st_mtime;
+    info->cache_bytes = st.st_size;
+    info->cache_blocks = st.st_blocks;
+
+    // read header
+    if ((err = pt_cache_header(cache, &header)))
+        return err;
+
+    info->cache_version = header.version;
+
+    // img info
+    pt_png_info(&header.png, info);
+
+    return 0;
 }
 
 static int pt_cache_tmp_name (struct pt_cache *cache, char tmp_path[], size_t tmp_len)
@@ -300,7 +311,7 @@ int pt_cache_open (struct pt_cache *cache)
         goto error;
 
     // check version
-    if (header.version != PT_CACHE_VERSION) {
+    if (header.version != pt_cache_version) {
         err = -PT_ERR_CACHE_VERSION;
         goto error;
     }
@@ -430,7 +441,11 @@ static void pt_cache_create_abort (struct pt_cache *cache)
 
 int pt_cache_update (struct pt_cache *cache, struct pt_png_img *img, const struct pt_image_params *params)
 {
-    struct pt_cache_header header;
+    struct pt_cache_header header = {
+      .version = pt_cache_version,
+      .magic   = PT_CACHE_MAGIC,
+      .format  = PT_IMG_PNG,
+    };
     int err;
 
     // check mode
@@ -440,10 +455,6 @@ int pt_cache_update (struct pt_cache *cache, struct pt_png_img *img, const struc
     // close if open
     if ((err = pt_cache_close(cache)))
         return err;
-
-    // prep header
-    header.version = PT_CACHE_VERSION;
-    header.format = PT_IMG_PNG;
 
     // read img header
     if ((err = pt_png_read_header(img, &header.png, &header.data_size)))

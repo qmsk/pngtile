@@ -155,29 +155,25 @@ error:
     return err;
 }
 
-int pt_image_info (struct pt_image *image, struct pt_image_info *info_ptr)
+int pt_image_info (struct pt_image *image, struct pt_image_info *info)
 {
     struct stat st;
+    int err;
 
-    // update info from cache
-    pt_cache_info(image->cache, &image->info);
-
-    // stat our info
     if (stat(image->path, &st) < 0) {
-        // unknown
-        image->info.image_mtime = 0;
-        image->info.image_bytes = 0;
-
-    } else {
-        // store
-        image->info.image_mtime = st.st_mtime;
-        image->info.image_bytes = st.st_size;
+        return -PT_ERR_IMG_STAT;
     }
 
-    PT_DEBUG("%s: image width=%d height=%d", image->path, image->info.image_width, image->info.image_height);
+    // image file info
+    info->image_mtime = st.st_mtime;
+    info->image_bytes = st.st_size;
 
-    // copy struct
-    *info_ptr = image->info;
+    // update info from cache
+    if ((err = pt_cache_info(image->cache, info))) {
+      return err;
+    }
+
+    PT_DEBUG("%s: image width=%d height=%d", image->path, info->image_width, info->image_height);
 
     return 0;
 }

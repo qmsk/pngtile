@@ -12,10 +12,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/**
- * Cache format version
- */
-#define PT_CACHE_VERSION 3
+#define PT_CACHE_VERSION 4
+#define PT_CACHE_MAGIC { 'P', 'N', 'G', 'T', 'I', 'L' }
 
 /**
  * Size used to store the cache header
@@ -26,8 +24,8 @@
  * On-disk header
  */
 struct pt_cache_header {
-    /** Set to PT_CACHE_VERSION */
-    uint16_t version;
+    uint8_t magic[6];
+    uint16_t version; // pt_cache_version
 
     /** Image format */
     enum pt_img_format {
@@ -88,16 +86,21 @@ int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode);
 /**
  * Verify if the cached data eixsts, or has become stale compared to the given original file.
  *
+ * This will stat both the image file and cache file. This will also temporarily open the cache file to read the header version, if not already opened.
+ *
  * @return one of pt_cache_status; <0 on error, 0 if fresh, >0 otherwise
  */
 int pt_cache_status (struct pt_cache *cache, const char *img_path);
 
 /**
- * Get info for the cached image.
+ * Get cached image info.
  *
- * Does not open it if not yet opened.
+ * Opens the cache temporarily if not already opened.
+ *
+ * @return from pt_cache_header()
+ * @return -PT_ERR_CACHE_STAT
  */
-void pt_cache_info (struct pt_cache *cache, struct pt_image_info *info);
+int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info);
 
 /**
  * Update the cache data from the given image data

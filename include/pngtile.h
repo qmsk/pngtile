@@ -142,6 +142,14 @@ int pt_image_sniff (const char *path);
 int pt_image_new (struct pt_image **image_ptr, const char *png_path, int cache_mode);
 
 /**
+ * Get the image's metadata.
+ *
+ * Opens the cache temporarily if not already open.
+ *
+ */
+int pt_image_info (struct pt_image *image, struct pt_image_info *info_ptr);
+
+/**
  * Check the given image's cache is stale - in other words, if the image needs to be update()'d.
  *
  * @return pt_cache_status, < 0 on error.
@@ -163,14 +171,6 @@ int pt_image_update (struct pt_image *image, const struct pt_image_params *param
  * Fails if the cache doesn't exist.
  */
 int pt_image_open (struct pt_image *image);
-
-/**
- * Get the image's metadata.
- *
- * XXX: only valid if open, after open/update?
- * XXX: this never fails, just returns partial info
- */
-int pt_image_info (struct pt_image *image, struct pt_image_info *info_ptr);
 
 /**
  * Render a PNG tile to a FILE*.
@@ -241,6 +241,7 @@ enum pt_error {
     PT_ERR_CACHE_TRUNC,
     PT_ERR_CACHE_MMAP,
     PT_ERR_CACHE_RENAME_TMP,
+    PT_ERR_CACHE_MAGIC,
     PT_ERR_CACHE_VERSION,
     PT_ERR_CACHE_MUNMAP,
     PT_ERR_CACHE_CLOSE,

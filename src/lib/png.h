@@ -68,9 +68,9 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
 int pt_png_decode (struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params, uint8_t *out);
 
 /**
- * Fill in img_* fields of pt_image_info from header
+ * Fill in img_* fields of pt_image_info from cache png header
  */
-int pt_png_info (struct pt_png_header *header, struct pt_image_info *info);
+int pt_png_info (const struct pt_png_header *header, struct pt_image_info *info);
 
 /**
  * Render out a tile
