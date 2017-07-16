@@ -27,11 +27,13 @@ func makeImageInfo(ci *C.struct_pt_image_info) ImageInfo {
 }
 
 type ImageInfo struct {
-	ImageWidth, ImageHeight, ImageBPP uint
-	ImageModifiedTime                 time.Time
-	ImageBytes                        uint
-	CacheVersion                      int
-	CacheModifiedTime                 time.Time
-	CacheBytes                        uint
-	CacheBlocks                       uint
+	ImageWidth        uint      `json:"image_width"`
+	ImageHeight       uint      `json:"image_height"`
+	ImageBPP          uint      `json:"image_bpp"`
+	ImageModifiedTime time.Time `json:"image_mtime"`
+	ImageBytes        uint      `json:"image_bytes"`
+	CacheVersion      int       `json:"cache_version"`
+	CacheModifiedTime time.Time `json:"cache_mtime"`
+	CacheBytes        uint      `json:"cache_bytes"`
+	CacheBlocks       uint      `json:"cache_blocks"`
 }
