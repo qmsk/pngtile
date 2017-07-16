@@ -107,16 +107,16 @@ long randrange (long start, long end)
 /**
  * Randomize tile x/y with given image info
  */
-void randomize_tile (struct pt_tile_info *ti, const struct pt_image_info *info)
+void randomize_tile (struct pt_tile_params *params, const struct pt_image_info *info)
 {
-    ti->x = randrange(0, info->image_width - ti->width);
-    ti->y = randrange(0, info->image_height - ti->height);
+    params->x = randrange(0, info->image_width - params->width);
+    params->y = randrange(0, info->image_height - params->height);
 }
 
 /**
  * Render a tile
  */
-int do_tile (struct pt_image *image, const struct pt_tile_info *ti, const char *out_path)
+int do_tile (struct pt_image *image, const struct pt_tile_params *params, const char *out_path)
 {
     FILE *out_file = NULL;
     char tmp_name[] = "pt-tile-XXXXXX";
@@ -156,9 +156,9 @@ int do_tile (struct pt_image *image, const struct pt_tile_info *ti, const char *
     }
 
     // render
-    log_info("\tRender tile %zux%zu@(%zu,%zu) -> %s", ti->width, ti->height, ti->x, ti->y, out_path);
+    log_info("\tRender tile %zux%zu@(%zu,%zu) -> %s", params->width, params->height, params->x, params->y, out_path);
 
-    if ((err = pt_image_tile_file(image, ti, out_file))) {
+    if ((err = pt_image_tile_file(image, params, out_file))) {
         log_errno("pt_image_tile_file: %s", pt_strerror(err));
         goto error;
     }
@@ -175,7 +175,7 @@ int main (int argc, char **argv)
 {
     int opt;
     bool force_update = false, no_update = false, randomize = false;
-    struct pt_tile_info ti = {
+    struct pt_tile_params params = {
         .width  = 800,
         .height = 600,
         .x      = 0,
@@ -237,19 +237,19 @@ int main (int argc, char **argv)
                 } break;
 
             case 'W':
-                ti.width = parse_uint(optarg, "--width"); break;
+                params.width = parse_uint(optarg, "--width"); break;
 
             case 'H':
-                ti.height = parse_uint(optarg, "--height"); break;
+                params.height = parse_uint(optarg, "--height"); break;
 
             case 'x':
-                ti.x = parse_uint(optarg, "--x"); break;
+                params.x = parse_uint(optarg, "--x"); break;
 
             case 'y':
-                ti.y = parse_uint(optarg, "--y"); break;
+                params.y = parse_uint(optarg, "--y"); break;
 
             case 'z':
-                ti.zoom = parse_sint(optarg, "--zoom"); break;
+                params.zoom = parse_sint(optarg, "--zoom"); break;
 
             case 'o':
                 // output file
@@ -368,19 +368,19 @@ int main (int argc, char **argv)
             for (int i = 0; i < benchmark; i++) {
                 // randomize x, y
                 if (randomize)
-                    randomize_tile(&ti, &info);
+                    randomize_tile(&params, &info);
 
-                if (do_tile(image, &ti, out_path))
+                if (do_tile(image, &params, out_path))
                     goto error;
             }
 
         } else if (out_path) {
             // randomize x, y
             if (randomize)
-                randomize_tile(&ti, &info);
+                randomize_tile(&params, &info);
 
             // just once
-            if (do_tile(image, &ti, out_path))
+            if (do_tile(image, &params, out_path))
                 goto error;
 
         }

@@ -28,7 +28,7 @@ struct pt_tile {
     struct pt_cache *cache;
 
     /** Render spec */
-    struct pt_tile_info info;
+    struct pt_tile_params params;
 
     /** Output type */
     enum pt_tile_output out_type;
@@ -59,12 +59,12 @@ int pt_tile_new (struct pt_tile **tile_ptr);
 /**
  * Initialize to render with given params, writing output to given FILE*
  */
-int pt_tile_init_file (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_info *info, FILE *out);
+int pt_tile_init_file (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_params *params, FILE *out);
 
 /**
  * Initialize to render with given params, writing output to a memory buffer
  */
-int pt_tile_init_mem (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_info *info);
+int pt_tile_init_mem (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_params *params);
 
 /**
  * Render PNG data from given cache according to parameters given to pt_tile_init_*

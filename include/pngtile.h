@@ -99,11 +99,11 @@ struct pt_image_params {
 };
 
 /**
- * Info for image tile
+ * Parameters for tile render.
  *
  * The tile may safely overlap with the edge of the image, but it should not be entirely outside of the image
  */
-struct pt_tile_info {
+struct pt_tile_params {
     /** Dimensions of output image */
     size_t width, height;
 
@@ -172,7 +172,7 @@ int pt_image_info (struct pt_image *image, struct pt_image_info *info_ptr);
  *
  * Tile render operations are threadsafe as long as the pt_image is not modified during execution: call pt_image_load() first.
  */
-int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info, FILE *out);
+int pt_image_tile_file (struct pt_image *image, const struct pt_tile_params *params, FILE *out);
 
 /**
  * Render a PNG tile to memory.
@@ -182,11 +182,11 @@ int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info,
  * Tile render operations are threadsafe as long as the pt_image is not modified during execution: call pt_image_load() first.
  *
  * @param image render from image's cache
- * @param info tile parameters
+ * @param params tile parameters
  * @param buf_ptr returned heap buffer
  * @param len_ptr returned buffer length
  */
-int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, char **buf_ptr, size_t *len_ptr);
+int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_params *params, char **buf_ptr, size_t *len_ptr);
 
 /**
  * Close associated resources, returning error.

@@ -286,12 +286,12 @@ static inline const void* tile_row_col (const struct pt_png_header *header, cons
 /**
  * Write raw tile image data, directly from the cache
  */
-static int pt_png_encode_direct (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_info *ti)
+static int pt_png_encode_direct (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_params *params)
 {
-    for (size_t row = ti->y; row < ti->y + ti->height; row++)
+    for (size_t row = params->y; row < params->y + params->height; row++)
         // write data directly
         // missing const...
-        png_write_row(img->png, (const png_bytep) tile_row_col(header, data, row, ti->x));
+        png_write_row(img->png, (const png_bytep) tile_row_col(header, data, row, params->x));
 
     return 0;
 }
@@ -308,47 +308,47 @@ static inline void tile_row_fill_clip (const struct pt_png_header *header, png_b
 /**
  * Write clipped tile image data (a tile that goes over the edge of the actual image) by aligning the data from the cache as needed
  */
-static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_info *ti)
+static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_params *params)
 {
     png_byte *rowbuf;
     size_t row;
 
-    // image data goes from (ti->x ... clip_x, ti->y ... clip_y), remaining region is filled
+    // image data goes from (params->x ... clip_x, params->y ... clip_y), remaining region is filled
     size_t clip_x, clip_y;
 
 
     // fit the left/bottom edge against the image dimensions
-    clip_x = min(ti->x + ti->width, header->width);
-    clip_y = min(ti->y + ti->height, header->height);
+    clip_x = min(params->x + params->width, header->width);
+    clip_y = min(params->y + params->height, header->height);
 
 
     // allocate buffer for a single row of image data
-    if ((rowbuf = malloc(ti->width * header->col_bytes)) == NULL)
+    if ((rowbuf = malloc(params->width * header->col_bytes)) == NULL)
         return -PT_ERR_MEM;
 
     // how much data we actually have for each row, in px and bytes
-    // from [(tile x)---](clip x)
-    size_t row_px = clip_x - ti->x;
+    // from [(paramsle x)---](clip x)
+    size_t row_px = clip_x - params->x;
     size_t row_bytes = row_px * header->col_bytes;
 
     // write the rows that we have
     // from [(tile y]---](clip y)
-    for (row = ti->y; row < clip_y; row++) {
+    for (row = params->y; row < clip_y; row++) {
         // copy in the actual tile data...
-        memcpy(rowbuf, tile_row_col(header, data, row, ti->x), row_bytes);
+        memcpy(rowbuf, tile_row_col(header, data, row, params->x), row_bytes);
 
         // generate the data for the remaining, clipped, columns
-        tile_row_fill_clip(header, rowbuf + row_bytes, (ti->width - row_px));
+        tile_row_fill_clip(header, rowbuf + row_bytes, (params->width - row_px));
 
         // write
         png_write_row(img->png, rowbuf);
     }
 
     // generate the data for the remaining, clipped, rows
-    tile_row_fill_clip(header, rowbuf, ti->width);
+    tile_row_fill_clip(header, rowbuf, params->width);
 
     // write out the remaining rows as clipped data
-    for (; row < ti->y + ti->height; row++)
+    for (; row < params->y + params->height; row++)
         png_write_row(img->png, rowbuf);
 
     // ok
@@ -358,12 +358,12 @@ static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_he
 /**
  * Write unscaled tile data
  */
-static int pt_png_encode_unzoomed (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_info *ti)
+static int pt_png_encode_unzoomed (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_params *params)
 {
     int err;
 
     // set basic info
-    png_set_IHDR(img->png, img->info, ti->width, ti->height, header->bit_depth, header->color_type,
+    png_set_IHDR(img->png, img->info, params->width, params->height, header->bit_depth, header->color_type,
             PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT
     );
 
@@ -379,13 +379,13 @@ static int pt_png_encode_unzoomed (struct pt_png_img *img, const struct pt_png_h
     png_set_packing(img->png);
 
     // figure out if the tile clips
-    if (ti->x + ti->width <= header->width && ti->y + ti->height <= header->height)
+    if (params->x + params->width <= header->width && params->y + params->height <= header->height)
         // doesn't clip, just use the raw data
-        err = pt_png_encode_direct(img, header, data, ti);
+        err = pt_png_encode_direct(img, header, data, params);
 
     else
         // fill in clipped regions
-        err = pt_png_encode_clipped(img, header, data, ti);
+        err = pt_png_encode_clipped(img, header, data, params);
 
     return err;
 }
@@ -446,20 +446,20 @@ static inline void png_pixel_data (const png_color **outp, const struct pt_png_h
 /**
  * Write scaled tile data
  */
-static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_info *ti)
+static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_params *params)
 {
     // size of the image data in px
-    size_t data_width = scale_by_zoom_factor(ti->width, ti->zoom);
-    size_t data_height = scale_by_zoom_factor(ti->height, ti->zoom);
+    size_t data_width = scale_by_zoom_factor(params->width, params->zoom);
+    size_t data_height = scale_by_zoom_factor(params->height, params->zoom);
 
     // input pixels per output pixel
-    size_t pixel_size = scale_by_zoom_factor(1, ti->zoom);
+    size_t pixel_size = scale_by_zoom_factor(1, params->zoom);
 
     // bytes per output pixel
     size_t pixel_bytes = 3;
 
     // size of the output tile in px
-    size_t row_width = ti->width;
+    size_t row_width = params->width;
 
     // size of an output row in bytes (RGB)
     size_t row_bytes = row_width * 3;
@@ -471,7 +471,7 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
     const png_color *c = &header->palette[0];
 
     // only supports zooming out...
-    if (ti->zoom < 0)
+    if (params->zoom < 0)
         return -PT_ERR_TILE_ZOOM;
 
     if ((row_buf = malloc(row_bytes)) == NULL)
@@ -481,7 +481,7 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
     (void) data_height;
 
     // define pixel format: 8bpp RGB
-    png_set_IHDR(img->png, img->info, ti->width, ti->height, 8, PNG_COLOR_TYPE_RGB,
+    png_set_IHDR(img->png, img->info, params->width, params->height, 8, PNG_COLOR_TYPE_RGB,
             PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT
     );
 
@@ -489,19 +489,19 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
     png_write_info(img->png, img->info);
 
     // ...each output row
-    for (size_t out_row = 0; out_row < ti->height; out_row++) {
+    for (size_t out_row = 0; out_row < params->height; out_row++) {
         memset(row_buf, 0, row_bytes);
 
         // ...includes pixels starting from this row.
-        size_t in_row_offset = ti->y + scale_by_zoom_factor(out_row, ti->zoom);
+        size_t in_row_offset = params->y + scale_by_zoom_factor(out_row, params->zoom);
 
         // ...each out row includes pixel_size in rows
         for (size_t in_row = in_row_offset; in_row < in_row_offset + pixel_size && in_row < header->height; in_row++) {
             // and includes each input pixel
-            for (size_t in_col = ti->x; in_col < ti->x + data_width && in_col < header->width; in_col++) {
+            for (size_t in_col = params->x; in_col < params->x + data_width && in_col < header->width; in_col++) {
 
                 // ...for this output pixel
-                size_t out_col = scale_by_zoom_factor(in_col - ti->x, -ti->zoom);
+                size_t out_col = scale_by_zoom_factor(in_col - params->x, -params->zoom);
 
                 // get pixel RGB data
                 png_pixel_data(&c, header, data, in_row, in_col);
@@ -524,14 +524,14 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
 int pt_png_tile (const struct pt_png_header *header, const uint8_t *data, struct pt_tile *tile)
 {
     struct pt_png_img _img, *img = &_img;
-    struct pt_tile_info *ti = &tile->info;
+    struct pt_tile_params *params = &tile->params;
     int err;
 
     // init img
     memset(img, 0, sizeof(*img));
 
     // check within bounds
-    if (ti->x >= header->width || ti->y >= header->height)
+    if (params->x >= header->width || params->y >= header->height)
         // completely outside
         return -PT_ERR_TILE_CLIP;
 
@@ -574,11 +574,11 @@ int pt_png_tile (const struct pt_png_header *header, const uint8_t *data, struct
 
 
     // unscaled or scaled?
-    if (ti->zoom)
-        err = pt_png_encode_zoomed(img, header, data, ti);
+    if (params->zoom)
+        err = pt_png_encode_zoomed(img, header, data, params);
 
     else
-        err = pt_png_encode_unzoomed(img, header, data, ti);
+        err = pt_png_encode_unzoomed(img, header, data, params);
 
     if (err)
         goto error;

@@ -173,13 +173,13 @@ int pt_image_open (struct pt_image *image)
     return pt_cache_open(image->cache);
 }
 
-int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info, FILE *out)
+int pt_image_tile_file (struct pt_image *image, const struct pt_tile_params *params, FILE *out)
 {
     struct pt_tile tile;
     int err;
 
     // init
-    if ((err = pt_tile_init_file(&tile, image->cache, info, out)))
+    if ((err = pt_tile_init_file(&tile, image->cache, params, out)))
         return err;
 
     // render
@@ -195,13 +195,13 @@ error:
     return err;
 }
 
-int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, char **buf_ptr, size_t *len_ptr)
+int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_params *params, char **buf_ptr, size_t *len_ptr)
 {
     struct pt_tile tile;
     int err;
 
     // init
-    if ((err = pt_tile_init_mem(&tile, image->cache, info)))
+    if ((err = pt_tile_init_mem(&tile, image->cache, params)))
         return err;
 
     // render
@@ -210,7 +210,7 @@ int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, 
 
     // ok
     *buf_ptr = tile.out.mem.base;
-    *len_ptr = tile.out.mem.len;
+    *len_ptr = tile.out.mem.len; // XXX: should be .off
 
     return 0;
 

@@ -43,26 +43,26 @@ int pt_tile_new (struct pt_tile **tile_ptr)
     return 0;
 }
 
-static void pt_tile_init (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_info *info, enum pt_tile_output out_type)
+static void pt_tile_init (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_params *params, enum pt_tile_output out_type)
 {
     // init
     tile->cache = cache;
-    tile->info = *info;
+    tile->params = *params;
     tile->out_type = out_type;
 }
 
-int pt_tile_init_file (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_info *info, FILE *out)
+int pt_tile_init_file (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_params *params, FILE *out)
 {
-    pt_tile_init(tile, cache, info, PT_TILE_OUT_FILE);
+    pt_tile_init(tile, cache, params, PT_TILE_OUT_FILE);
 
     tile->out.file = out;
 
     return 0;
 }
 
-int pt_tile_init_mem (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_info *info)
+int pt_tile_init_mem (struct pt_tile *tile, struct pt_cache *cache, const struct pt_tile_params *params)
 {
-    pt_tile_init(tile, cache, info, PT_TILE_OUT_MEM);
+    pt_tile_init(tile, cache, params, PT_TILE_OUT_MEM);
 
     // init buffer
     if ((tile->out.mem.base = malloc(PT_TILE_BUF_SIZE)) == NULL)
@@ -78,7 +78,7 @@ int pt_tile_init_mem (struct pt_tile *tile, struct pt_cache *cache, const struct
 int pt_tile_render (struct pt_tile *tile)
 {
     // validate dimensions
-    if (!tile->info.width || !tile->info.height)
+    if (!tile->params.width || !tile->params.height)
         return -PT_ERR_TILE_DIM;
 
     return pt_cache_tile(tile->cache, tile);
