@@ -9,9 +9,33 @@ import (
 )
 
 type Options struct {
-	Debug  bool
-	Quiet  bool
-	Update bool
+	Debug      bool
+	Quiet      bool
+	Update     bool
+	Background string
+}
+
+func (options Options) imageParams() (pngtile.ImageParams, error) {
+	var imageParams pngtile.ImageParams
+
+	if options.Background != "" {
+		var backgroundPixel pngtile.ImagePixel
+
+		_, err := fmt.Sscanf(options.Background, "%x%x%x%x",
+			&backgroundPixel[0],
+			&backgroundPixel[1],
+			&backgroundPixel[2],
+			&backgroundPixel[3],
+		)
+
+		if err != nil {
+			return imageParams, fmt.Errorf("Invalid --background=%s: %v", options.Background, err)
+		}
+
+		imageParams.BackgroundPixel = &backgroundPixel
+	}
+
+	return imageParams, nil
 }
 
 func (options Options) run(path string) error {
@@ -21,7 +45,9 @@ func (options Options) run(path string) error {
 		} else if cacheStatus != pngtile.CACHE_FRESH || options.Update {
 			log.Printf("%s: cache update (status %v)", path, cacheStatus)
 
-			if err := image.Update(); err != nil {
+			if imageParams, err := options.imageParams(); err != nil {
+				return err
+			} else if err := image.Update(imageParams); err != nil {
 				return err
 			}
 
@@ -65,6 +91,11 @@ func main() {
 			Destination: &options.Quiet,
 		},
 
+		cli.StringFlag{
+			Name:        "background",
+			Usage:       "Hexadecimal [1..4]uint8 pixel value",
+			Destination: &options.Background,
+		},
 		cli.BoolFlag{
 			Name:        "update",
 			Usage:       "Force cache udpate",

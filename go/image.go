@@ -45,8 +45,10 @@ func (image *Image) Open() error {
 }
 
 // Open image cache in update mode,
-func (image *Image) Update() error {
-	if ret, err := C.pt_image_update(image.pt_image, nil); ret < 0 {
+func (image *Image) Update(params ImageParams) error {
+	var image_params = params.image_params()
+
+	if ret, err := C.pt_image_update(image.pt_image, &image_params); ret < 0 {
 		return makeError("pt_image_open", ret, err)
 	}
 
