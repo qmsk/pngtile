@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -56,9 +57,13 @@ func renderResponse(r *http.Request, template *template.Template, data interface
 }
 
 func (server *Server) Handle(r *http.Request) (httpResponse, error) {
-	var name = r.URL.Path
+	path, name, ext, err := server.Lookup(r.URL.Path, "cache")
 
-	if path, err := server.Path(r.URL.Path); err != nil {
+	log.Printf("%s %s = %s (name=%s ext=%s) (error: %v)", r.Method, r.URL.Path, path, name, ext, err)
+
+	if r.Method != "GET" {
+		return httpResponse{Status: http.StatusNotImplemented}, err
+	} else if err != nil {
 		return httpResponse{Status: 403}, err
 	} else if stat, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
@@ -66,12 +71,14 @@ func (server *Server) Handle(r *http.Request) (httpResponse, error) {
 		} else {
 			return httpResponse{}, err
 		}
-	} else if stat.IsDir() {
+	} else if stat.Mode().IsDir() {
 		return server.HandleIndex(r, name)
-	} else if r.URL.RawQuery == "" {
+	} else if ext == "" {
 		return server.HandleImage(r, name)
-	} else {
+	} else if ext == "png" {
 		return server.HandleImageTile(r, name, r.URL.Query())
+	} else {
+		return httpResponse{Status: 404}, err
 	}
 }
 

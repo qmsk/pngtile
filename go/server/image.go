@@ -5,6 +5,30 @@ import (
 	"strings"
 )
 
+func (server *Server) Images(name string) ([]string, error) {
+	if path, err := server.Path(name, "/"); err != nil {
+		return nil, err
+	} else if scanImages, err := pngtile.Scan(path, pngtile.ScanOptions{OnlyCached: true}); err != nil {
+		return nil, err
+	} else {
+		var names = make([]string, 0)
+
+		for _, scanImage := range scanImages {
+			var name = scanImage.Path
+
+			// relative to server path
+			name = strings.TrimPrefix(name, server.path)
+
+			// bare name without the .cache suffix
+			name = strings.Split(name, ".")[0]
+
+			names = append(names, name)
+		}
+
+		return names, nil
+	}
+}
+
 type Image struct {
 	path         string
 	pngtileImage *pngtile.Image
@@ -12,7 +36,7 @@ type Image struct {
 }
 
 func (server *Server) openImage(name string) (*Image, error) {
-	if path, err := server.Path(name); err != nil {
+	if path, err := server.Path(name, ".cache"); err != nil {
 		return nil, err
 	} else if pngtileImage, err := pngtile.OpenImage(path, pngtile.OPEN_READ); err != nil {
 		return nil, err
@@ -28,24 +52,6 @@ func (server *Server) openImage(name string) (*Image, error) {
 		}
 
 		return &image, nil
-	}
-}
-
-func (server *Server) Images(name string) ([]string, error) {
-	if path, err := server.Path(name); err != nil {
-		return nil, err
-	} else if paths, err := pngtile.Scan(path); err != nil {
-		return nil, err
-	} else {
-		var names []string
-
-		for _, path := range paths {
-			var name = strings.TrimPrefix(path, server.path)
-
-			names = append(names, name)
-		}
-
-		return names, nil
 	}
 }
 
