@@ -42,10 +42,20 @@ func (cacheStatus CacheStatus) String() string {
 	}
 }
 
-func LogDebug(enable bool) {
-	C.pt_log_debug = C.bool(enable)
-}
+type ImageFormat int
 
-func LogWarn(enable bool) {
-	C.pt_log_warn = C.bool(enable)
+const (
+	FORMAT_CACHE = C.PT_FORMAT_CACHE
+	FORMAT_PNG   = C.PT_FORMAT_PNG
+)
+
+func (imageFormat ImageFormat) String() string {
+	switch imageFormat {
+	case FORMAT_CACHE:
+		return "cache"
+	case FORMAT_PNG:
+		return "png"
+	default:
+		return fmt.Sprintf("%d", imageFormat)
+	}
 }

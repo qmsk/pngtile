@@ -195,12 +195,12 @@ func main() {
 			if options.Recursive {
 				log.Printf("%s...", arg)
 
-				if files, err := pngtile.Scan(arg); err != nil {
+				if scanImages, err := pngtile.Scan(arg, pngtile.ScanOptions{IncludeCached: false}); err != nil {
 					return fmt.Errorf("scan %s: %v", arg, err)
 				} else {
-					for _, path := range files {
-						if err := options.run(path); err != nil {
-							return fmt.Errorf("%s: %s", path, err)
+					for _, scanImage := range scanImages {
+						if err := options.run(scanImage.Path); err != nil {
+							return fmt.Errorf("%s: %s", scanImage.Path, err)
 						}
 					}
 				}

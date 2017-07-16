@@ -1,7 +1,7 @@
 package pngtile
 
 // Does this file look like a PNG file that we can use?
-func SniffImage(path string) (bool, error) {
+func SniffImage(path string) (format ImageFormat, valid bool, err error) {
 	return imageSniff(path)
 }
 

@@ -7,14 +7,15 @@ package pngtile
 import "C"
 import "unsafe"
 
-func imageSniff(path string) (bool, error) {
+func imageSniff(path string) (ImageFormat, bool, error) {
+	var c_image_format C.enum_pt_image_format
 	var c_path = C.CString(path)
 	defer C.free(unsafe.Pointer(c_path))
 
-	if ret, err := C.pt_image_sniff(c_path); ret < 0 {
-		return false, makeError("pt_image_sniff", ret, err)
+	if ret, err := C.pt_image_sniff(c_path, &c_image_format); ret < 0 {
+		return ImageFormat(ret), false, makeError("pt_image_sniff", ret, err)
 	} else {
-		return ret == 0, nil
+		return ImageFormat(c_image_format), ret == 0, nil
 	}
 }
 
@@ -60,7 +61,7 @@ func (image *Image) Update(params ImageParams) error {
 	var image_params = params.c_struct()
 
 	if ret, err := C.pt_image_update(image.pt_image, &image_params); ret < 0 {
-		return makeError("pt_image_open", ret, err)
+		return makeError("pt_image_update", ret, err)
 	}
 
 	return nil
