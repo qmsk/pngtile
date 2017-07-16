@@ -152,7 +152,7 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
 /**
  * Decode the PNG data directly to memory - not good for sparse backgrounds
  */
-static int pt_png_decode_direct (struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params, uint8_t *out)
+static int pt_png_decode_direct (struct pt_png_img *img, const struct pt_png_header *header, uint8_t *out)
 {
     // write out raw image data a row at a time
     for (size_t row = 0; row < header->height; row++) {
@@ -224,12 +224,12 @@ int pt_png_decode (struct pt_png_img *img, const struct pt_png_header *header, c
     int err;
 
     // decode
-    // XXX: it's an array, you silly
-    if (params->background_color)
+    // XXX: it's an array, you silly, this is always true?
+    if (params && params->background_color)
         err = pt_png_decode_sparse(img, header, params, out);
 
     else
-        err = pt_png_decode_direct(img, header, params, out);
+        err = pt_png_decode_direct(img, header, out);
 
     if (err)
         return err;
