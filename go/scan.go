@@ -11,6 +11,16 @@ type ScanOptions struct {
 	OnlyCached    bool // only FORMAT_CACHE
 }
 
+func (scanOptions ScanOptions) filter(scanImage ScanImage) bool {
+	if scanOptions.OnlyCached {
+		return scanImage.IsCache()
+	} else if !scanOptions.IncludeCached {
+		return !scanImage.IsCache()
+	}
+
+	return true
+}
+
 type ScanImage struct {
 	Path   string
 	Format ImageFormat
@@ -49,14 +59,9 @@ func Scan(root string, options ScanOptions) ([]ScanImage, error) {
 			scanImage.Format = imageFormat
 		}
 
-		if options.OnlyCached && !scanImage.IsCache() {
-			return nil
-
-		} else if !options.IncludeCached && scanImage.IsCache() {
-			return nil
+		if options.filter(scanImage) {
+			images = append(images, scanImage)
 		}
-
-		images = append(images, scanImage)
 
 		return nil
 	})
