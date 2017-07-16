@@ -1,0 +1,47 @@
+package pngtile
+
+/*
+#include "pngtile.h"
+*/
+import "C"
+import (
+	"fmt"
+	"syscall"
+)
+
+type CallError struct {
+	call string
+	ret  C.int
+}
+
+type SysCallError struct {
+	CallError
+	errno syscall.Errno
+}
+
+type CallErrorError struct {
+	CallError
+	err error
+}
+
+func makeError(call string, ret C.int, err error) error {
+	if err == nil {
+		return CallError{call, ret}
+	} else if errno, ok := err.(syscall.Errno); ok {
+		return SysCallError{CallError{call, ret}, errno}
+	} else {
+		return CallErrorError{CallError{call, ret}, err}
+	}
+}
+
+func (err CallError) Error() string {
+	return fmt.Sprintf("%s: %s", err.call, C.pt_strerror(err.ret))
+}
+
+func (err SysCallError) Error() string {
+	return fmt.Sprintf("%s: %s: %s", err.call, C.pt_strerror(err.ret), err.errno.Error())
+}
+
+func (err CallErrorError) Error() string {
+	return fmt.Sprintf("%s: %s: %s", err.call, C.pt_strerror(err.ret), err.err.Error())
+}
