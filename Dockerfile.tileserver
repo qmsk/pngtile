@@ -5,14 +5,8 @@ RUN apt-get update && apt-get install -y \
 
 RUN adduser --system --uid 1000 --home /srv/pngtile --group pngtile
 
-WORKDIR /srv/pngtile
-
-RUN install -d /srv/pngtile/etc /srv/pngtile/www
-ADD ./docker/tileserver.ini /srv/pngtile/etc/uwsgi.ini
-ADD ./docker/tileserver.wsgi /srv/pngtile/www/index.wsgi
-
 USER pngtile
-CMD uwsgi --ini /srv/pngtile/etc/uwsgi.ini --http-socket :9090
+CMD uwsgi --ini /src/pngtile/python/tileserver.ini --http-socket :9090
 EXPOSE 9090/tcp
 
 VOLUME /srv/pngtile/images
