@@ -32,6 +32,9 @@ RUN go install -v ./go/cmd/...
 
 ENV PATH=/go/bin:$PATH
 
-VOLUME /srv/pngtile
-CMD pngtile --recursive /srv/pngtile && pngtile-server --pngtile-path /srv/pngtile --http-static ./web --http-listen :9090
+RUN adduser --system --uid 1000 --home /srv/pngtile --group pngtile
+
+VOLUME /srv/pngtile/images
+USER pngtile
+CMD pngtile --recursive /srv/pngtile; pngtile-server --pngtile-path /srv/pngtile/images --http-static ./web --http-listen :9090
 EXPOSE 9090
