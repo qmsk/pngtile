@@ -3,6 +3,7 @@ package main
 import (
 	flags "github.com/jessevdk/go-flags"
 	web "github.com/qmsk/go-web"
+	pngtile "github.com/qmsk/pngtile/go"
 	server "github.com/qmsk/pngtile/go/server"
 
 	"log"
@@ -11,7 +12,9 @@ import (
 var options struct {
 	Web web.Options `group:"Web"`
 
-	Path string `long:"pngtile-path"`
+	Path  string `long:"pngtile-path"`
+	Debug bool   `long:"pngtile-debug"`
+	Quiet bool   `long:"pngtile-quiet"`
 }
 
 func main() {
@@ -22,6 +25,9 @@ func main() {
 	} else {
 
 	}
+
+	pngtile.LogDebug(options.Debug)
+	pngtile.LogWarn(!options.Quiet)
 
 	var config = server.Config{
 		Path: options.Path,
