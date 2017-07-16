@@ -15,7 +15,7 @@
 /**
  * Cache format version
  */
-#define PT_CACHE_VERSION 2
+#define PT_CACHE_VERSION 3
 
 /**
  * Size used to store the cache header

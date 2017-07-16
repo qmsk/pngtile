@@ -9,11 +9,6 @@
 #include <stdint.h>
 
 /**
- * Handle sparse data at this granularity (pixels)
- */
-#define PT_IMG_BLOCK_SIZE 64
-
-/**
  * PNG img state
  */
 struct pt_png_img {

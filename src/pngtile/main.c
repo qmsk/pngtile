@@ -222,17 +222,17 @@ int main (int argc, char **argv)
             case 'B':
                 // background pattern
                 {
-                    unsigned int b1 = 0, b2 = 0, b3 = 0, b4 = 0;
-
                     // parse 0xXXXXXXXX
-                    if (sscanf(optarg, "0x%02x%02x%02x%02x", &b1, &b2, &b3, &b4) < 1)
+                    if (sscanf(optarg, "0x%02hhx%02hhx%02hhx%02hhx",
+                        &update_params.background_pixel[0],
+                        &update_params.background_pixel[1],
+                        &update_params.background_pixel[2],
+                        &update_params.background_pixel[3]
+                    ) < 1)
                         FATAL("Invalid hex value for -B/--background: %s", optarg);
 
                     // store
-                    update_params.background_color[0] = b1;
-                    update_params.background_color[1] = b2;
-                    update_params.background_color[2] = b3;
-                    update_params.background_color[3] = b4;
+                    update_params.flags |= PT_IMAGE_BACKGROUND_PIXEL;
 
                 } break;
 

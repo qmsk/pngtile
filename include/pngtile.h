@@ -74,11 +74,28 @@ struct pt_image_info {
 };
 
 /**
+ * Sparse background color pattern: matched aginst each individual PNG pixel in each block of pt_image_block_size pixels.
+ * Must be in the same raw format that the PNG data is in.
+ *
+ * Blocks containing only background pixels are not written to the cache file, allowing the use of sparse files.
+ */
+typedef uint8_t pt_image_pixel[4];
+
+/**
+ * Handle sparse data at this granularity (pixels)
+ */
+extern const size_t pt_image_block_size; // 64
+
+/**
  * Modifyable params for update
  */
 struct pt_image_params {
+    enum {
+      PT_IMAGE_BACKGROUND_PIXEL = 1,
+    } flags;
+
     /** Don't write out any contiguous regions of this color. Left-aligned in whatever format the source image is in */
-    uint8_t background_color[4];
+    pt_image_pixel background_pixel;
 };
 
 /**

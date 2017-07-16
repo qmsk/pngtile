@@ -6,6 +6,8 @@
 #include <string.h>
 #include <assert.h>
 
+const size_t pt_image_block_size = 64;
+
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
 int pt_png_check (const char *path)
@@ -166,7 +168,7 @@ static int pt_png_decode_direct (struct pt_png_img *img, const struct pt_png_hea
 /**
  * Decode the PNG data, filtering it for sparse regions
  */
-static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params, uint8_t *out)
+static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_header *header, const pt_image_pixel background_pixel, uint8_t *out)
 {
     // one row of pixel data
     uint8_t *row_buf;
@@ -182,9 +184,9 @@ static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_hea
 
         // skip background-colored regions to keep the cache file sparse
         // ...in blocks of PT_CACHE_BLOCK_SIZE bytes
-        for (size_t col_base = 0; col_base < header->width; col_base += PT_IMG_BLOCK_SIZE) {
+        for (size_t col_base = 0; col_base < header->width; col_base += pt_image_block_size) {
             // size of this block in bytes
-            size_t block_size = min(PT_IMG_BLOCK_SIZE * header->col_bytes, header->row_bytes - col_base);
+            size_t block_size = min(pt_image_block_size * header->col_bytes, header->row_bytes - col_base);
 
             // ...each pixel
             for (
@@ -196,7 +198,7 @@ static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_hea
                     col += header->col_bytes
             ) {
                 // test this pixel
-                if (bcmp(row_buf + col, params->background_color, header->col_bytes)) {
+                if (bcmp(row_buf + col, background_pixel, header->col_bytes)) {
                     // differs
                     memcpy(
                             out + row * header->row_bytes + col_base,
@@ -225,8 +227,8 @@ int pt_png_decode (struct pt_png_img *img, const struct pt_png_header *header, c
 
     // decode
     // XXX: it's an array, you silly, this is always true?
-    if (params && params->background_color)
-        err = pt_png_decode_sparse(img, header, params, out);
+    if (params && (params->flags & PT_IMAGE_BACKGROUND_PIXEL))
+        err = pt_png_decode_sparse(img, header, params->background_pixel, out);
 
     else
         err = pt_png_decode_direct(img, header, out);
