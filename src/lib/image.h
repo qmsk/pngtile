@@ -9,6 +9,8 @@
 #include "pngtile.h"
 
 struct pt_image {
+    enum pt_image_format format;
+    
     /** Path to .png */
     char *path;
 

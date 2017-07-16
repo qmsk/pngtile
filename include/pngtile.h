@@ -46,8 +46,18 @@ enum pt_cache_status {
     PT_CACHE_INCOMPAT   = 3,
 };
 
+/**
+ * Image formats.
+ */
+enum pt_image_format {
+    PT_FORMAT_CACHE    = 0, // no source image, opened cache directly
+    PT_FORMAT_PNG,
+};
+
 /** Metadata info for image. Values will be set to zero if not available */
 struct pt_image_info {
+    enum pt_image_format image_format;
+
     /** Dimensions of image. Only available if the cache is open */
     size_t image_width, image_height;
 
@@ -129,15 +139,20 @@ extern bool pt_log_warn;
 /**
  * Test if the given file looks like something that you can open.
  *
- * @return 0 if ok, 1 if unkonwn format, <0 on errors.
+ * No point calling this before pt_image_new, which already calls this.
+ *
+ * @param format return detected format if 0
+ * @return 0 if ok
+ * @return 1 if unknown
  */
-int pt_image_sniff (const char *path);
+int pt_image_sniff (const char *path, enum pt_image_format *format);
 
 /**
  * Open a new pt_image for use.
  *
  * @param img_ptr returned pt_image handle * @param path filesystem path to .png file
  * @param mode combination of PT_OPEN_* flags
+ * @return -PT_ERR_FORMAT if pt_image_sniff fails
  */
 int pt_image_new (struct pt_image **image_ptr, const char *png_path, int cache_mode);
 
@@ -228,6 +243,7 @@ enum pt_error {
     PT_ERR_IMG_OPEN,
     PT_ERR_IMG_FORMAT,
     PT_ERR_IMG_FORMAT_INTERLACE,
+    PT_ERR_IMG_FORMAT_CACHE,
 
     PT_ERR_PNG_CREATE,
     PT_ERR_PNG,
@@ -243,6 +259,7 @@ enum pt_error {
     PT_ERR_CACHE_RENAME_TMP,
     PT_ERR_CACHE_MAGIC,
     PT_ERR_CACHE_VERSION,
+    PT_ERR_CACHE_FORMAT,
     PT_ERR_CACHE_MUNMAP,
     PT_ERR_CACHE_CLOSE,
 

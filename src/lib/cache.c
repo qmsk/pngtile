@@ -15,6 +15,103 @@
 const uint16_t pt_cache_version = PT_CACHE_VERSION;
 const uint8_t pt_cache_magic[6] = PT_CACHE_MAGIC;
 
+/**
+ * Open the cache file as an fd for reading
+ */
+static int pt_cache_open_read_fd (const char *path, int *fd_ptr)
+{
+    PT_DEBUG("%s", path);
+
+    int fd;
+
+    // actual open()
+    if ((fd = open(path, O_RDONLY)) < 0)
+        return -PT_ERR_OPEN_MODE;
+
+    // ok
+    *fd_ptr = fd;
+
+    return 0;
+}
+
+/**
+ * Read in the cache header from the open file
+ */
+static int pt_cache_read_header (int fd, struct pt_cache_header *header)
+{
+    size_t len = sizeof(*header);
+    char *buf = (char *) header;
+
+    // seek to start
+    if (lseek(fd, 0, SEEK_SET) != 0)
+        return -PT_ERR_CACHE_SEEK;
+
+    // write out full header
+    while (len) {
+        ssize_t ret;
+
+        // try and write out the header
+        if ((ret = read(fd, buf, len)) <= 0)
+            return -PT_ERR_CACHE_READ;
+
+        // update offset
+        buf += ret;
+        len -= ret;
+    }
+
+    // done
+    return 0;
+}
+
+/**
+ * Validate header: magic, version, format
+ */
+static int pt_cache_check_header (const struct pt_cache_header *header)
+{
+  PT_DEBUG("magic=%6.6s version=%d format=%d", header->magic, header->version, header->format);
+
+  if (memcmp(header->magic, pt_cache_magic, sizeof(pt_cache_magic)) != 0) {
+      return -PT_ERR_CACHE_MAGIC;
+  }
+
+  if (header->version != pt_cache_version)
+      return -PT_ERR_CACHE_VERSION;
+
+  switch (header->format) {
+    case PT_FORMAT_CACHE:
+      return -PT_ERR_CACHE_FORMAT;
+    case PT_FORMAT_PNG:
+      break;
+    default:
+      return -PT_ERR_CACHE_FORMAT;
+  }
+
+  return 0;
+}
+
+int pt_cache_check (const char *path)
+{
+  int fd;
+  struct pt_cache_header header;
+  int ret;
+
+  if ((ret = pt_cache_open_read_fd(path, &fd)))
+      return ret;
+
+  if ((ret = pt_cache_read_header(fd, &header)))
+      goto error; // XXX: return 1 on EOF / short header?
+
+  if ((ret = pt_cache_check_header(&header))) {
+      ret = 1;
+      goto error;
+  }
+
+error:
+  close(fd);
+
+  return ret;
+}
+
 int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode)
 {
     PT_DEBUG("%s: mode=%d", path, mode);
@@ -71,55 +168,9 @@ static void pt_cache_abort (struct pt_cache *cache)
 }
 
 /**
- * Open the cache file as an fd for reading
- */
-static int pt_cache_open_read_fd (struct pt_cache *cache, int *fd_ptr)
-{
-    PT_DEBUG("%s", cache->path);
-
-    int fd;
-
-    // actual open()
-    if ((fd = open(cache->path, O_RDONLY)) < 0)
-        return -PT_ERR_OPEN_MODE;
-
-    // ok
-    *fd_ptr = fd;
-
-    return 0;
-}
-
-/**
- * Read in the cache header from the open file
- */
-static int pt_cache_read_header (int fd, struct pt_cache_header *header)
-{
-    size_t len = sizeof(*header);
-    char *buf = (char *) header;
-
-    // seek to start
-    if (lseek(fd, 0, SEEK_SET) != 0)
-        return -PT_ERR_CACHE_SEEK;
-
-    // write out full header
-    while (len) {
-        ssize_t ret;
-
-        // try and write out the header
-        if ((ret = read(fd, buf, len)) <= 0)
-            return -PT_ERR_CACHE_READ;
-
-        // update offset
-        buf += ret;
-        len -= ret;
-    }
-
-    // done
-    return 0;
-}
-
-/**
- * Read the header from the cache file, temporarily opening it if needed
+ * Read the header from the cache file, temporarily opening it if needed.
+ *
+ * Does not check if the header is valid; call pt_cache_check_header()!
  */
 static int pt_cache_header (struct pt_cache *cache, struct pt_cache_header *header)
 {
@@ -133,15 +184,12 @@ static int pt_cache_header (struct pt_cache *cache, struct pt_cache_header *head
     int err = 0;
 
     // temp. open
-    if ((err = pt_cache_open_read_fd(cache, &fd)))
+    if ((err = pt_cache_open_read_fd(cache->path, &fd)))
         return err;
 
     // read header
     if ((err = pt_cache_read_header(fd, header)))
         goto error;
-
-    if (memcmp(header->magic, pt_cache_magic, sizeof(pt_cache_magic)) != 0)
-        return -PT_ERR_CACHE_MAGIC;
 
 error:
     // close
@@ -178,16 +226,12 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path)
         return PT_CACHE_STALE;
 
     // read header
-    if ((err = pt_cache_header(cache, &header)) == 0) {
-
-    } else if (err == -PT_ERR_CACHE_MAGIC) {
-      return PT_CACHE_INCOMPAT;
-    } else {
+    if ((err = pt_cache_header(cache, &header))) {
         return err;
     }
 
-    // compare version
-    if (header.version != pt_cache_version)
+    // check version, magic, format
+    if ((err = pt_cache_check_header(&header)))
         return PT_CACHE_INCOMPAT;
 
     // ok, should be in order
@@ -303,18 +347,15 @@ int pt_cache_open (struct pt_cache *cache)
         return 0;
 
     // open the .cache in readonly mode
-    if ((err = pt_cache_open_read_fd(cache, &cache->fd)))
+    if ((err = pt_cache_open_read_fd(cache->path, &cache->fd)))
         return err;
 
     // read in header
     if ((err = pt_cache_read_header(cache->fd, &header)))
         goto error;
 
-    // check version
-    if (header.version != pt_cache_version) {
-        err = -PT_ERR_CACHE_VERSION;
+    if ((err = pt_cache_check_header(&header)))
         goto error;
-    }
 
     // mmap the header + data
     if ((err = pt_cache_open_mmap(cache, &cache->file, header.data_size, true)))
@@ -439,12 +480,12 @@ static void pt_cache_create_abort (struct pt_cache *cache)
         PT_WARN_ERRNO("unlink %s", tmp_path);
 }
 
-int pt_cache_update (struct pt_cache *cache, struct pt_png_img *img, const struct pt_image_params *params)
+int pt_cache_update_png (struct pt_cache *cache, struct pt_png_img *img, const struct pt_image_params *params)
 {
     struct pt_cache_header header = {
       .version = pt_cache_version,
       .magic   = PT_CACHE_MAGIC,
-      .format  = PT_IMG_PNG,
+      .format  = PT_FORMAT_PNG,
     };
     int err;
 

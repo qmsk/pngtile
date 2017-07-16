@@ -6,13 +6,13 @@
  *
  * Internal image cache implementation
  */
-#include "image.h"
 #include "png.h"
 
+#include "pngtile.h"
 #include <stdint.h>
 #include <stdbool.h>
 
-#define PT_CACHE_VERSION 4
+#define PT_CACHE_VERSION 5
 #define PT_CACHE_MAGIC { 'P', 'N', 'G', 'T', 'I', 'L' }
 
 /**
@@ -28,9 +28,7 @@ struct pt_cache_header {
     uint16_t version; // pt_cache_version
 
     /** Image format */
-    enum pt_img_format {
-        PT_IMG_PNG,     ///< @see pt_png
-    } format;
+    enum pt_image_format format;
 
     /** Data header by format  */
     union {
@@ -79,6 +77,15 @@ struct pt_cache {
 };
 
 /**
+ * Check if given file is a cache file.
+ *
+ * @return <0 on error
+ * @return 0 if valid cache file
+ * @return 1 if not a valid cache file
+ */
+int pt_cache_check (const char *path);
+
+/**
  * Construct the image cache info object associated with the given image.
  */
 int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode);
@@ -103,9 +110,9 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path);
 int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info);
 
 /**
- * Update the cache data from the given image data
+ * Update the cache data from the given PNG image data
  */
-int pt_cache_update (struct pt_cache *cache, struct pt_png_img *img, const struct pt_image_params *params);
+int pt_cache_update_png (struct pt_cache *cache, struct pt_png_img *img, const struct pt_image_params *params);
 
 /**
  * Open the existing .cache for use. If already opened, does nothing.

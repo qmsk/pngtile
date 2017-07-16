@@ -15,6 +15,7 @@ const char *error_names[PT_ERR_MAX] = {
     [PT_ERR_IMG_OPEN]             = "open(.png)",
     [PT_ERR_IMG_FORMAT]           = "Unknown image format",
     [PT_ERR_IMG_FORMAT_INTERLACE] = "Unsupported image format with interlacing",
+    [PT_ERR_IMG_FORMAT_CACHE]     = "Unsupported operation for cache image",
 
     [PT_ERR_PNG_CREATE]         = "png_create()",
     [PT_ERR_PNG]                = "png_*()",
@@ -28,8 +29,9 @@ const char *error_names[PT_ERR_MAX] = {
     [PT_ERR_CACHE_TRUNC]        = "truncate(.cache)",
     [PT_ERR_CACHE_MMAP]         = "mmap(.cache)",
     [PT_ERR_CACHE_RENAME_TMP]   = "rename(.tmp, .cache)",
-    [PT_ERR_CACHE_VERSION]      = "Incompatible .cache version",
-    [PT_ERR_CACHE_MAGIC]        = "Incorrect .cache magic",
+    [PT_ERR_CACHE_VERSION]      = "Incompatible cache version",
+    [PT_ERR_CACHE_MAGIC]        = "Incorrect cache magic",
+    [PT_ERR_CACHE_FORMAT]       = "Invalid cache format",
     [PT_ERR_CACHE_MUNMAP]       = "munmap(cache->file)",
     [PT_ERR_CACHE_CLOSE]        = "close(cache->fd)",
 
