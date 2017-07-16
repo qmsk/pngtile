@@ -36,7 +36,7 @@ class ImageApplication (pngtile.application.PNGTileApplication):
         """
 
         super(ImageApplication, self).__init__(**opts)
-                
+
         self.tiles_server = tiles_server
 
     def tiles_url (self, name, **args):
@@ -69,7 +69,7 @@ class ImageApplication (pngtile.application.PNGTileApplication):
         path = []
 
         yield html.li(html.a(href='/', *[u"Index"]))
-        
+
         if name:
             for part in name.split('/'):
                 path.append(part)
@@ -89,7 +89,7 @@ class ImageApplication (pngtile.application.PNGTileApplication):
             name:       /.../... url to dir
             items:      [...] items in dir
         """
-        
+
         if name:
             title = name
         else:
@@ -130,11 +130,11 @@ class ImageApplication (pngtile.application.PNGTileApplication):
             tile_url        = '{tiles_url}?t={tiles_mtime}&x={x}&y={y}&zoom={z}',
             tile_size       = pngtile.tile.TILE_SIZE,
             tile_zoom       = pngtile.tile.MAX_ZOOM,
-            
+
             # do NOT include a mtime in these urls.. we should always revalidate them
             image_url       = '{tiles_url}?w={w}&h={h}&x={x}&y={y}&zoom={z}',
-            image_width     = image_info['img_width'],
-            image_height    = image_info['img_height'],
+            image_width     = image_info['image_width'],
+            image_height    = image_info['image_height'],
         )
 
         return self.render_html(
@@ -191,11 +191,11 @@ class ImageApplication (pngtile.application.PNGTileApplication):
         """
 
         name, path, type = self.lookup(request.path)
-        
+
         # determine handler
         if not type:
             return self.handle_dir(request, name, path)
-        
+
         else:
             return self.handle_image(request, name, path)
 
@@ -210,4 +210,3 @@ class ImageApplication (pngtile.application.PNGTileApplication):
 
         except exceptions.HTTPException as error:
             return error
-

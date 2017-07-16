@@ -28,12 +28,14 @@ if CYTHON:
 setup(
     name            = 'pngtile',
     version         = '1.0-dev',
-    
+
     packages        = [ 'pngtile' ],
+    package_dir     = {
+        'pngtile': 'python/pngtile',
+    },
     ext_modules     = ext_modules,
     scripts         = [
         'bin/pypngtile',
         'bin/tile-server',
     ],
 )
-

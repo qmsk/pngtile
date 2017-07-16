@@ -60,7 +60,7 @@ def parse_args (args) :
     parser.add_option('-y', "--y",              help="Tile y offset",                                       metavar="PX",       type='int', default=0)
     parser.add_option('-z', "--zoom",           help="Tile zoom level, -n",                                 metavar="ZL",       type='int', default=0)
     parser.add_option('-o', "--out",            help="Render tile to output file, or -",                    metavar="FILE")
-    
+
     # parse
     options, args = parser.parse_args(args=args)
 
@@ -79,11 +79,11 @@ def process_tile (image) :
     """
         Process output tile for given image
     """
-    
+
     # parse out
     if options.out == '-' :
         log_debug("\tUsing stdout as output...")
-        
+
         # use stdout
         out = sys.stdout
 
@@ -92,12 +92,12 @@ def process_tile (image) :
 
         # open file
         out = open(options.out, "wb")
-    
+
     log_info("\tRender tile %dx%d@(%d:%d)@%d -> %s...", options.width, options.height, options.x, options.y, options.zoom, options.out)
 
     # render
     image.tile_file(options.width, options.height, options.x, options.y, options.zoom, out)
-    
+
     log_debug("Rendered tile: %s", options.out)
 
 
@@ -114,7 +114,7 @@ def process_image (image) :
         # decode status
         if status == pt.CACHE_NONE :
             log_info("\tImage cache is missing")
-        
+
         elif status == pt.CACHE_STALE :
             log_info("\tImage cache is stale")
 
@@ -127,13 +127,13 @@ def process_image (image) :
         else :
             log_warn("\tImage cache status unknown: %d", status)
 
-        
+
         # update unless supressed
         if not options.no_update :
             log_info("\tUpdating image cache...")
-            
+
             # update with optional background color
-            image.update(background_color=options.background)
+            image.update(background_pixel=options.background)
 
             log_debug("\tUpdated image cache")
 
@@ -141,7 +141,7 @@ def process_image (image) :
             # warn
             log_warn("\tSupressing cache update even though it is needed")
 
-    else: 
+    else:
         log_debug("\tImage cache is fresh")
 
         # open it
@@ -150,12 +150,12 @@ def process_image (image) :
     # show info
     info = image.info()
 
-    log_info("\tImage dimensions: %d x %d (%d bpp)", info['img_width'], info['img_height'], info['img_bpp'])
+    log_info("\tImage dimensions: %d x %d (%d bpp)", info['image_width'], info['image_height'], info['image_bpp'])
     log_info("\tImage mtime=%d, bytes=%d", info['image_mtime'], info['image_bytes'])
-    log_info("\tCache mtime=%d, bytes=%d, blocks=%d (%d bytes), version=%d", 
+    log_info("\tCache mtime=%d, bytes=%d, blocks=%d (%d bytes), version=%d",
             info['cache_mtime'], info['cache_bytes'], info['cache_blocks'], info['cache_blocks'] * 512, info['cache_version']
     )
-    
+
 
     # render tile?
     if options.out :
@@ -190,7 +190,7 @@ def main (args) :
 
     # parse opts/args
     args = parse_args(args)
-    
+
     # handle each image
     process_images(args)
 
@@ -199,4 +199,3 @@ if __name__ == '__main__' :
     from sys import argv
 
     main(argv[1:])
-
