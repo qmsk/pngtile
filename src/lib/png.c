@@ -214,6 +214,8 @@ static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_hea
         }
     }
 
+    free(row_buf);
+
     return 0;
 }
 
