@@ -13,8 +13,23 @@ const TileZoomMin int = 0
 const TileZoomMax int = 4
 const TileLimit uint = 1920 * 1200
 
-const TileURL = "{url}?t={mtime}&tile-x={x}&tile-y={y}&zoom={z}" // tile image: xy are in units of scaled tiles
-const ViewURL = "{url}?w={w}&h={h}&x={x}&y={y}&zoom={z}"         // fullscreen/linked view image: xy is the scaled center point of the wh viewport
+const TileURLTemplate = "{url}?t={mtime}&tile-x={x}&tile-y={y}&zoom={z}" // tile image: xy are in units of scaled tiles
+const ViewURLTemplate = "{url}?w={w}&h={h}&x={x}&y={y}&zoom={z}"         // fullscreen/linked view image: xy is the scaled center point of the wh viewport
+
+func TileURL(name string, format pngtile.ImageFormat, params TileParams) (string, error) {
+	var urlValues = make(url.Values)
+
+	if err := schema.NewEncoder().Encode(params, urlValues); err != nil {
+		return "", err
+	}
+
+	var tileURL = url.URL{
+		Path:     "/" + name + "." + format.String(),
+		RawQuery: urlValues.Encode(),
+	}
+
+	return tileURL.String(), nil
+}
 
 type TileParams struct {
 	Time   int  `schema:"t"`

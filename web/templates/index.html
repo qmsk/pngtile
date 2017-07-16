@@ -1,9 +1,11 @@
-{{define "title"}}pngtile :: {{.Name}}{{end}}
-{{define "body"}}
-<h1>{{template "title"}}</h1>
-<ul>
-{{range $name := .Names}}
-  <li><a href="{{$name}}">{{$name}}</a></li>
-{{end}}
-</ul>
+{{define "title"}}pngtile :: {{.Title}}{{end}}
+{{define "content"}}
+  {{range $item := .Items}}
+<div class="image">
+    <a href="{{$item.URL}}">
+        <img src="{{ $item.ImageURL }}" />
+        <div class="title">{{$item.Title}}</div>
+    </a>
+</div>
+  {{end}}
 {{end}}

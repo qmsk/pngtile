@@ -52,7 +52,7 @@ L.control.link = function (options) {
     return new L.Control.Link(options);
 };
 
-function map_init (_config) {
+function map_init (id, _config) {
     map_config = _config;
 
     // pixel coordinates
@@ -67,7 +67,7 @@ function map_init (_config) {
         [ 0, +(map_config.image_width >> map_config.tile_zoom) ],
     ];
 
-    map = L.map('map', {
+    map = L.map(id, {
         crs: L              .CRS.Simple,
         minZoom:            0,
         maxZoom:            map_config.tile_zoom,

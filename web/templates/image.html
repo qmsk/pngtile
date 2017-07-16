@@ -1,5 +1,6 @@
 {{define "title"}}pngtile :: {{.Name}}{{end}}
 {{define "link"}}
+  <link rel="stylesheet" href="/static/node_modules/bootstrap/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="/static/app/pngtile.css">
   <link rel="stylesheet" href="/static/node_modules/leaflet/dist/leaflet.css">
 {{end}}
@@ -8,13 +9,12 @@
   <script src="/static/node_modules/leaflet/dist/leaflet.js"></script>
   <script src="/static/app/pngtile.js"></script>
 
-  <div id="map">
+  <div id="view">
 
   </div>
   <script>
       $(function () {
-          map_init({{.Config}});
+          map_init('view', {{.Config}});
       });
   </script>
-
 {{end}}

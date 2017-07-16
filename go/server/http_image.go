@@ -30,10 +30,10 @@ func (server *Server) HandleImage(r *http.Request, name string) (httpResponse, e
 			Config: ImageConfig{
 				URL:          server.URL(name + "." + imageInfo.CacheFormat.String()),
 				ModifiedTime: 0, // TODO: caching
-				TileURL:      TileURL,
+				TileURL:      TileURLTemplate,
 				TileSize:     TileSize,
 				TileZoom:     TileZoomMax,
-				ViewURL:      ViewURL,
+				ViewURL:      ViewURLTemplate,
 				ImageFormat:  imageInfo.CacheFormat.String(),
 				ImageWidth:   imageInfo.ImageWidth,
 				ImageHeight:  imageInfo.ImageHeight,

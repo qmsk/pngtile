@@ -1,20 +1,52 @@
-<html>
-  <head>
-  {{block "head" .}}
-    <title>{{block "title" .}}pngtile{{end}}</title>
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+  {{ block "head" . }}
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ block "title" . }}pngtile{{ end }}</title>
 
-    {{block "link" .}}
+    {{ block "link" . }}
+    <link rel="stylesheet" href="/static/node_modules/bootstrap/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="/static/app/pngtile.css">
-    {{end}}
-  {{end}}
+    {{ end }}
+  {{ end }}
   </head>
   <body>
-  {{block "body" .}}
-    <h1>{{template "title"}}</h1>
+  {{ block "body" . }}
+    <div class="container">
+      <div id="header">
+      {{ block "header" . }}
+        <h1 class="page-header-title">
+            <a href="/">{{ template "title" }}</a>
+        </h1>
+      {{ end }}
+      </div>
+      <div id="breadcrumb">
+      {{ block "breadcrumb" . }}
 
+      {{ end }}
+      </div>
+      <div class="row">
+          <div class="col-sm-2" id="nav">
+          {{ block "nav" . }}
+
+          {{ end }}
+          </div>
+          <div class="col-sm-8" id="content">
+          {{ block "content" . }}
+
+          {{ end }}
+          </div>
+      </div>
+      <div id="footer">
+      {{ block "footer" . }}
+
+      {{ end }}
+      </div>
+    </div>
   {{end}}
   {{block "script" .}}
-  
+
   {{end}}
   </body>
 </html>
