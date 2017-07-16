@@ -73,6 +73,8 @@ struct pt_image_info {
     /** Cache format version or -err */
     int cache_version;
 
+    enum pt_image_format cache_format;
+
     /** Last update of cache file */
     time_t cache_mtime;
 

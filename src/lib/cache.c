@@ -257,6 +257,7 @@ int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
     if ((err = pt_cache_header(cache, &header)))
         return err;
 
+    info->cache_format = header.format;
     info->cache_version = header.version;
 
     // img info
