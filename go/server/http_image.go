@@ -15,14 +15,14 @@ type Image struct {
 }
 
 type ImageConfig struct {
-	TilesURL          string `json:"tiles_url"`
-	TilesModifiedTime int    `json:"tiles_mtime"`
-	TileURL           string `json:"tile_url"`
-	TileSize          uint   `json:"tile_size"`
-	TileZoom          int    `json:"tile_zoom"`
-	ImageURL          string `json:"image_url"`
-	ImageWidth        uint   `json:"image_width"`
-	ImageHeight       uint   `json:"image_height"`
+	URL          string `json:"url"`
+	ModifiedTime int    `json:"mtime"`
+	TileURL      string `json:"tile_url"`
+	TileSize     uint   `json:"tile_size"`
+	TileZoom     int    `json:"tile_zoom"`
+	ViewURL      string `json:"view_url"`
+	ImageWidth   uint   `json:"image_width"`
+	ImageHeight  uint   `json:"image_height"`
 }
 
 func (server *Server) Image(name string) (*Image, error) {
@@ -42,14 +42,14 @@ func (server *Server) Image(name string) (*Image, error) {
 
 			Name: name,
 			Config: ImageConfig{
-				TilesURL:          server.URL(name),
-				TilesModifiedTime: 0, // TODO: caching
-				TileURL:           TileURL,
-				TileSize:          TileSize,
-				TileZoom:          TileZoomMax,
-				ImageURL:          ImageURL,
-				ImageWidth:        pngtileInfo.ImageWidth,
-				ImageHeight:       pngtileInfo.ImageHeight,
+				URL:          server.URL(name),
+				ModifiedTime: 0, // TODO: caching
+				TileURL:      TileURL,
+				TileSize:     TileSize,
+				TileZoom:     TileZoomMax,
+				ViewURL:      ViewURL,
+				ImageWidth:   pngtileInfo.ImageWidth,
+				ImageHeight:  pngtileInfo.ImageHeight,
 			},
 		}
 

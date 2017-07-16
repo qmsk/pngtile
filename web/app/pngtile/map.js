@@ -38,7 +38,7 @@ L.Control.Link = L.Control.extend({
             z: zoom
         };
 
-        var url = L.Util.template(this.options.url, L.extend(state, this.options));
+        var url = L.Util.template(this.options.view_url, L.extend(state, this.options));
 
         this.link.href = url;
 
@@ -77,8 +77,8 @@ function map_init (_config) {
     map.on('move', map_move);
 
     L.tileLayer(map_config.tile_url, {
-        tiles_url:          map_config.tiles_url,
-        tiles_mtime:        map_config.tiles_mtime,
+        url:                map_config.url,
+        mtime:              map_config.mtime,
         minZoom:            0,
         maxZoom:            map_config.tile_zoom,
         tileSize:           map_config.tile_size,
@@ -88,11 +88,11 @@ function map_init (_config) {
         bounds:             bounds
     }).addTo(map);
 
-    // controls
+    // view controls
     L.control.link({
-        url:        map_config.image_url,
-        tiles_url:  map_config.tiles_url,
-        tiles_mtime:        map_config.tiles_mtime,
+        view_url: map_config.view_url,
+        url:      map_config.url,
+        mtime:    map_config.mtime,
     }).addTo(map);
 
     // set position
