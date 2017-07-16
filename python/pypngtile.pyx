@@ -70,10 +70,10 @@ cdef class Image :
         # open
         with nogil :
             # XXX: I hope use of path doesn't break...
-            err = pt_image_open(&self.image, path, mode)
+            err = pt_image_new(&self.image, path, mode)
 
         if err :
-            raise Error("pt_image_open", err)
+            raise Error("pt_image_new", err)
 
 
     def info (self) :
@@ -93,17 +93,17 @@ cdef class Image :
             cache_blocks        - size of cache file in disk blocks - 512 bytes / block
         """
 
-        cdef const_image_info_ptr infop
+        cdef pt_image_info info
         cdef int err
 
         with nogil :
-            err = pt_image_info_(self.image, &infop)
+            err = pt_image_info_(self.image, &info)
 
         if err :
             raise Error("pt_image_info", err)
 
         # return as a struct
-        return infop[0]
+        return info
 
     def cache_mtime (self) :
         """
@@ -142,17 +142,17 @@ cdef class Image :
         cdef int err
 
         with nogil :
-            err = pt_image_load(self.image)
+            err = pt_image_open(self.image)
 
         if err :
-            raise Error("pt_image_load", err)
+            raise Error("pt_image_open", err)
 
 
-    def update (self, background_color = None) :
+    def update (self, background_pixel = None) :
         """
             Update the underlying cache file from the source image.
 
-            background_color    - skip consecutive pixels that match this byte pattern in output
+            background_pixel    - skip consecutive pixels that match this byte pattern in output
 
             Requires that the Image was opened using OPEN_UPDATE.
         """
@@ -164,15 +164,17 @@ cdef class Image :
         memset(&params, 0, sizeof(params))
 
         # params
-        if background_color :
+        if background_pixel :
             # cast
-            bgcolor = <char *>background_color
+            bgcolor = <char *>background_pixel
 
             if 0 >= len(bgcolor) > 4 :
                 raise ValueError("background_color must be a str of between 1 and 4 bytes")
 
             # decode
-            memcpy(params.background_color, bgcolor, len(bgcolor))
+            memcpy(params.background_pixel, bgcolor, len(bgcolor))
+
+            params.flags |= PT_IMAGE_BACKGROUND_PIXEL
 
         # run update
         with nogil :
@@ -197,10 +199,10 @@ cdef class Image :
         """
 
         cdef FILE *outf
-        cdef pt_tile_info ti
+        cdef pt_tile_params params
         cdef int err
 
-        memset(&ti, 0, sizeof(ti))
+        memset(&params, 0, sizeof(params))
 
         # convert to FILE
         if not PyFile_Check(out) :
@@ -212,15 +214,15 @@ cdef class Image :
             raise TypeError("out: must have a FILE*")
 
         # pack params
-        ti.width = width
-        ti.height = height
-        ti.x = x
-        ti.y = y
-        ti.zoom = zoom
+        params.width = width
+        params.height = height
+        params.x = x
+        params.y = y
+        params.zoom = zoom
 
         # render
         with nogil :
-            err = pt_image_tile_file(self.image, &ti, outf)
+            err = pt_image_tile_file(self.image, &params, outf)
 
         if err :
             raise Error("pt_image_tile_file", err)
@@ -237,23 +239,23 @@ cdef class Image :
             zoom        - zoom level: out = 2**(-zoom) * in
         """
 
-        cdef pt_tile_info ti
+        cdef pt_tile_params params
         cdef char *buf
         cdef size_t len
         cdef int err
 
-        memset(&ti, 0, sizeof(ti))
+        memset(&params, 0, sizeof(params))
 
         # pack params
-        ti.width = width
-        ti.height = height
-        ti.x = x
-        ti.y = y
-        ti.zoom = zoom
+        params.width = width
+        params.height = height
+        params.x = x
+        params.y = y
+        params.zoom = zoom
 
         # render and return via buf/len
         with nogil :
-            err = pt_image_tile_mem(self.image, &ti, &buf, &len)
+            err = pt_image_tile_mem(self.image, &params, &buf, &len)
 
         if err :
             raise Error("pt_image_tile_mem", err)
