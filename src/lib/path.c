@@ -4,6 +4,27 @@
 #include <string.h>
 #include <errno.h>
 
+const char *pt_path_ext(const char *path)
+{
+  const char *ext, *p;
+
+  for (p = path; *p; p++) {
+    if (*p == '/') {
+      // ignore dots in directory names
+      ext = NULL;
+    } else if (*p == '.') {
+      ext = p;
+    }
+  }
+
+  if (ext == NULL) {
+    // pointer to end of string
+    ext = p;
+  }
+
+  return ext;
+}
+
 int pt_path_make_ext (char *buf, size_t len, const char *path, const char *ext)
 {
     char *p;

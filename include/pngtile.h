@@ -127,6 +127,13 @@ extern bool pt_log_debug;
 extern bool pt_log_warn;
 
 /**
+ * Test if the given file looks like something that you can open.
+ *
+ * @return 0 if ok, 1 if unkonwn format, <0 on errors.
+ */
+int pt_image_sniff (const char *path);
+
+/**
  * Open a new pt_image for use.
  *
  * @param img_ptr returned pt_image handle * @param path filesystem path to .png file

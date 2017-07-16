@@ -4,6 +4,12 @@
 #include <stddef.h>
 
 /**
+ * Return the ".ext" from the end of path, or a pointer to the end of the string ("") if no ext.
+ *
+ */
+const char *pt_path_ext(const char *path);
+
+/**
  * Copy path to buffer, and replacing given extension.
  * The extension should be of the form ".foo"
  *

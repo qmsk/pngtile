@@ -50,6 +50,19 @@ static int pt_image_cache_path (struct pt_image *image, char *buf, size_t len)
     return 0;
 }
 
+int pt_image_sniff (const char *path)
+{
+  const char *ext = pt_path_ext(path);
+
+  PT_DEBUG("%s: ext=%s", path, ext);
+
+  if (strcmp(ext, ".png") == 0) {
+    return pt_png_check(path);
+  } else {
+    return 1;
+  }
+}
+
 int pt_image_new (struct pt_image **image_ptr, const char *path, int cache_mode)
 {
     PT_DEBUG("%s: cache_mode=%d", path, cache_mode);
