@@ -12,9 +12,11 @@ import (
 )
 
 type Options struct {
-	Debug  bool
-	Quiet  bool
-	Update bool
+	Debug bool
+	Quiet bool
+
+	Recursive bool
+	Update    bool
 
 	Background string
 	TileOut    string
@@ -46,6 +48,8 @@ func (options Options) imageParams() (pngtile.ImageParams, error) {
 }
 
 func (options Options) run(path string) error {
+	log.Printf("%s", path)
+
 	return pngtile.WithImage(path, pngtile.OPEN_UPDATE, func(image *pngtile.Image) error {
 		if cacheStatus, err := image.Status(); err != nil {
 			return err
@@ -122,6 +126,12 @@ func main() {
 			Destination: &options.Quiet,
 		},
 
+		cli.BoolFlag{
+			Name:        "recursive",
+			Usage:       "scan directory recursively for image files",
+			Destination: &options.Recursive,
+		},
+
 		cli.StringFlag{
 			Name:        "background",
 			Usage:       "Hexadecimal [1..4]uint8 pixel value",
@@ -182,8 +192,22 @@ func main() {
 	}
 	app.Action = func(c *cli.Context) error {
 		for _, arg := range c.Args() {
-			if err := options.run(arg); err != nil {
-				return fmt.Errorf("%s: %s", arg, err)
+			if options.Recursive {
+				log.Printf("%s...", arg)
+
+				if files, err := pngtile.Scan(arg); err != nil {
+					return fmt.Errorf("scan %s: %v", arg, err)
+				} else {
+					for _, path := range files {
+						if err := options.run(path); err != nil {
+							return fmt.Errorf("%s: %s", path, err)
+						}
+					}
+				}
+			} else {
+				if err := options.run(arg); err != nil {
+					return fmt.Errorf("%s: %s", arg, err)
+				}
 			}
 		}
 		return nil
