@@ -33,9 +33,6 @@ enum pt_open_mode {
  * Values for pt_image_cached
  */
 enum pt_cache_status {
-    /** Cache status could not be determined */
-    PT_CACHE_ERROR      = -1,
-
     /** Cache is fresh */
     PT_CACHE_FRESH      = 0,
 
@@ -121,21 +118,16 @@ extern bool pt_log_warn;
 int pt_image_new (struct pt_image **image_ptr, const char *png_path, int cache_mode);
 
 /**
- * Get the image's metadata.
- *
- * XXX: return void, this never fails, just returns partial info
- */
-int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr);
-
-/**
  * Check the given image's cache is stale - in other words, if the image needs to be update()'d.
  *
- * @return one of pt_cache_status
+ * @return pt_cache_status, < 0 on error.
  */
 int pt_image_status (struct pt_image *image);
 
 /**
  * Update the given image's cache.
+ *
+ * Fails if not opened with PT_OPEN_UPDATE.
  *
  * @param params optional parameters to use for the update process
  */
@@ -147,6 +139,14 @@ int pt_image_update (struct pt_image *image, const struct pt_image_params *param
  * Fails if the cache doesn't exist.
  */
 int pt_image_open (struct pt_image *image);
+
+/**
+ * Get the image's metadata.
+ *
+ * XXX: only valid if open, after open/update?
+ * XXX: this never fails, just returns partial info
+ */
+int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr);
 
 /**
  * Render a PNG tile to a FILE*.
@@ -174,12 +174,14 @@ int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, 
 /**
  * Close associated resources, returning error.
  *
- * The pt_image remains valid, and can be re-used.
+ * The pt_image remains valid, and can be re-used after pt_image_open().
+ *
+ * Must still call pt_image_destroy() afterwards.
  */
 int pt_image_close (struct pt_image *image);
 
 /**
- * Release the given pt_image without any clean shutdown
+ * Release the given pt_image. If it is still open, it will be aborted, warning on close errors.
  */
 void pt_image_destroy (struct pt_image *image);
 

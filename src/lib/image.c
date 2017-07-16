@@ -86,6 +86,13 @@ error:
     return err;
 }
 
+int pt_image_status (struct pt_image *image)
+{
+    return pt_cache_status(image->cache, image->path);
+}
+
+// Open PNG file
+// XXX: make this static and pass in FILE* to pt_png_open instead
 int pt_image_open_file (struct pt_image *image, FILE **file_ptr)
 {
     FILE *fp;
@@ -150,11 +157,6 @@ int pt_image_info (struct pt_image *image, const struct pt_image_info **info_ptr
     *info_ptr = &image->info;
 
     return 0;
-}
-
-int pt_image_status (struct pt_image *image)
-{
-    return pt_cache_status(image->cache, image->path);
 }
 
 int pt_image_open (struct pt_image *image)
