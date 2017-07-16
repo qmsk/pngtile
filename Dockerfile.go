@@ -14,3 +14,5 @@ WORKDIR /go/src/github.com/qmsk/pngtile
 
 RUN make
 RUN go install -v ./go/...
+
+ENV PATH=/go/bin:$PATH
