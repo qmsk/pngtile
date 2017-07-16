@@ -12,7 +12,7 @@ Language support:
 If you have some `.png` files in your current directory:
 
     $ docker pull qmsk/pngtile
-    $ docker run --rm -v $PWD:/srv/pngtile/images -p 9090:9090 qmsk/pngtile
+    $ docker run --rm -v $PWD:/srv/pngtile/images -u $UID -p 9090:9090 qmsk/pngtile
 
 The default image `CMD` will build the cache files, and then run the server on HTTP port 9090.
 
