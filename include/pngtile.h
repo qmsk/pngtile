@@ -105,10 +105,10 @@ struct pt_image_params {
  */
 struct pt_tile_params {
     /** Dimensions of output image */
-    size_t width, height;
+    unsigned int width, height;
 
     /** Pixel coordinates of top-left corner */
-    size_t x, y;
+    unsigned int x, y;
 
     /** Zoom factor of 2^z (out < zero < in) */
     int zoom;

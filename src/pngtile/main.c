@@ -156,7 +156,7 @@ int do_tile (struct pt_image *image, const struct pt_tile_params *params, const 
     }
 
     // render
-    log_info("\tRender tile %zux%zu@(%zu,%zu) -> %s", params->width, params->height, params->x, params->y, out_path);
+    log_info("\tRender tile %ux%u@(%u,%u) -> %s", params->width, params->height, params->x, params->y, out_path);
 
     if ((err = pt_image_tile_file(image, params, out_file))) {
         log_errno("pt_image_tile_file: %s", pt_strerror(err));

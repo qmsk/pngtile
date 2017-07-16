@@ -288,7 +288,7 @@ static inline const void* tile_row_col (const struct pt_png_header *header, cons
  */
 static int pt_png_encode_direct (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_params *params)
 {
-    for (size_t row = params->y; row < params->y + params->height; row++)
+    for (unsigned int row = params->y; row < params->y + params->height; row++)
         // write data directly
         // missing const...
         png_write_row(img->png, (const png_bytep) tile_row_col(header, data, row, params->x));
@@ -299,7 +299,7 @@ static int pt_png_encode_direct (struct pt_png_img *img, const struct pt_png_hea
 /**
  * Fill in a clipped region of \a width_px pixels at the given row segment
  */
-static inline void tile_row_fill_clip (const struct pt_png_header *header, png_byte *row, size_t width_px)
+static inline void tile_row_fill_clip (const struct pt_png_header *header, png_byte *row, unsigned int width_px)
 {
     // XXX: use a configureable background color, or full transparency?
     memset(row, /* 0xd7 */ 0x00, width_px * header->col_bytes);
@@ -311,10 +311,10 @@ static inline void tile_row_fill_clip (const struct pt_png_header *header, png_b
 static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_params *params)
 {
     png_byte *rowbuf;
-    size_t row;
+    unsigned int row;
 
     // image data goes from (params->x ... clip_x, params->y ... clip_y), remaining region is filled
-    size_t clip_x, clip_y;
+    unsigned int clip_x, clip_y;
 
 
     // fit the left/bottom edge against the image dimensions
@@ -328,7 +328,7 @@ static int pt_png_encode_clipped (struct pt_png_img *img, const struct pt_png_he
 
     // how much data we actually have for each row, in px and bytes
     // from [(paramsle x)---](clip x)
-    size_t row_px = clip_x - params->x;
+    unsigned int row_px = clip_x - params->x;
     size_t row_bytes = row_px * header->col_bytes;
 
     // write the rows that we have
@@ -393,7 +393,7 @@ static int pt_png_encode_unzoomed (struct pt_png_img *img, const struct pt_png_h
 /**
  * Manipulate powers of two
  */
-static inline size_t scale_by_zoom_factor (size_t value, int z)
+static inline unsigned int scale_by_zoom_factor (unsigned int value, int z)
 {
     if (z > 0)
         return value << z;
@@ -410,7 +410,7 @@ static inline size_t scale_by_zoom_factor (size_t value, int z)
 /**
  * Converts a pixel's data into a png_color
  */
-static inline void png_pixel_data (const png_color **outp, const struct pt_png_header *header, const uint8_t *data, size_t row, size_t col)
+static inline void png_pixel_data (const png_color **outp, const struct pt_png_header *header, const uint8_t *data, unsigned int row, unsigned int col)
 {
     // palette entry number
     int p;
@@ -449,17 +449,17 @@ static inline void png_pixel_data (const png_color **outp, const struct pt_png_h
 static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_header *header, const uint8_t *data, const struct pt_tile_params *params)
 {
     // size of the image data in px
-    size_t data_width = scale_by_zoom_factor(params->width, params->zoom);
-    size_t data_height = scale_by_zoom_factor(params->height, params->zoom);
+    unsigned int data_width = scale_by_zoom_factor(params->width, params->zoom);
+    unsigned int data_height = scale_by_zoom_factor(params->height, params->zoom);
 
     // input pixels per output pixel
-    size_t pixel_size = scale_by_zoom_factor(1, params->zoom);
+    unsigned int pixel_size = scale_by_zoom_factor(1, params->zoom);
 
     // bytes per output pixel
     size_t pixel_bytes = 3;
 
     // size of the output tile in px
-    size_t row_width = params->width;
+    unsigned int row_width = params->width;
 
     // size of an output row in bytes (RGB)
     size_t row_bytes = row_width * 3;
@@ -489,19 +489,19 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
     png_write_info(img->png, img->info);
 
     // ...each output row
-    for (size_t out_row = 0; out_row < params->height; out_row++) {
+    for (unsigned int out_row = 0; out_row < params->height; out_row++) {
         memset(row_buf, 0, row_bytes);
 
         // ...includes pixels starting from this row.
-        size_t in_row_offset = params->y + scale_by_zoom_factor(out_row, params->zoom);
+        unsigned int in_row_offset = params->y + scale_by_zoom_factor(out_row, params->zoom);
 
         // ...each out row includes pixel_size in rows
-        for (size_t in_row = in_row_offset; in_row < in_row_offset + pixel_size && in_row < header->height; in_row++) {
+        for (unsigned int in_row = in_row_offset; in_row < in_row_offset + pixel_size && in_row < header->height; in_row++) {
             // and includes each input pixel
-            for (size_t in_col = params->x; in_col < params->x + data_width && in_col < header->width; in_col++) {
+            for (unsigned int in_col = params->x; in_col < params->x + data_width && in_col < header->width; in_col++) {
 
                 // ...for this output pixel
-                size_t out_col = scale_by_zoom_factor(in_col - params->x, -params->zoom);
+                unsigned int out_col = scale_by_zoom_factor(in_col - params->x, -params->zoom);
 
                 // get pixel RGB data
                 png_pixel_data(&c, header, data, in_row, in_col);
