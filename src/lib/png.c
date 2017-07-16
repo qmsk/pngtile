@@ -42,16 +42,14 @@ error:
     return ret;
 }
 
-int pt_png_open (struct pt_image *image, struct pt_png_img *img)
+int pt_png_open (struct pt_png_img *img, FILE *file)
 {
     int err;
 
     // init
     memset(img, 0, sizeof(*img));
 
-    // open I/O
-    if ((err = pt_image_open_file(image, &img->fh)))
-        goto error;
+    img->fh = file;
 
     // create the struct
     if ((img->png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL) {
@@ -82,7 +80,6 @@ int pt_png_open (struct pt_image *image, struct pt_png_img *img)
 
     // read meta-info
     png_read_info(img->png, img->info);
-
 
     // img->fh will be closed by pt_png_release_read
     return 0;

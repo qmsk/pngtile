@@ -43,8 +43,6 @@ struct pt_png_header {
     png_color palette[PNG_MAX_PALETTE_LENGTH];
 };
 
-
-#include "image.h"
 #include "tile.h"
 
 /**
@@ -57,7 +55,7 @@ int pt_png_check (const char *path);
 /**
  * Open the given .png image, and read info
  */
-int pt_png_open (struct pt_image *image, struct pt_png_img *img);
+int pt_png_open (struct pt_png_img *img, FILE *file);
 
 /**
  * Fill in the PNG header and return the size of the pixel data

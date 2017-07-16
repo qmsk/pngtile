@@ -108,8 +108,7 @@ int pt_image_status (struct pt_image *image)
 }
 
 // Open PNG file
-// XXX: make this static and pass in FILE* to pt_png_open instead
-int pt_image_open_file (struct pt_image *image, FILE **file_ptr)
+static int pt_image_open_file (struct pt_image *image, FILE **file_ptr)
 {
     FILE *fp;
 
@@ -130,6 +129,7 @@ int pt_image_update (struct pt_image *image, const struct pt_image_params *param
 {
     PT_DEBUG("%s: params=%p", image->path, params);
 
+    FILE *file;
     struct pt_png_img img;
     int err = 0;
 
@@ -137,8 +137,11 @@ int pt_image_update (struct pt_image *image, const struct pt_image_params *param
     if (!(image->cache->mode & PT_OPEN_UPDATE))
         return -PT_ERR_OPEN_MODE;
 
-    // open .png
-    if ((err = pt_png_open(image, &img)))
+    // open .png file
+    if ((err = pt_image_open_file(image, &file)))
+        return err;
+
+    if ((err = pt_png_open(&img, file)))
         return err;
 
     // pass to cache object
