@@ -384,6 +384,7 @@ int main (int argc, char **argv)
                 goto error;
 
         }
+        
         // cleanup
         pt_image_destroy(image);
 
