@@ -2,8 +2,42 @@ package server
 
 import (
 	"github.com/qmsk/pngtile/go"
+	"io/ioutil"
+	"path/filepath"
 	"strings"
 )
+
+func (server *Server) List(name string) (dirs []string, images []string, err error) {
+	if path, err := server.Path(name, "/"); err != nil {
+		return dirs, images, err
+	} else if files, err := ioutil.ReadDir(path); err != nil {
+		return dirs, images, err
+	} else {
+		for _, file := range files {
+			var fileBase = file.Name()
+			var filePath = filepath.Join(path, fileBase)
+			var fileName = filepath.Join(name, strings.Split(fileBase, ".")[0])
+
+			if strings.HasPrefix(file.Name(), ".") {
+				continue
+			}
+
+			if file.Mode().IsDir() {
+				dirs = append(dirs, fileName)
+			} else if !file.Mode().IsRegular() {
+
+			} else if imageFormat, ok, err := pngtile.SniffImage(filePath); err != nil {
+				return dirs, images, err
+			} else if !ok {
+				continue
+			} else if imageFormat == pngtile.FORMAT_CACHE {
+				images = append(images, fileName)
+			}
+		}
+
+		return dirs, images, nil
+	}
+}
 
 func (server *Server) Images(name string) ([]string, error) {
 	if path, err := server.Path(name, "/"); err != nil {

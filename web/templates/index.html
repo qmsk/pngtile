@@ -1,11 +1,30 @@
-{{define "title"}}pngtile :: {{.Title}}{{end}}
-{{define "content"}}
-  {{range $item := .Items}}
-<div class="image">
-    <a href="{{$item.URL}}">
-        <img src="{{ $item.ImageURL }}" />
-        <div class="title">{{$item.Title}}</div>
-    </a>
-</div>
+{{ define "title" }}pngtile :: {{.Title}}{{ end }}
+
+{{ define "breadcrumb" }}
+  <ol class="breadcrumb">
+  {{ range $item := .Breadcrumb }}
+      <li><a href="{{$item.URL}}">{{$item.Title}}</a></li>
+  {{ end }}
+  </ol>
+{{ end }}
+
+{{ define "nav" }}
+  <ul class="nav">
+  {{ range $item := .Navigation }}
+    <li>
+        <a href="{{$item.URL}}">{{$item.Title}}</a>
+    </li>
+  {{ end }}
+  </ul>
+{{ end }}
+
+{{ define "content" }}
+  {{range $item := .Images}}
+    <div class="image">
+        <a href="{{$item.URL}}">
+            <img src="{{$item.ImageURL}}" />
+            <div class="title">{{$item.Title}}</div>
+        </a>
+    </div>
   {{end}}
 {{end}}
