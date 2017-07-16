@@ -36,5 +36,5 @@ RUN adduser --system --uid 1000 --home /srv/pngtile --group pngtile
 
 VOLUME /srv/pngtile/images
 USER pngtile
-CMD pngtile --recursive /srv/pngtile; pngtile-server --pngtile-path /srv/pngtile/images --http-static ./web --pngtile-templates ./web/templates --http-listen :9090
+CMD pngtile --recursive /srv/pngtile/images; pngtile-server --pngtile-path /srv/pngtile/images --http-static ./web --pngtile-templates ./web/templates --http-listen :9090
 EXPOSE 9090
