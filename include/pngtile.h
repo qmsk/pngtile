@@ -118,7 +118,7 @@ extern bool pt_log_warn;
  * @param img_ptr returned pt_image handle * @param path filesystem path to .png file
  * @param mode combination of PT_OPEN_* flags
  */
-int pt_image_open (struct pt_image **image_ptr, const char *png_path, int cache_mode);
+int pt_image_new (struct pt_image **image_ptr, const char *png_path, int cache_mode);
 
 /**
  * Get the image's metadata.
@@ -146,15 +146,14 @@ int pt_image_update (struct pt_image *image, const struct pt_image_params *param
  *
  * Fails if the cache doesn't exist.
  */
-// XXX: rename to pt_image_open?
-int pt_image_load (struct pt_image *image);
+int pt_image_open (struct pt_image *image);
 
 /**
  * Render a PNG tile to a FILE*.
  *
  * The PNG data will be written to the given stream, which will be flushed, but not closed.
  *
- * Tile render operations are threadsafe as long as the pt_image is not modified during execution.
+ * Tile render operations are threadsafe as long as the pt_image is not modified during execution: call pt_image_load() first.
  */
 int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info, FILE *out);
 
@@ -163,7 +162,7 @@ int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info,
  *
  * The PNG data will be written to a malloc'd buffer.
  *
- * Tile render operations are threadsafe as long as the pt_image is not modified during execution.
+ * Tile render operations are threadsafe as long as the pt_image is not modified during execution: call pt_image_load() first.
  *
  * @param image render from image's cache
  * @param info tile parameters
@@ -171,6 +170,13 @@ int pt_image_tile_file (struct pt_image *image, const struct pt_tile_info *info,
  * @param len_ptr returned buffer length
  */
 int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_info *info, char **buf_ptr, size_t *len_ptr);
+
+/**
+ * Close associated resources, returning error.
+ *
+ * The pt_image remains valid, and can be re-used.
+ */
+int pt_image_close (struct pt_image *image);
 
 /**
  * Release the given pt_image without any clean shutdown

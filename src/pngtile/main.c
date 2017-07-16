@@ -290,8 +290,8 @@ int main (int argc, char **argv)
         log_debug("Loading image from: %s...", img_path);
 
         // open
-        if ((err = pt_image_open(&image, img_path, PT_OPEN_UPDATE))) {
-            log_errno("pt_image_open: %s: %s", img_path, pt_strerror(err));
+        if ((err = pt_image_new(&image, img_path, PT_OPEN_UPDATE))) {
+            log_errno("pt_image_new: %s: %s", img_path, pt_strerror(err));
             continue;
         }
 
@@ -340,8 +340,8 @@ int main (int argc, char **argv)
             // ensure it's loaded
             log_info("\tLoad image cache...");
 
-            if ((err = pt_image_load(image))) {
-                log_errno("pt_image_load: %s", pt_strerror(err));
+            if ((err = pt_image_open(image))) {
+                log_errno("pt_image_open: %s", pt_strerror(err));
                 goto error;
             }
         }

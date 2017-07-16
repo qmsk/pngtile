@@ -2,9 +2,9 @@
 #include "log.h"
 
 #include <png.h> // sysmtem libpng header
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 

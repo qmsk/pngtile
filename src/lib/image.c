@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-static int pt_image_new (struct pt_image **image_ptr, const char *path)
+static int pt_image_alloc (struct pt_image **image_ptr, const char *path)
 {
     struct pt_image *image;
     int err = 0;
@@ -49,7 +49,7 @@ static int pt_image_cache_path (struct pt_image *image, char *buf, size_t len)
     return 0;
 }
 
-int pt_image_open (struct pt_image **image_ptr, const char *path, int cache_mode)
+int pt_image_new (struct pt_image **image_ptr, const char *path, int cache_mode)
 {
     struct pt_image *image;
     char cache_path[1024];
@@ -64,7 +64,7 @@ int pt_image_open (struct pt_image **image_ptr, const char *path, int cache_mode
         return -PT_ERR_IMG_FORMAT;
 
     // alloc
-    if ((err = pt_image_new(&image, path)))
+    if ((err = pt_image_alloc(&image, path)))
         return err;
 
     // compute cache file path
@@ -157,8 +157,7 @@ int pt_image_status (struct pt_image *image)
     return pt_cache_status(image->cache, image->path);
 }
 
-
-int pt_image_load (struct pt_image *image)
+int pt_image_open (struct pt_image *image)
 {
     return pt_cache_open(image->cache);
 }
@@ -208,6 +207,16 @@ error:
     pt_tile_abort(&tile);
 
     return err;
+}
+
+int pt_image_close (struct pt_image *image)
+{
+  int err;
+
+  if (image->cache && (err = pt_cache_close(image->cache)))
+    return err;
+
+  return 0;
 }
 
 void pt_image_destroy (struct pt_image *image)
