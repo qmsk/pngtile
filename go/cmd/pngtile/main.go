@@ -4,15 +4,22 @@ import (
 	"fmt"
 	"github.com/qmsk/pngtile/go"
 	"github.com/urfave/cli"
+	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
+	"time"
 )
 
 type Options struct {
-	Debug      bool
-	Quiet      bool
-	Update     bool
+	Debug  bool
+	Quiet  bool
+	Update bool
+
 	Background string
+	TileOut    string
+	TileParams pngtile.TileParams
+	TileRandom bool
 }
 
 func (options Options) imageParams() (pngtile.ImageParams, error) {
@@ -66,6 +73,30 @@ func (options Options) run(path string) error {
 			fmt.Printf("\tImage: %dx%d@%d\n", info.ImageWidth, info.ImageHeight, info.ImageBPP)
 			fmt.Printf("\tImage mtime=%v bytes=%d\n", info.ImageModifiedTime, info.ImageBytes)
 			fmt.Printf("\tCache mtime=%v bytes=%d version=%d blocks=%d\n", info.CacheModifiedTime, info.CacheBytes, info.CacheVersion, info.CacheBlocks)
+
+			if options.TileRandom {
+				r := rand.New(rand.NewSource(time.Now().Unix()))
+
+				options.TileParams.X = uint(r.Intn(int(info.ImageWidth)))
+				options.TileParams.Y = uint(r.Intn(int(info.ImageHeight)))
+			}
+		}
+
+		if options.TileOut != "" {
+			if tileData, err := image.Tile(options.TileParams); err != nil {
+				return fmt.Errorf("Render --tile: %v", err)
+			} else if err := ioutil.WriteFile(options.TileOut, tileData, 0644); err != nil {
+				return fmt.Errorf("Write --tile-out=%s: %v", options.TileOut, err)
+			} else {
+				log.Printf("%s: render %dx%d tile at %dx%d@%d to %s", path,
+					options.TileParams.Width,
+					options.TileParams.Height,
+					options.TileParams.X,
+					options.TileParams.Y,
+					options.TileParams.Zoom,
+					options.TileOut,
+				)
+			}
 		}
 
 		return nil
@@ -100,6 +131,47 @@ func main() {
 			Name:        "update",
 			Usage:       "Force cache udpate",
 			Destination: &options.Update,
+		},
+
+		cli.StringFlag{
+			Name:        "tile-out",
+			Usage:       "Render tile to file",
+			Destination: &options.TileOut,
+		},
+		cli.UintFlag{
+			Name:        "tile-width",
+			Usage:       "Tile width pixels",
+			Value:       256,
+			Destination: &options.TileParams.Width,
+		},
+		cli.UintFlag{
+			Name:        "tile-height",
+			Usage:       "Tile height pixels",
+			Value:       256,
+			Destination: &options.TileParams.Height,
+		},
+		cli.UintFlag{
+			Name:        "tile-x",
+			Usage:       "Tile X pixels",
+			Value:       0,
+			Destination: &options.TileParams.X,
+		},
+		cli.UintFlag{
+			Name:        "tile-y",
+			Usage:       "Tile Y pixels",
+			Value:       0,
+			Destination: &options.TileParams.Y,
+		},
+		cli.IntFlag{
+			Name:        "tile-zoom",
+			Usage:       "Tile zoom factor (-/0/+)",
+			Value:       0,
+			Destination: &options.TileParams.Zoom,
+		},
+		cli.BoolFlag{
+			Name:        "tile-random",
+			Usage:       "Randomize tile X/Y",
+			Destination: &options.TileRandom,
 		},
 	}
 	app.Before = func(c *cli.Context) error {

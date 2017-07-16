@@ -46,7 +46,7 @@ func (image *Image) Open() error {
 
 // Open image cache in update mode,
 func (image *Image) Update(params ImageParams) error {
-	var image_params = params.image_params()
+	var image_params = params.c_struct()
 
 	if ret, err := C.pt_image_update(image.pt_image, &image_params); ret < 0 {
 		return makeError("pt_image_open", ret, err)
@@ -63,6 +63,21 @@ func (image *Image) Info() (ImageInfo, error) {
 	}
 
 	return makeImageInfo(&image_info), nil
+}
+
+// Render tile to PNG image
+func (image *Image) Tile(params TileParams) ([]byte, error) {
+	var tile_params = params.c_struct()
+	var tile_buf *C.char
+	var tile_size C.size_t
+
+	if ret, err := C.pt_image_tile_mem(image.pt_image, &tile_params, &tile_buf, &tile_size); ret < 0 {
+		return nil, makeError("pt_image_tile_mem", ret, err)
+	} else {
+		defer C.free(unsafe.Pointer(tile_buf))
+	}
+
+	return C.GoBytes(unsafe.Pointer(tile_buf), C.int(tile_size)), nil // XXX: overflow?
 }
 
 // Close image, and destroy it to release resources.

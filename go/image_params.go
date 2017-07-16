@@ -11,7 +11,7 @@ type ImageParams struct {
 	BackgroundPixel *ImagePixel
 }
 
-func (params ImageParams) image_params() C.struct_pt_image_params {
+func (params ImageParams) c_struct() C.struct_pt_image_params {
 	var image_params C.struct_pt_image_params
 
 	if params.BackgroundPixel != nil {
