@@ -3,9 +3,6 @@ from libc.stdio cimport (
 )
 
 cdef extern from "pngtile.h" :
-    struct pt_ctx :
-        pass
-
     struct pt_image :
         pass
 
@@ -28,16 +25,16 @@ cdef extern from "pngtile.h" :
 
     struct pt_image_params :
         int background_color[4]
-    
+
     struct pt_tile_info :
         size_t width, height
         size_t x, y
         int zoom
 
     ctypedef pt_image_info* const_image_info_ptr "const struct pt_image_info *"
-    
+
     ## functions
-    int pt_image_open (pt_image **image_ptr, pt_ctx *ctx, char *png_path, int cache_mode) nogil
+    int pt_image_open (pt_image **image_ptr, char *png_path, int cache_mode) nogil
     int pt_image_info_ "pt_image_info" (pt_image *image, pt_image_info **info_ptr) nogil
     int pt_image_status (pt_image *image) nogil
     int pt_image_load (pt_image *image) nogil
@@ -45,6 +42,6 @@ cdef extern from "pngtile.h" :
     int pt_image_tile_file (pt_image *image, pt_tile_info *info, FILE *out) nogil
     int pt_image_tile_mem (pt_image *image, pt_tile_info *info, char **buf_ptr, size_t *len_ptr) nogil
     void pt_image_destroy (pt_image *image) nogil
-    
+
     # error code -> name
     char* pt_strerror (int err)

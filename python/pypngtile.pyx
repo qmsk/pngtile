@@ -45,7 +45,7 @@ class Error (Exception) :
 cdef class Image :
     """
         An image file on disk (.png) and an associated .cache file.
-        
+
         Open the .png file at the given path using the given mode.
 
         path        - filesystem path to .png file
@@ -59,18 +59,18 @@ cdef class Image :
     # XXX: should really be a pt_image property...
     cdef readonly object path
 
-    
+
     # open the pt_image
     def __cinit__ (self, char *path, int mode = 0) :
         cdef int err
 
         # store
         self.path = path
-        
+
         # open
         with nogil :
             # XXX: I hope use of path doesn't break...
-            err = pt_image_open(&self.image, NULL, path, mode)
+            err = pt_image_open(&self.image, path, mode)
 
         if err :
             raise Error("pt_image_open", err)
@@ -101,10 +101,10 @@ cdef class Image :
 
         if err :
             raise Error("pt_image_info", err)
-        
+
         # return as a struct
         return infop[0]
-    
+
     def cache_mtime (self) :
         """
             Return cache's mtime as an UTC datetime.
@@ -131,7 +131,7 @@ cdef class Image :
 
         if ret :
             raise Error("pt_image_status", ret)
-        
+
         return ret
 
     def open (self) :
@@ -171,9 +171,9 @@ cdef class Image :
             if 0 >= len(bgcolor) > 4 :
                 raise ValueError("background_color must be a str of between 1 and 4 bytes")
 
-            # decode 
+            # decode
             memcpy(params.background_color, bgcolor, len(bgcolor))
-    
+
         # run update
         with nogil :
             err = pt_image_update(self.image, &params)
@@ -187,7 +187,7 @@ cdef class Image :
             Render a region of the source image as a PNG tile to the given output file.
 
             width       - dimensions of the output tile in px
-            height      
+            height
             x           - coordinates in the source file
             y
             zoom        - zoom level: out = 2**(-zoom) * in
@@ -201,7 +201,7 @@ cdef class Image :
         cdef int err
 
         memset(&ti, 0, sizeof(ti))
-        
+
         # convert to FILE
         if not PyFile_Check(out) :
             raise TypeError("out: must be a file object")
@@ -210,14 +210,14 @@ cdef class Image :
 
         if not outf :
             raise TypeError("out: must have a FILE*")
-        
+
         # pack params
         ti.width = width
         ti.height = height
         ti.x = x
         ti.y = y
         ti.zoom = zoom
-        
+
         # render
         with nogil :
             err = pt_image_tile_file(self.image, &ti, outf)
@@ -231,7 +231,7 @@ cdef class Image :
             Render a region of the source image as a PNG tile, and return the PNG data a a string.
 
             width       - dimensions of the output tile in px
-            height      
+            height
             x           - coordinates in the source file
             y
             zoom        - zoom level: out = 2**(-zoom) * in
@@ -241,23 +241,23 @@ cdef class Image :
         cdef char *buf
         cdef size_t len
         cdef int err
-        
+
         memset(&ti, 0, sizeof(ti))
-        
+
         # pack params
         ti.width = width
         ti.height = height
         ti.x = x
         ti.y = y
         ti.zoom = zoom
-        
+
         # render and return via buf/len
         with nogil :
             err = pt_image_tile_mem(self.image, &ti, &buf, &len)
 
         if err :
             raise Error("pt_image_tile_mem", err)
-        
+
         # copy buffer as str...
         data = PyString_FromStringAndSize(buf, len)
 
@@ -272,4 +272,3 @@ cdef class Image :
             pt_image_destroy(self.image)
 
             self.image = NULL
-
