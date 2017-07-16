@@ -114,7 +114,7 @@ int pt_cache_open (struct pt_cache *cache);
  *
  * If the cache is not yet open, this will open it
  */
-int pt_cache_tile (struct pt_cache *cache, struct pt_tile *tile);
+int pt_cache_render_tile (struct pt_cache *cache, struct pt_tile *tile);
 
 /**
  * Close the cache, if opened

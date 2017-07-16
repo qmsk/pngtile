@@ -474,9 +474,13 @@ error:
     return err;
 }
 
-int pt_cache_tile (struct pt_cache *cache, struct pt_tile *tile)
+int pt_cache_render_tile (struct pt_cache *cache, struct pt_tile *tile)
 {
     int err;
+
+    // validate params
+    if (!tile->params.width || !tile->params.height)
+        return -PT_ERR_TILE_DIM;
 
     // ensure open
     if ((err = pt_cache_open(cache)))

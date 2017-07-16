@@ -197,11 +197,11 @@ int pt_image_tile_file (struct pt_image *image, const struct pt_tile_params *par
     int err;
 
     // init
-    if ((err = pt_tile_init_file(&tile, image->cache, params, out)))
+    if ((err = pt_tile_init_file(&tile, params, out)))
         return err;
 
     // render
-    if ((err = pt_tile_render(&tile)))
+    if ((err = pt_cache_render_tile(image->cache, &tile)))
         goto error;
 
     // ok
@@ -221,11 +221,11 @@ int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_params *para
     int err;
 
     // init
-    if ((err = pt_tile_init_mem(&tile, image->cache, params)))
+    if ((err = pt_tile_init_mem(&tile,  params)))
         return err;
 
     // render
-    if ((err = pt_tile_render(&tile)))
+    if ((err = pt_cache_render_tile(image->cache, &tile)))
         goto error;
 
     // ok
