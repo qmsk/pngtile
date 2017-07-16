@@ -25,7 +25,7 @@ func (server *Server) HandleImage(r *http.Request, name string) (httpResponse, e
 	if imageInfo, err := server.ImageInfo(name); err != nil {
 		return httpResponse{}, err
 	} else {
-		return renderResponse(r, imageTemplate, ImageResponse{
+		return renderResponse(r, server.templates.imageTemplate, ImageResponse{
 			Name: name,
 			Config: ImageConfig{
 				URL:          server.URL(name + "." + imageInfo.CacheFormat.String()),

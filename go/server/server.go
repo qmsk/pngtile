@@ -14,13 +14,21 @@ func makeServer(config Config) (*Server, error) {
 		images: make(map[string]*Image),
 	}
 
+	if templates, err := server.loadTemplates(); err != nil {
+		return nil, err
+	} else {
+		server.templates = templates
+	}
+
 	return &server, nil
 }
 
 type Server struct {
 	config Config
 	path   string
-	images map[string]*Image
+
+	templates templates
+	images    map[string]*Image
 }
 
 func (server *Server) URL(name string) string {

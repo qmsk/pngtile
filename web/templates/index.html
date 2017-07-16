@@ -1,0 +1,9 @@
+{{define "title"}}pngtile :: {{.Name}}{{end}}
+{{define "body"}}
+<h1>{{template "title"}}</h1>
+<ul>
+{{range $name := .Names}}
+  <li><a href="{{$name}}">{{$name}}</a></li>
+{{end}}
+</ul>
+{{end}}

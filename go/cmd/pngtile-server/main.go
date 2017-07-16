@@ -12,9 +12,10 @@ import (
 var options struct {
 	Web web.Options `group:"Web"`
 
-	Path  string `long:"pngtile-path"`
-	Debug bool   `long:"pngtile-debug"`
-	Quiet bool   `long:"pngtile-quiet"`
+	Debug        bool   `long:"pngtile-debug"`
+	Quiet        bool   `long:"pngtile-quiet"`
+	Path         string `long:"pngtile-path"`
+	TemplatePath string `long:"pngtile-templates" default:"web/templates"`
 }
 
 func main() {
@@ -30,7 +31,8 @@ func main() {
 	pngtile.LogWarn(!options.Quiet)
 
 	var config = server.Config{
-		Path: options.Path,
+		Path:         options.Path,
+		TemplatePath: options.TemplatePath,
 	}
 
 	if server, err := config.MakeServer(); err != nil {

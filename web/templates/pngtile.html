@@ -1,0 +1,17 @@
+<html>
+  <head>
+  {{block "head" .}}
+    <title>{{block "title" .}}pngtile{{end}}</title>
+
+    {{block "link" .}}
+    <link rel="stylesheet" href="/static/app/pngtile.css">
+    {{end}}
+  {{end}}
+  </head>
+  <body>
+  {{block "body" .}}
+    <h1>{{template "title"}}</h1>
+
+  {{end}}
+  </body>
+</html>
