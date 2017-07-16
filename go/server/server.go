@@ -23,6 +23,10 @@ type Server struct {
 	images map[string]*pngtile.Image
 }
 
+func (server *Server) URL(name string) string {
+	return "/" + name
+}
+
 func (server *Server) Path(name string) (string, error) {
 	if name == "" {
 		return server.path, nil
