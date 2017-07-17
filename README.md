@@ -2,10 +2,10 @@
 
 Constant-time/memory handling of large PNG images as smaller tiles.
 
-Language support:
-
-* [Python](python/)
-* [Go](go/)
+* [Docker Hub](https://hub.docker.com/r/qmsk/pngtile/) `docker run -v /srv/pngtile/images qmsk/pngtile`
+* [Demo site](https://pngtile.qmsk.net/terom/openttd/20091218/1987#16976:13632:0) OpenTTD screenshots
+* [Python](python/) language support (outdated)
+* [Go](go/) language support
 
 ## Docker
 
