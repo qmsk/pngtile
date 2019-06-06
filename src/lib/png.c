@@ -510,36 +510,33 @@ static inline unsigned int scale_by_zoom_factor (unsigned int value, int z)
 /**
  * Converts a pixel's data into a png_color
  */
-static inline void png_pixel_data (const png_color **outp, const struct pt_png_header *header, const uint8_t *data, unsigned int row, unsigned int col)
+static inline void png_pixel_data (png_color *c, const struct pt_png_header *header, const uint8_t *data, unsigned int row, unsigned int col)
 {
-    // palette entry number
-    int p;
+    if (header->bit_depth == 8) {
+        // palette entry number
+        uint8_t *p = (uint8_t *) tile_row_col(header, data, row, col);
 
-    switch (header->color_type) {
-        case PNG_COLOR_TYPE_PALETTE:
-            switch (header->bit_depth) {
-                case 8:
-                    // 8bpp palette
-                    p = *((uint8_t *) tile_row_col(header, data, row, col));
+        switch (header->color_type) {
+            case PNG_COLOR_TYPE_RGB:
+            case PNG_COLOR_TYPE_RGB_ALPHA:
+                c->red   = p[0];
+                c->green = p[1];
+                c->blue  = p[2];
 
-                    break;
+                return;
 
-                default :
-                    // unknown
-                    return;
-            }
+            case PNG_COLOR_TYPE_PALETTE:
+                // hrhr - assume our working data is valid (or we have 255 palette entries, so it doesn't matter...)
+                assert(*p < header->num_palette);
 
-            // hrhr - assume our working data is valid (or we have 255 palette entries, so it doesn't matter...)
-            assert(p < header->num_palette);
+                // reference data from palette
+                *c = header->palette[*p];
 
-            // reference data from palette
-            *outp = &header->palette[p];
-
-            return;
-
-        default :
-            // unknown pixel format
-            return;
+                return;
+        }
+    } else {
+        // unknown pixel format
+        return;
     }
 }
 
@@ -568,7 +565,7 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
     uint8_t *row_buf;
 
     // color entry for pixel
-    const png_color *c = &header->palette[0];
+    png_color c = header->palette[0];
 
     // only supports zooming out...
     if (params->zoom < 0)
@@ -607,9 +604,9 @@ static int pt_png_encode_zoomed (struct pt_png_img *img, const struct pt_png_hea
                 png_pixel_data(&c, header, data, in_row, in_col);
 
                 // average the RGB data
-                ADD_AVG(row_buf[out_col * pixel_bytes + 0], c->red);
-                ADD_AVG(row_buf[out_col * pixel_bytes + 1], c->green);
-                ADD_AVG(row_buf[out_col * pixel_bytes + 2], c->blue);
+                ADD_AVG(row_buf[out_col * pixel_bytes + 0], c.red);
+                ADD_AVG(row_buf[out_col * pixel_bytes + 1], c.green);
+                ADD_AVG(row_buf[out_col * pixel_bytes + 2], c.blue);
             }
         }
 
