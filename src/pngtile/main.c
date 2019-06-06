@@ -109,8 +109,8 @@ long randrange (long start, long end)
  */
 void randomize_tile (struct pt_tile_params *params, const struct pt_image_info *info)
 {
-    params->x = randrange(0, info->image_width - params->width);
-    params->y = randrange(0, info->image_height - params->height);
+    params->x = randrange(0, info->width - params->width);
+    params->y = randrange(0, info->height - params->height);
 }
 
 /**
@@ -355,14 +355,14 @@ int main (int argc, char **argv)
         // show info
         struct pt_image_info info;
 
-        if ((err = pt_image_info(image, img_path, &info))) {
-            log_warn_errno("pt_image_info: %s: %s", img_path, pt_strerror(err));
+        if ((err = pt_image_info(image, &info))) {
+            log_warn_errno("pt_image_info: %s", pt_strerror(err));
 
         } else {
-            log_info("\tImage dimensions: %zux%zu (%zu bpp)", info.image_width, info.image_height, info.image_bpp);
-            log_info("\tImage mtime=%ld, bytes=%zu", (long) info.image_mtime, info.image_bytes);
+            log_info("\tImage dimensions: %zux%zu (%zu bpp)", info.width, info.height, info.bpp);
+            //log_info("\tImage mtime=%ld, bytes=%zu", (long) info.image_mtime, info.image_bytes);
             log_info("\tCache mtime=%ld, bytes=%zu, blocks=%zu (%zu bytes), version=%d",
-                    (long) info.cache_mtime, info.cache_bytes, info.cache_blocks, info.cache_blocks * 512, info.cache_version
+                    (long) info.cache.mtime, info.cache.bytes, info.cache.blocks, info.cache.blocks * 512, info.cache.version
             );
         }
 

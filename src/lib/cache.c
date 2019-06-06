@@ -217,24 +217,28 @@ int pt_read_cache_info (const char *path, struct pt_image_info *info)
     }
 
     // cache file info
-    info->cache_mtime = st.st_mtime;
-    info->cache_bytes = st.st_size;
-    info->cache_blocks = st.st_blocks;
+    info->cache.mtime = st.st_mtime;
+    info->cache.bytes = st.st_size;
+    info->cache.blocks = st.st_blocks;
 
     // read header
     if ((err = pt_read_cache_header(path, &header)))
         return err;
 
-    info->cache_format = header.format;
-    info->cache_version = header.version;
+    info->cache.version = header.version;
 
     // image info
+    info->format = header.format;
+
     switch (header.format) {
       case PT_FORMAT_CACHE:
         return -PT_ERR_CACHE_FORMAT;
 
       case PT_FORMAT_PNG:
-        pt_png_info(&header.png, info);
+        info->width = header.png.width;
+        info->height = header.png.height;
+        info->bpp = header.png.bit_depth;
+
         break;
 
     }

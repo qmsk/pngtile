@@ -76,7 +76,7 @@ func (server *Server) openImage(name string) (*Image, error) {
 		return nil, err
 	} else if err := pngtileImage.Open(); err != nil {
 		return nil, err
-	} else if pngtileInfo, err := pngtileImage.CacheInfo(); err != nil {
+	} else if pngtileInfo, err := pngtileImage.Info(); err != nil {
 		return nil, err
 	} else {
 		var image = Image{

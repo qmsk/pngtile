@@ -82,9 +82,8 @@ int pt_image_status (struct pt_image *image, const char *path)
     return pt_stat_cache(image->cache_path, path);
 }
 
-int pt_image_info (struct pt_image *image, const char *path, struct pt_image_info *info)
+int pt_image_info (struct pt_image *image, struct pt_image_info *info)
 {
-    struct stat st;
     int err;
 
     // update info from cache
@@ -92,23 +91,7 @@ int pt_image_info (struct pt_image *image, const char *path, struct pt_image_inf
       return err;
     }
 
-    PT_DEBUG("%s: cache version=%d width=%d height=%d", image->cache_path, info->cache_version, info->image_width, info->image_height);
-
-    if (path) {
-      // verify that the path exists and looks like a valid file
-      if ((err = pt_image_sniff(path, &info->image_format)))
-          return err > 0 ? -PT_ERR_IMG_FORMAT : err;
-
-      if (stat(path, &st) < 0) {
-          return -PT_ERR_IMG_STAT;
-      }
-
-      // image file info
-      info->image_mtime = st.st_mtime;
-      info->image_bytes = st.st_size;
-
-      PT_DEBUG("%s: path=%s image bytes=%zu", image->cache_path, path, info->image_bytes);
-    }
+    PT_DEBUG("%s: cache version=%d width=%d height=%d", image->cache_path, info->cache.version, info->width, info->height);
 
     return 0;
 }

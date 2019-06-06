@@ -54,35 +54,34 @@ enum pt_image_format {
     PT_FORMAT_PNG,
 };
 
-/** Metadata info for image. Values will be set to zero if not available */
+/** Metadata for cache file */
+struct pt_cache_info {
+  /** Last update of cache file */
+  time_t mtime;
+
+  /** Size of cache file in bytes */
+  size_t bytes;
+
+  /** Size of cache file in blocks (for sparse cache files) - 512 bytes / block? */
+  size_t blocks;
+
+  /** Cache format version or -err */
+  int version;
+};
+
+/** Common metadata info for image/cache file */
 struct pt_image_info {
-    enum pt_image_format image_format;
+  /** Cache file metadata */
+  struct pt_cache_info cache;
 
-    /** Dimensions of image. Only available if the cache is open */
-    size_t image_width, image_height;
+  /** Image format */
+  enum pt_image_format format;
 
-    /** Bits per pixel */
-    size_t image_bpp;
+  /** Dimensions of image. Only available if the cache is open */
+  size_t width, height;
 
-    /** Last update of image file */
-    time_t image_mtime;
-
-    /** Size of image file in bytes */
-    size_t image_bytes;
-
-    /** Cache format version or -err */
-    int cache_version;
-
-    enum pt_image_format cache_format;
-
-    /** Last update of cache file */
-    time_t cache_mtime;
-
-    /** Size of cache file in bytes */
-    size_t cache_bytes;
-
-    /** Size of cache file in blocks (for sparse cache files) - 512 bytes / block? */
-    size_t cache_blocks;
+  /** Bits per pixel */
+  size_t bpp;
 };
 
 /**
@@ -173,9 +172,9 @@ int pt_image_new (struct pt_image **image_ptr, const char *cache_path);
 int pt_image_status (struct pt_image *image, const char *path);
 
 /**
- * Get the given source image's metadata from the cache file.
+ * Get the cache metadata.
  */
-int pt_image_info (struct pt_image *image, const char *path, struct pt_image_info *info_ptr);
+int pt_image_info (struct pt_image *image, struct pt_image_info *info);
 
 /**
  * Update the cache from the given source image.

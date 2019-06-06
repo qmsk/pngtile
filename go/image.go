@@ -60,22 +60,10 @@ func (image *Image) Status(path string) (CacheStatus, error) {
 	}
 }
 
-func (image *Image) Info(path string) (ImageInfo, error) {
-	var image_info C.struct_pt_image_info
-	var c_path = C.CString(path)
-	defer C.free(unsafe.Pointer(c_path))
-
-	if ret, err := C.pt_image_info(image.pt_image, c_path, &image_info); ret < 0 {
-		return ImageInfo{}, makeError("pt_image_open", ret, err)
-	}
-
-	return makeImageInfo(&image_info), nil
-}
-
-func (image *Image) CacheInfo() (ImageInfo, error) {
+func (image *Image) Info() (ImageInfo, error) {
 	var image_info C.struct_pt_image_info
 
-	if ret, err := C.pt_image_info(image.pt_image, nil, &image_info); ret < 0 {
+	if ret, err := C.pt_image_info(image.pt_image, &image_info); ret < 0 {
 		return ImageInfo{}, makeError("pt_image_open", ret, err)
 	}
 

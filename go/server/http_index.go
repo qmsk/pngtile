@@ -46,7 +46,7 @@ func (item IndexImage) ImageURL() string {
 		Y:      item.imageInfo.ImageHeight / 2,
 	}
 
-	if tileURL, err := TileURL(item.Name, item.imageInfo.CacheFormat, tileParams); err != nil {
+	if tileURL, err := TileURL(item.Name, item.imageInfo.ImageFormat, tileParams); err != nil {
 		return ""
 	} else {
 		return tileURL
