@@ -53,7 +53,7 @@ func (server *Server) Path(url, suffix string) (string, error) {
 	return path, nil
 }
 
-func (server *Server) Lookup(url string, defaultExt string) (path, name, ext string, err error) {
+func (server *Server) Lookup(url string, forceExt string) (path, name, ext string, err error) {
 	var dir, base string
 
 	if url == "" {
@@ -81,11 +81,13 @@ func (server *Server) Lookup(url string, defaultExt string) (path, name, ext str
 		}
 	}
 
-	path, err = server.Path(url, "")
+	var suffix = ""
 
-	if base != "" && ext == "" {
-		path = path + "." + defaultExt
+	if base != "" || ext != "" {
+		suffix = "." + forceExt
 	}
+
+	path, err = server.Path(name, suffix)
 
 	return path, name, ext, err
 }
