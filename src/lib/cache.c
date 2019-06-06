@@ -154,7 +154,7 @@ error:
   return err;
 }
 
-int pt_check_cache (const char *path)
+int pt_sniff_cache (const char *path)
 {
   struct pt_cache_header header;
   int ret;

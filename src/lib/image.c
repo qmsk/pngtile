@@ -11,6 +11,27 @@
 #include <unistd.h>
 #include <errno.h>
 
+int pt_sniff_image (const char *path, enum pt_image_format *format)
+{
+  const char *ext = pt_path_ext(path);
+
+  PT_DEBUG("%s: ext=%s", path, ext);
+
+  if (strcmp(ext, ".cache") == 0) {
+    *format = PT_FORMAT_CACHE;
+
+    return pt_sniff_cache(path);
+
+  } else if (strcmp(ext, ".png") == 0) {
+    *format = PT_FORMAT_PNG;
+
+    return pt_sniff_png(path);
+
+  } else {
+    return 1;
+  }
+}
+
 static int pt_image_alloc (struct pt_image **image_ptr, const char *cache_path)
 {
     struct pt_image *image;
@@ -35,27 +56,6 @@ error:
     pt_image_destroy(image);
 
     return err;
-}
-
-int pt_image_sniff (const char *path, enum pt_image_format *format)
-{
-  const char *ext = pt_path_ext(path);
-
-  PT_DEBUG("%s: ext=%s", path, ext);
-
-  if (strcmp(ext, ".cache") == 0) {
-    *format = PT_FORMAT_CACHE;
-
-    return pt_check_cache(path);
-
-  } else if (strcmp(ext, ".png") == 0) {
-    *format = PT_FORMAT_PNG;
-
-    return pt_png_check(path);
-
-  } else {
-    return 1;
-  }
 }
 
 int pt_image_new (struct pt_image **image_ptr, const char *cache_path)
@@ -92,6 +92,28 @@ int pt_image_info (struct pt_image *image, struct pt_image_info *info)
     }
 
     PT_DEBUG("%s: cache version=%d width=%d height=%d", image->cache_path, info->cache.version, info->width, info->height);
+
+    return 0;
+}
+
+int pt_image_file_info (struct pt_image *image, const char *path, struct pt_file_info *info)
+{
+    struct stat st;
+    int err;
+
+    // verify that the path exists and looks like a valid file
+    if ((err = pt_sniff_image(path, &info->image.format)))
+        return err > 0 ? -PT_ERR_IMG_FORMAT : err;
+
+    if (stat(path, &st) < 0) {
+        return -PT_ERR_IMG_STAT;
+    }
+
+    // image file info
+    info->mtime = st.st_mtime;
+    info->bytes = st.st_size;
+
+    PT_DEBUG("%s: path=%s image bytes=%zu", image->cache_path, path, info->bytes);
 
     return 0;
 }
@@ -154,7 +176,7 @@ int pt_image_update (struct pt_image *image, const char *path, const struct pt_i
     PT_DEBUG("%s: path=%s params=%p", image->cache_path, path, params);
 
     // verify that the path exists and looks like a valid file
-    if ((err = pt_image_sniff(path, &format)))
+    if ((err = pt_sniff_image(path, &format)))
         return err > 0 ? -PT_ERR_IMG_FORMAT : err;
 
     // create the cache object for this image (doesn't yet open it)

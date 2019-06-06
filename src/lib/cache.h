@@ -63,7 +63,7 @@ struct pt_cache_file {
  * @return 0 if valid cache file
  * @return 1 if not a valid cache file
  */
-int pt_check_cache (const char *path);
+int pt_sniff_cache (const char *path);
 
 /**
  * Verify if the cached data eixsts, or has become stale compared to the given original file.

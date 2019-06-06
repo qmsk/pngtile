@@ -7,29 +7,6 @@ package pngtile
 import "C"
 import "unsafe"
 
-func imageSniff(path string) (ImageFormat, bool, error) {
-	var c_image_format C.enum_pt_image_format
-	var c_path = C.CString(path)
-	defer C.free(unsafe.Pointer(c_path))
-
-	if ret, err := C.pt_image_sniff(c_path, &c_image_format); ret < 0 {
-		return ImageFormat(ret), false, makeError("pt_image_sniff", ret, err)
-	} else {
-		return ImageFormat(c_image_format), ret == 0, nil
-	}
-}
-
-func cachePath(path string) (string, error) {
-	var c_path = C.CString(path)
-	var c_buf [1024]C.char
-
-	if ret, err := C.pt_cache_path(c_path, &c_buf[0], 1024); ret < 0 {
-		return "", makeError("pt_cache_path", ret, err)
-	} else {
-		return C.GoString(&c_buf[0]), nil
-	}
-}
-
 // mode: OPEN_*
 func imageOpen(cachePath string) (*Image, error) {
 	var image Image

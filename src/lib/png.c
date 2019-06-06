@@ -10,7 +10,7 @@ const size_t pt_image_block_size = 64;
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
-int pt_png_check (const char *path)
+int pt_sniff_png (const char *path)
 {
     FILE *fp;
     uint8_t header[8];

@@ -140,13 +140,11 @@ extern bool pt_log_warn;
 /**
  * Test if the given file looks like something that you can open.
  *
- * No point calling this before pt_image_new, which already calls this.
- *
  * @param format return detected format if 0
  * @return 0 if ok
  * @return 1 if unknown
  */
-int pt_image_sniff (const char *path, enum pt_image_format *format);
+int pt_sniff_image (const char *path, enum pt_image_format *format);
 
 /**
  * Build a filesystem path representing the appropriate path for an image's cache file, and store it in the given

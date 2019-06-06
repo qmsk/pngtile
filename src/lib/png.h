@@ -50,7 +50,7 @@ struct pt_png_header {
  *
  * Returns 0 if ok, 1 if non-png file, -1 on error
  */
-int pt_png_check (const char *path);
+int pt_sniff_png (const char *path);
 
 /**
  * Open the given .png image, and read info
