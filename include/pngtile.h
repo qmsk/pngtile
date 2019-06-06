@@ -77,7 +77,7 @@ struct pt_image_info {
   /** Image format */
   enum pt_image_format format;
 
-  /** Dimensions of image. Only available if the cache is open */
+  /** Dimensions of image */
   size_t width, height;
 
   /** Bits per pixel */
