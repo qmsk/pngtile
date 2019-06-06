@@ -3,6 +3,21 @@ package pngtile
 /*
 #include <stdlib.h>
 #include "pngtile.h"
+
+
+static char** new_strarray(int size) {
+        return calloc(sizeof(char *), size);
+}
+
+static void set_strarray(char **a, int n, char *s) {
+        a[n] = s;
+}
+
+static void free_strarray(char **a, int size) {
+        for (int i = 0; i < size; i++)
+                free(a[i]);
+        free(a);
+}
 */
 import "C"
 import "unsafe"
@@ -64,6 +79,34 @@ func (image *Image) Update(path string, params ImageParams) error {
 	defer C.free(unsafe.Pointer(c_path))
 
 	if ret, err := C.pt_image_update(image.pt_image, c_path, &image_params); ret < 0 {
+		return makeError("pt_image_update", ret, err)
+	}
+
+	return nil
+}
+
+// Open image cache in update mode,
+func (image *Image) UpdateParts(format ImageFormat, paths [][]string, params ImageParams) error {
+	var image_params = params.c_struct()
+
+	var c_paths_count = C.int(len(paths) * len(paths[0]))
+	var c_paths = C.new_strarray(c_paths_count)
+	defer C.free_strarray(c_paths, c_paths_count)
+
+	var c_parts = C.struct_pt_image_parts{
+		format: uint32(format),
+		rows:   C.uint(len(paths)),
+		cols:   C.uint(len(paths[0])),
+		paths:  c_paths,
+	}
+
+	for row, rowPaths := range paths {
+		for col, path := range rowPaths {
+			C.set_strarray(c_paths, C.int(row*len(rowPaths)+col), C.CString(path))
+		}
+	}
+
+	if ret, err := C.pt_image_update_parts(image.pt_image, &c_parts, &image_params); ret < 0 {
 		return makeError("pt_image_update", ret, err)
 	}
 

@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"regexp"
 	"time"
 )
 
@@ -15,8 +16,9 @@ type Options struct {
 	Debug bool
 	Quiet bool
 
-	Recursive bool
-	Update    bool
+	Recursive        bool
+	MultipartPattern string
+	Update           bool
 
 	Background string
 	TileOut    string
@@ -51,7 +53,13 @@ func (options Options) run(scanImage pngtile.ScanImage) error {
 	log.Printf("%s", scanImage.ImagePath)
 
 	return pngtile.WithImage(scanImage.CachePath, func(image *pngtile.Image) error {
-		if cacheStatus, err := image.Status(scanImage.ImagePath); err != nil {
+		if scanImage.ImagePaths != nil {
+			if imageParams, err := options.imageParams(); err != nil {
+				return err
+			} else if err := image.UpdateParts(scanImage.Format, scanImage.ImagePaths, imageParams); err != nil {
+				return err
+			}
+		} else if cacheStatus, err := image.Status(scanImage.ImagePath); err != nil {
 			return err
 		} else if cacheStatus != pngtile.CACHE_FRESH || options.Update {
 			log.Printf("%s: cache update (status %v)", scanImage.ImagePath, cacheStatus)
@@ -131,6 +139,11 @@ func main() {
 			Usage:       "scan directory recursively for image files",
 			Destination: &options.Recursive,
 		},
+		cli.StringFlag{
+			Name:        "multipart-format",
+			Usage:       "tile multi-part image: (.+)_(\\d+)_(\\d+).png",
+			Destination: &options.MultipartPattern,
+		},
 
 		cli.StringFlag{
 			Name:        "background",
@@ -191,26 +204,41 @@ func main() {
 		return nil
 	}
 	app.Action = func(c *cli.Context) error {
-		for _, arg := range c.Args() {
-			if options.Recursive {
-				log.Printf("%s...", arg)
+		if options.MultipartPattern != "" {
+			if re, err := regexp.Compile(options.MultipartPattern); err != nil {
+				return fmt.Errorf("Invalid --multipart-pattern=%s: %s", options.MultipartPattern, err)
+			} else if scanImage, err := pngtile.ScanParts(c.Args(), re); err != nil {
+				return err
+			} else {
+				log.Printf("Load multiparth image %s (format %s) from parts: %s", scanImage.CachePath, scanImage.Format, scanImage.ImagePaths)
 
-				if scanImages, err := pngtile.Scan(arg, pngtile.ScanOptions{IncludeCached: false}); err != nil {
-					return fmt.Errorf("scan %s: %v", arg, err)
-				} else {
-					for _, scanImage := range scanImages {
-						if err := options.run(scanImage); err != nil {
-							return fmt.Errorf("%s: %s", scanImage.ImagePath, err)
+				if err := options.run(scanImage); err != nil {
+					return fmt.Errorf("%s: %s", scanImage.ImagePath, err)
+				}
+			}
+
+		} else {
+			for _, arg := range c.Args() {
+				if options.Recursive {
+					log.Printf("%s...", arg)
+
+					if scanImages, err := pngtile.Scan(arg, pngtile.ScanOptions{IncludeCached: false}); err != nil {
+						return fmt.Errorf("scan %s: %v", arg, err)
+					} else {
+						for _, scanImage := range scanImages {
+							if err := options.run(scanImage); err != nil {
+								return fmt.Errorf("%s: %s", scanImage.ImagePath, err)
+							}
 						}
 					}
-				}
-			} else {
-				if scanImage, ok, err := pngtile.ScanFile(arg); err != nil {
-					return fmt.Errorf("scan %s: %v", arg, err)
-				} else if !ok {
-					return fmt.Errorf("scan %s: skipping", arg)
-				} else if err := options.run(scanImage); err != nil {
-					return fmt.Errorf("%s: %s", arg, err)
+				} else {
+					if scanImage, ok, err := pngtile.ScanFile(arg); err != nil {
+						return fmt.Errorf("scan %s: %v", arg, err)
+					} else if !ok {
+						return fmt.Errorf("scan %s: skipping", arg)
+					} else if err := options.run(scanImage); err != nil {
+						return fmt.Errorf("%s: %s", arg, err)
+					}
 				}
 			}
 		}
