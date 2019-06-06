@@ -12,16 +12,17 @@ func makeTime(t C.time_t) time.Time {
 	return time.Unix(int64(t), 0)
 }
 
-func makeImageInfo(ci *C.struct_pt_image_info) ImageInfo {
+func makeImageCacheInfo(ci *C.struct_pt_cache_info, ii *C.struct_pt_image_info) ImageInfo {
 	return ImageInfo{
-		ImageFormat:       ImageFormat(ci.format),
-		ImageWidth:        uint(ci.width),
-		ImageHeight:       uint(ci.height),
-		ImageBPP:          uint(ci.bpp),
-		CacheVersion:      int(ci.cache.version),
-		CacheModifiedTime: makeTime(ci.cache.mtime),
-		CacheBytes:        uint(ci.cache.bytes),
-		CacheBlocks:       uint(ci.cache.blocks),
+		ImageFormat: ImageFormat(ii.format),
+		ImageWidth:  uint(ii.width),
+		ImageHeight: uint(ii.height),
+		ImageBPP:    uint(ii.bpp),
+
+		CacheVersion:      int(ci.version),
+		CacheModifiedTime: makeTime(ci.mtime),
+		CacheBytes:        uint(ci.bytes),
+		CacheBlocks:       uint(ci.blocks),
 	}
 }
 

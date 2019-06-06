@@ -206,26 +206,31 @@ int pt_stat_cache (const char *path, const char *img_path)
     return PT_CACHE_FRESH;
 }
 
-int pt_read_cache_info (const char *path, struct pt_image_info *info)
+int pt_read_cache_info (const char *path, struct pt_cache_info *cache_info, struct pt_image_info *info)
 {
     struct pt_cache_header header;
     int err = 0;
-    struct stat st;
 
-    if (stat(path, &st) < 0) {
-      return -PT_ERR_CACHE_STAT;
+    if (cache_info) {
+      struct stat st;
+
+      if (stat(path, &st) < 0) {
+        return -PT_ERR_CACHE_STAT;
+      }
+
+      // cache file info
+      cache_info->mtime = st.st_mtime;
+      cache_info->bytes = st.st_size;
+      cache_info->blocks = st.st_blocks;
     }
-
-    // cache file info
-    info->cache.mtime = st.st_mtime;
-    info->cache.bytes = st.st_size;
-    info->cache.blocks = st.st_blocks;
 
     // read header
     if ((err = pt_read_cache_header(path, &header)))
         return err;
 
-    info->cache.version = header.version;
+    if (cache_info) {
+      cache_info->version = header.version;
+    }
 
     // image info
     info->format = header.format;

@@ -39,12 +39,13 @@ func (image *Image) Status(path string) (CacheStatus, error) {
 
 func (image *Image) Info() (ImageInfo, error) {
 	var image_info C.struct_pt_image_info
+	var cache_info C.struct_pt_cache_info
 
-	if ret, err := C.pt_image_info(image.pt_image, &image_info); ret < 0 {
+	if ret, err := C.pt_image_info(image.pt_image, &cache_info, &image_info); ret < 0 {
 		return ImageInfo{}, makeError("pt_image_open", ret, err)
 	}
 
-	return makeImageInfo(&image_info), nil
+	return makeImageCacheInfo(&cache_info, &image_info), nil
 }
 
 // Open image cache in read-only mode

@@ -71,9 +71,6 @@ struct pt_cache_info {
 
 /** Common metadata info for image/cache file */
 struct pt_image_info {
-  /** Cache file metadata */
-  struct pt_cache_info cache;
-
   /** Image format */
   enum pt_image_format format;
 
@@ -172,7 +169,7 @@ int pt_image_status (struct pt_image *image, const char *path);
 /**
  * Get the cache metadata.
  */
-int pt_image_info (struct pt_image *image, struct pt_image_info *info);
+int pt_image_info (struct pt_image *image, struct pt_cache_info *cache_info, struct pt_image_info *info);
 
 /**
  * Update the cache from the given source image.

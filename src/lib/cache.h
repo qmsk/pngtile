@@ -79,10 +79,12 @@ int pt_stat_cache (const char *path, const char *img_path);
  *
  * Opens the cache temporarily if not already opened.
  *
+ * @param cache_info optional
+ * @param info returned info
  * @return from pt_cache_header()
  * @return -PT_ERR_CACHE_STAT
  */
-int pt_read_cache_info (const char *path, struct pt_image_info *info);
+ int pt_read_cache_info (const char *path, struct pt_cache_info *cache_info, struct pt_image_info *info);
 
 /**
  * Cache state

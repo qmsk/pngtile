@@ -73,7 +73,7 @@ func (options Options) run(scanImage pngtile.ScanImage) error {
 		if info, err := image.Info(); err != nil {
 			return err
 		} else {
-			fmt.Printf("%s:\n", scanImage.CachePath)
+			fmt.Printf("%s:\n", scanImage.ImagePath)
 			fmt.Printf("\tImage: %dx%d@%d\n", info.ImageWidth, info.ImageHeight, info.ImageBPP)
 			//fmt.Printf("\tImage %s: mtime=%v bytes=%d\n", scanImage.ImagePath, info.ImageModifiedTime, info.ImageBytes)
 			fmt.Printf("\tCache %s: mtime=%v bytes=%d version=%d blocks=%d\n", scanImage.CachePath, info.CacheModifiedTime, info.CacheBytes, info.CacheVersion, info.CacheBlocks)

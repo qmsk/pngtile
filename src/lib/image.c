@@ -82,16 +82,16 @@ int pt_image_status (struct pt_image *image, const char *path)
     return pt_stat_cache(image->cache_path, path);
 }
 
-int pt_image_info (struct pt_image *image, struct pt_image_info *info)
+int pt_image_info (struct pt_image *image, struct pt_cache_info *cache_info, struct pt_image_info *info)
 {
     int err;
 
     // update info from cache
-    if ((err = pt_read_cache_info(image->cache_path, info))) {
+    if ((err = pt_read_cache_info(image->cache_path, cache_info, info))) {
       return err;
     }
 
-    PT_DEBUG("%s: cache version=%d width=%d height=%d", image->cache_path, info->cache.version, info->width, info->height);
+    PT_DEBUG("%s: cache version=%d width=%d height=%d", image->cache_path, cache_info->version, info->width, info->height);
 
     return 0;
 }

@@ -354,15 +354,16 @@ int main (int argc, char **argv)
 
         // show info
         struct pt_image_info info;
+        struct pt_cache_info cache_info;
 
-        if ((err = pt_image_info(image, &info))) {
+        if ((err = pt_image_info(image, &cache_info, &info))) {
             log_warn_errno("pt_image_info: %s", pt_strerror(err));
 
         } else {
             log_info("\tImage dimensions: %zux%zu (%zu bpp)", info.width, info.height, info.bpp);
             //log_info("\tImage mtime=%ld, bytes=%zu", (long) info.image_mtime, info.image_bytes);
             log_info("\tCache mtime=%ld, bytes=%zu, blocks=%zu (%zu bytes), version=%d",
-                    (long) info.cache.mtime, info.cache.bytes, info.cache.blocks, info.cache.blocks * 512, info.cache.version
+                    (long) cache_info.mtime, cache_info.bytes, cache_info.blocks, cache_info.blocks * 512, cache_info.version
             );
         }
 
