@@ -47,36 +47,36 @@ func (options Options) imageParams() (pngtile.ImageParams, error) {
 	return imageParams, nil
 }
 
-func (options Options) run(path string) error {
-	log.Printf("%s", path)
+func (options Options) run(scanImage pngtile.ScanImage) error {
+	log.Printf("%s", scanImage.ImagePath)
 
-	return pngtile.WithImage(path, pngtile.OPEN_UPDATE, func(image *pngtile.Image) error {
-		if cacheStatus, err := image.Status(); err != nil {
+	return pngtile.WithImage(scanImage.CachePath, func(image *pngtile.Image) error {
+		if cacheStatus, err := image.Status(scanImage.ImagePath); err != nil {
 			return err
 		} else if cacheStatus != pngtile.CACHE_FRESH || options.Update {
-			log.Printf("%s: cache update (status %v)", path, cacheStatus)
+			log.Printf("%s: cache update (status %v)", scanImage.ImagePath, cacheStatus)
 
 			if imageParams, err := options.imageParams(); err != nil {
 				return err
-			} else if err := image.Update(imageParams); err != nil {
+			} else if err := image.Update(scanImage.ImagePath, imageParams); err != nil {
 				return err
 			}
 
 		} else {
-			log.Printf("%s: cache fresh", path)
+			log.Printf("%s: cache fresh", scanImage.ImagePath)
 
 			if err := image.Open(); err != nil {
 				return err
 			}
 		}
 
-		if info, err := image.Info(); err != nil {
+		if info, err := image.Info(scanImage.ImagePath); err != nil {
 			return err
 		} else {
-			fmt.Printf("%s:\n", path)
+			fmt.Printf("%s:\n", scanImage.CachePath)
 			fmt.Printf("\tImage: %dx%d@%d\n", info.ImageWidth, info.ImageHeight, info.ImageBPP)
-			fmt.Printf("\tImage mtime=%v bytes=%d\n", info.ImageModifiedTime, info.ImageBytes)
-			fmt.Printf("\tCache mtime=%v bytes=%d version=%d blocks=%d\n", info.CacheModifiedTime, info.CacheBytes, info.CacheVersion, info.CacheBlocks)
+			fmt.Printf("\tImage %s: mtime=%v bytes=%d\n", scanImage.ImagePath, info.ImageModifiedTime, info.ImageBytes)
+			fmt.Printf("\tCache %s: mtime=%v bytes=%d version=%d blocks=%d\n", scanImage.CachePath, info.CacheModifiedTime, info.CacheBytes, info.CacheVersion, info.CacheBlocks)
 
 			if options.TileRandom {
 				r := rand.New(rand.NewSource(time.Now().Unix()))
@@ -92,7 +92,7 @@ func (options Options) run(path string) error {
 			} else if err := ioutil.WriteFile(options.TileOut, tileData, 0644); err != nil {
 				return fmt.Errorf("Write --tile-out=%s: %v", options.TileOut, err)
 			} else {
-				log.Printf("%s: render %dx%d tile at %dx%d@%d to %s", path,
+				log.Printf("%s: render %dx%d tile at %dx%d@%d to %s", scanImage.ImagePath,
 					options.TileParams.Width,
 					options.TileParams.Height,
 					options.TileParams.X,
@@ -199,13 +199,17 @@ func main() {
 					return fmt.Errorf("scan %s: %v", arg, err)
 				} else {
 					for _, scanImage := range scanImages {
-						if err := options.run(scanImage.Path); err != nil {
-							return fmt.Errorf("%s: %s", scanImage.Path, err)
+						if err := options.run(scanImage); err != nil {
+							return fmt.Errorf("%s: %s", scanImage.ImagePath, err)
 						}
 					}
 				}
 			} else {
-				if err := options.run(arg); err != nil {
+				if scanImage, ok, err := pngtile.ScanFile(arg); err != nil {
+					return fmt.Errorf("scan %s: %v", arg, err)
+				} else if !ok {
+					return fmt.Errorf("scan %s: skipping", arg)
+				} else if err := options.run(scanImage); err != nil {
 					return fmt.Errorf("%s: %s", arg, err)
 				}
 			}

@@ -22,12 +22,35 @@ func (scanOptions ScanOptions) filter(scanImage ScanImage) bool {
 }
 
 type ScanImage struct {
-	Path   string
-	Format ImageFormat
+	ImagePath string
+	CachePath string
+	Format    ImageFormat
 }
 
 func (scanImage ScanImage) IsCache() bool {
 	return scanImage.Format == FORMAT_CACHE
+}
+
+func ScanFile(path string) (scanImage ScanImage, ok bool, err error) {
+	if imageFormat, ok, err := SniffImage(path); err != nil {
+		return scanImage, false, err
+	} else if !ok {
+		return scanImage, false, nil
+	} else {
+		scanImage.Format = imageFormat
+	}
+
+	if scanImage.Format == FORMAT_CACHE {
+		scanImage.CachePath = path
+	} else if cachePath, err := CachePath(path); err != nil {
+		// ignore
+		return scanImage, false, nil
+	} else {
+		scanImage.ImagePath = path
+		scanImage.CachePath = cachePath
+	}
+
+	return scanImage, true, nil
 }
 
 // Recursively scan given directory for image files
@@ -49,17 +72,11 @@ func Scan(root string, options ScanOptions) ([]ScanImage, error) {
 			return nil
 		}
 
-		var scanImage = ScanImage{Path: path}
-
-		if imageFormat, ok, err := SniffImage(path); err != nil {
+		if scanImage, ok, err := ScanFile(path); err != nil {
 			return err
 		} else if !ok {
 			return nil
-		} else {
-			scanImage.Format = imageFormat
-		}
-
-		if options.filter(scanImage) {
+		} else if options.filter(scanImage) {
 			images = append(images, scanImage)
 		}
 
