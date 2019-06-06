@@ -42,6 +42,47 @@ error:
     return ret;
 }
 
+int pt_read_png_info (const char *path, struct pt_image_info *info)
+{
+  struct pt_png_img img;
+  int err;
+
+  if ((err = pt_png_open_path(&img, path)))
+    return err;
+
+  if ((err = pt_png_read_info(&img, info)))
+    goto error;
+
+  // ok
+
+error:
+  pt_png_release_read(&img);
+
+  return err;
+}
+
+// Open source file
+int pt_png_open_path (struct pt_png_img *img, const char *path)
+{
+    FILE *fp;
+    int err = 0;
+
+    // open
+    if ((fp = fopen(path, "rb")) == NULL)
+        return -PT_ERR_IMG_OPEN;
+
+    if ((err = pt_png_open(img, fp))) {
+      goto error;
+    }
+
+    return 0;
+
+error:
+    fclose(fp);
+
+    return err;
+}
+
 int pt_png_open (struct pt_png_img *img, FILE *file)
 {
     int err;
@@ -89,6 +130,20 @@ error:
     pt_png_release_read(img);
 
     return err;
+}
+
+int pt_png_read_info (struct pt_png_img *img, struct pt_image_info *info)
+{
+  // check image doesn't use any options we don't handle
+  if (png_get_interlace_type(img->png, img->info) != PNG_INTERLACE_NONE)
+      return -PT_ERR_IMG_FORMAT_INTERLACE;
+
+    // fill in basic info
+    info->width = png_get_image_width(img->png, img->info);
+    info->height = png_get_image_height(img->png, img->info);
+    info->bpp = png_get_bit_depth(img->png, img->info);
+
+    return 0;
 }
 
 int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, size_t *data_size)

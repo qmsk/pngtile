@@ -144,6 +144,15 @@ extern bool pt_log_warn;
 int pt_sniff_image (const char *path, enum pt_image_format *format);
 
 /**
+ * Read basic image metadata from source file.
+ *
+ * @param info return detected format + metadata
+ * @return 0 if ok
+ * @return 1 if unknown format
+ */
+int pt_read_image_info (const char *path, struct pt_image_info *info);
+
+/**
  * Build a filesystem path representing the appropriate path for an image's cache file, and store it in the given
  * buffer.
  *

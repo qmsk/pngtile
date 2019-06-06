@@ -53,9 +53,24 @@ struct pt_png_header {
 int pt_sniff_png (const char *path);
 
 /**
- * Open the given .png image, and read info
+ * Read basic image metadata.
+ */
+int pt_read_png_info (const char *path, struct pt_image_info *info);
+
+/**
+ * Open the given .png image file.
+ */
+int pt_png_open_path (struct pt_png_img *img, const char *path);
+
+/**
+ * Read PNG from given file.
  */
 int pt_png_open (struct pt_png_img *img, FILE *file);
+
+/**
+ * Read basic info from PNG header.
+ */
+int pt_png_read_info (struct pt_png_img *img, struct pt_image_info *info);
 
 /**
  * Fill in the PNG header and return the size of the pixel data

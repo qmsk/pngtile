@@ -32,6 +32,38 @@ int pt_sniff_image (const char *path, enum pt_image_format *format)
   }
 }
 
+int pt_read_image_info (const char *path, struct pt_image_info *info)
+{
+    int err;
+
+    // verify that the path exists and looks like a valid file
+    if ((err = pt_sniff_image(path, &info->format)))
+        return err > 0 ? -PT_ERR_IMG_FORMAT : err;
+
+/*
+    if (stat(path, &st) < 0) {
+        return -PT_ERR_IMG_STAT;
+    }
+
+    // image file info
+    info->mtime = st.st_mtime;
+    info->bytes = st.st_size;
+
+    PT_DEBUG("%s: path=%s image bytes=%zu", image->cache_path, path, info->bytes);
+*/
+
+    switch (info->format) {
+      case PT_FORMAT_CACHE:
+        return pt_read_cache_info(path, NULL, info);
+
+      case PT_FORMAT_PNG:
+        return pt_read_png_info(path, info);
+    }
+
+    return 0;
+}
+
+
 static int pt_image_alloc (struct pt_image **image_ptr, const char *cache_path)
 {
     struct pt_image *image;
@@ -96,21 +128,6 @@ int pt_image_info (struct pt_image *image, struct pt_cache_info *cache_info, str
     return 0;
 }
 
-// Open source file
-static int pt_image_open_file (struct pt_image *image, const char *path, FILE **file_ptr)
-{
-    FILE *fp;
-
-    // open
-    if ((fp = fopen(path, "rb")) == NULL)
-        return -PT_ERR_IMG_OPEN;
-
-    // ok
-    *file_ptr = fp;
-
-    return 0;
-}
-
 /**
  * Open the PNG image, and write out to the cache
  */
@@ -118,15 +135,10 @@ int pt_image_update_png (struct pt_image *image, const char *path, const struct 
 {
     PT_DEBUG("%s: path=%s params=%p", image->cache_path, path, params);
 
-    FILE *file;
     struct pt_png_img png_img;
     int err = 0;
 
-    // open .png file
-    if ((err = pt_image_open_file(image, path, &file)))
-        return err;
-
-    if ((err = pt_png_open(&png_img, file)))
+    if ((err = pt_png_open_path(&png_img, path)))
         return err;
 
     // pass to cache object
