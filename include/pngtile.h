@@ -107,6 +107,17 @@ struct pt_image_params {
 };
 
 /**
+ * Multi-part image update.
+ */
+struct pt_image_parts {
+  enum pt_image_format format;
+
+  unsigned int rows, cols;
+
+  const char **paths;
+};
+
+/**
  * Parameters for tile render.
  *
  * The tile may safely overlap with the edge of the image, but it should not be entirely outside of the image
@@ -185,9 +196,20 @@ int pt_image_info (struct pt_image *image, struct pt_cache_info *cache_info, str
  *
  * Also opens the image.
  *
+ * @param path path to source image file
  * @param params optional parameters to use for the update process
  */
 int pt_image_update (struct pt_image *image, const char *path, const struct pt_image_params *params);
+
+/**
+ * Update the cache from multiple tiled source images.
+ *
+ * Also opens the image.
+ *
+ * @param path paths to source image files, all of the same format
+ * @param params optional parameters to use for the update process
+ */
+int pt_image_update_parts (struct pt_image *image, const struct pt_image_parts *parts, const struct pt_image_params *params);
 
 /**
  * Load the image's cache in read-only mode without trying to update it.
@@ -258,6 +280,7 @@ enum pt_error {
 
     PT_ERR_PNG_CREATE,
     PT_ERR_PNG,
+    PT_ERR_PNG_FORMAT,
 
     PT_ERR_CACHE_MODE,
     PT_ERR_CACHE_STAT,

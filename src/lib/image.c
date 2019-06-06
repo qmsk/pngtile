@@ -136,16 +136,37 @@ int pt_image_update_png (struct pt_image *image, const char *path, const struct 
     PT_DEBUG("%s: path=%s params=%p", image->cache_path, path, params);
 
     struct pt_png_img png_img;
+    struct pt_png_header png_header;
+
     int err = 0;
 
     if ((err = pt_png_open_path(&png_img, path)))
         return err;
 
-    // pass to cache object
-    if ((err = pt_cache_update_png(image->cache, &png_img, params)))
-        goto error;
+    // read img header
+    if ((err = pt_png_read_header(&png_img, &png_header)))
+        goto png_error;
 
-error:
+    if ((err = pt_cache_create_png(image->cache, &png_header, params)))
+        goto png_error;
+
+    // pass to cache object
+    if ((err = pt_cache_update_png(image->cache, &png_img, &png_header, params)))
+        goto cache_error;
+
+    // done, commit .tmp
+    if ((err = pt_cache_create_done(image->cache)))
+        goto cache_error;
+
+    goto png_error;
+
+cache_error:
+    // cleanup .tmp
+    pt_cache_create_abort(image->cache);
+
+    return err;
+
+png_error:
     // clean up
     pt_png_release_read(&png_img);
 
@@ -184,6 +205,111 @@ int pt_image_update (struct pt_image *image, const char *path, const struct pt_i
       default:
         return -PT_ERR_IMG_FORMAT;
     }
+}
+
+int pt_image_update_png_part (struct pt_image *image, const char *path, const struct pt_image_params *params, unsigned row, unsigned col)
+{
+  struct pt_png_img png_img;
+  struct pt_png_header png_header;
+  int err = 0;
+
+  PT_DEBUG("%s: path=%s row=%u col=%u", image->cache_path, path, row, col);
+
+  if (!path)
+    // skip, leave sparse
+    return 0;
+
+  if ((err = pt_png_open_path(&png_img, path)))
+      return err;
+
+  if ((err = pt_png_read_header(&png_img, &png_header)))
+      goto error;
+
+  // pass to cache object
+  if ((err = pt_cache_update_png_part(image->cache, &png_img, &png_header, params, row, col)))
+      goto error;
+
+  // ok
+
+error:
+  // clean up
+  pt_png_release_read(&png_img);
+
+  return err;
+
+}
+
+int pt_image_update_png_parts (struct pt_image *image, const struct pt_image_parts *parts, const struct pt_image_params *params)
+{
+  struct pt_png_header image_header, part_header;
+  int err = 0;
+
+  if ((err = pt_read_parts_png_header(parts, &image_header, &part_header)))
+    return err;
+
+  // create cache object for entire image
+  if ((err = pt_cache_create_png(image->cache, &image_header, params)))
+      goto error;
+
+  // update each part
+  for (unsigned row = 0; row < parts->rows; row++) {
+    for (unsigned col = 0; col < parts->cols; col++) {
+      // TODO: verify that PNG header matches part_header
+      if ((err = pt_image_update_png_part(image, parts->paths[row * parts->cols + col], params, row * part_header.height, col * part_header.width))) {
+        goto error;
+      }
+    }
+  }
+
+  // done, commit .tmp
+  if ((err = pt_cache_create_done(image->cache)))
+      goto error;
+
+  return 0;
+
+error:
+  // cleanup .tmp
+  pt_cache_create_abort(image->cache);
+
+  return err;
+}
+
+int pt_image_update_parts (struct pt_image *image, const struct pt_image_parts *parts, const struct pt_image_params *params)
+{
+  int err;
+
+  if (image->cache)
+    return -PT_ERR_IMG_MODE;
+
+  PT_DEBUG("%s: format=%d parts=%ux&u", image->cache_path, parts->format, parts->rows, parts->cols);
+
+  // verify that the paths exists and are matching formats
+  for (unsigned i = 0; i < parts->rows * parts->cols; i++) {
+    enum pt_image_format format;
+
+    if ((err = pt_sniff_image(parts->paths[i], &format)))
+        return err > 0 ? -PT_ERR_IMG_FORMAT : err;
+
+    if (format != parts->format) {
+      return -PT_ERR_IMG_FORMAT;
+    }
+  }
+
+  // create the cache object for this image (doesn't yet open it)
+  if ((err = pt_cache_new(&image->cache, image->cache_path)))
+      return err;
+
+  switch (parts->format) {
+    case PT_FORMAT_CACHE:
+      // can't update a .cache image
+      return -PT_ERR_IMG_FORMAT_CACHE;
+
+    case PT_FORMAT_PNG:
+      return pt_image_update_png_parts(image, parts, params);
+
+    default:
+      return -PT_ERR_IMG_FORMAT;
+  }
 }
 
 int pt_image_open (struct pt_image *image)

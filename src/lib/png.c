@@ -61,6 +61,62 @@ error:
   return err;
 }
 
+int pt_read_parts_png_header (const struct pt_image_parts *parts, struct pt_png_header *header, struct pt_png_header *part_header)
+{
+  struct pt_png_img png_img;
+  int err;
+
+  // determine format from first image
+  if ((err = pt_png_open_path(&png_img, parts->paths[0])))
+      return err;
+
+  if ((err = pt_png_read_header(&png_img, part_header)))
+    goto error;
+
+  // scale up for multiple parts
+  *header = *part_header;
+
+  header->width *= parts->cols;
+  header->height *= parts->rows;
+
+  header->row_bytes *= parts->cols;
+
+  // ok
+
+error:
+  // clean up
+  pt_png_release_read(&png_img);
+
+  return err;
+}
+
+static int pt_check_part_png_header (const struct pt_png_header *header, const struct pt_png_out *out)
+{
+  if (header->bit_depth != out->header->bit_depth) {
+    PT_WARN("part bit_depth=%u mismatch with %u", header->bit_depth, out->header->bit_depth);
+    return -PT_ERR_IMG_FORMAT;
+  }
+
+  if (header->color_type != out->header->color_type) {
+    PT_WARN("part color_type=%u mismatch with %u", header->color_type, out->header->color_type);
+    return -PT_ERR_IMG_FORMAT;
+  }
+
+  if (header->num_palette != out->header->num_palette) {
+    PT_WARN("part num_palette=%u mismatch with %u", header->num_palette, out->header->num_palette);
+    return -PT_ERR_IMG_FORMAT;
+  }
+
+  if (header->col_bytes != out->header->col_bytes) {
+    PT_WARN("part col_bytes=%u mismatch with %u", header->col_bytes, out->header->col_bytes);
+    return -PT_ERR_IMG_FORMAT;
+  }
+
+  // TODO: compare palettes?
+
+  return 0;
+}
+
 // Open source file
 int pt_png_open_path (struct pt_png_img *img, const char *path)
 {
@@ -146,7 +202,7 @@ int pt_png_read_info (struct pt_png_img *img, struct pt_image_info *info)
     return 0;
 }
 
-int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, size_t *data_size)
+int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header)
 {
     // check image doesn't use any options we don't handle
     if (png_get_interlace_type(img->png, img->info) != PNG_INTERLACE_NONE)
@@ -197,21 +253,17 @@ int pt_png_read_header (struct pt_png_img *img, struct pt_png_header *header, si
         PT_DEBUG("num_palette=%u", num_palette);
     }
 
-    // calculate data size
-    *data_size = header->height * header->row_bytes;
-
     return 0;
 }
-
 /**
  * Decode the PNG data directly to memory - not good for sparse backgrounds
  */
-static int pt_png_decode_direct (struct pt_png_img *img, const struct pt_png_header *header, uint8_t *out)
+static int pt_png_decode_direct (struct pt_png_img *img, const struct pt_png_header *header, const struct pt_png_out *out)
 {
     // write out raw image data a row at a time
     for (size_t row = 0; row < header->height; row++) {
         // read row data, non-interlaced
-        png_read_row(img->png, out + row * header->row_bytes, NULL);
+        png_read_row(img->png, out->data + (out->row + row) * out->header->row_bytes + out->col * out->header->col_bytes, NULL);
     }
 
     return 0;
@@ -220,7 +272,7 @@ static int pt_png_decode_direct (struct pt_png_img *img, const struct pt_png_hea
 /**
  * Decode the PNG data, filtering it for sparse regions
  */
-static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_header *header, const pt_image_pixel background_pixel, uint8_t *out)
+static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_header *header, const pt_image_pixel background_pixel, const struct pt_png_out *out)
 {
     // one row of pixel data
     uint8_t *row_buf;
@@ -253,7 +305,7 @@ static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_hea
                 if (bcmp(row_buf + col, background_pixel, header->col_bytes)) {
                     // differs
                     memcpy(
-                            out + row * header->row_bytes + col_base,
+                            out->data + (out->row + row) * out->header->row_bytes + out->col * out->header->col_bytes + col_base, // XXX
                             row_buf + col_base,
                             block_size
                     );
@@ -273,17 +325,23 @@ static int pt_png_decode_sparse (struct pt_png_img *img, const struct pt_png_hea
     return 0;
 }
 
-int pt_png_decode (struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params, uint8_t *out)
+int pt_png_decode (struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params, const struct pt_png_out *out)
 {
     int err;
 
+    // verify png header is compatible with output header
+    if ((err = pt_check_part_png_header(header, out))) {
+      return err;
+    }
+
     // decode
     // XXX: it's an array, you silly, this is always true?
-    if (params && (params->flags & PT_IMAGE_BACKGROUND_PIXEL))
+    if (params && (params->flags & PT_IMAGE_BACKGROUND_PIXEL)) {
         err = pt_png_decode_sparse(img, header, params->background_pixel, out);
 
-    else
+    } else {
         err = pt_png_decode_direct(img, header, out);
+      }
 
     if (err)
         return err;

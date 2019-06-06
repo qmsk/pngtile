@@ -18,6 +18,7 @@ const char *error_names[PT_ERR_MAX] = {
 
     [PT_ERR_PNG_CREATE]         = "png_create()",
     [PT_ERR_PNG]                = "png_*()",
+    [PT_ERR_PNG_FORMAT]         = "Invalid PNG format",
 
     [PT_ERR_CACHE_MODE]         = "Invalid cache state",
     [PT_ERR_CACHE_STAT]         = "stat(.cache)",

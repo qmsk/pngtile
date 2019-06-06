@@ -112,9 +112,29 @@ struct pt_cache {
 int pt_cache_new (struct pt_cache **cache_ptr, const char *path);
 
 /**
+ * initialize new cache file for PNG header.
+ */
+int pt_cache_create_png (struct pt_cache *cache, const struct pt_png_header *png_header, const struct pt_image_params *params);
+
+/**
  * Update the cache data from the given PNG image data
  */
-int pt_cache_update_png (struct pt_cache *cache, struct pt_png_img *img, const struct pt_image_params *params);
+int pt_cache_update_png (struct pt_cache *cache, struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params);
+
+/**
+ * Update partial cache data from the given PNG image data
+ */
+int pt_cache_update_png_part (struct pt_cache *cache, struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params, unsigned row, unsigned col);
+
+/**
+ * Rename the opened .tmp to .cache
+ */
+int pt_cache_create_done (struct pt_cache *cache);
+
+/**
+ * Abort a failed cache update after cache_create
+ */
+void pt_cache_create_abort (struct pt_cache *cache);
 
 /**
  * Open the existing .cache for use. If already opened, does nothing.

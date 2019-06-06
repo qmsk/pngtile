@@ -447,10 +447,69 @@ error:
     return err;
 }
 
-/**
- * Rename the opened .tmp to .cache
- */
-static int pt_cache_create_done (struct pt_cache *cache)
+int pt_cache_create_png (struct pt_cache *cache, const struct pt_png_header *png_header, const struct pt_image_params *params)
+{
+  struct pt_cache_header header = {
+    .version = pt_cache_version,
+    .magic   = PT_CACHE_MAGIC,
+    .format  = PT_FORMAT_PNG,
+  };
+  int err;
+
+  if (cache->file) {
+    return -PT_ERR_CACHE_MODE;
+  }
+
+  PT_DEBUG("%s: width=%u height=%u", cache->path, png_header->width, png_header->height);
+
+  // save any params
+  header.png = *png_header;
+
+  if (params)
+      header.params = *params;
+
+  header.data_size = pt_png_data_size(png_header);
+
+  // create/open .tmp and write out header
+  if ((err = pt_cache_create(cache, &header)))
+      return err;
+
+  return 0;
+}
+
+int pt_cache_update_png (struct pt_cache *cache, struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params)
+{
+    struct pt_png_out png_out = {
+      .header = &cache->file->header.png, // should match *header in this case
+      .data = cache->file->data,
+    };
+    int err;
+
+    // decode to disk
+    if ((err = pt_png_decode(img, header, params, &png_out)))
+        return err;
+
+    return 0;
+}
+
+int pt_cache_update_png_part (struct pt_cache *cache, struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params, unsigned row, unsigned col)
+{
+    struct pt_png_out png_out = {
+      .header = &cache->file->header.png,
+      .data = cache->file->data,
+      .row = row,
+      .col = col,
+    };
+    int err;
+
+    // decode to disk
+    if ((err = pt_png_decode(img, header, params, &png_out)))
+        return err;
+
+    return 0;
+}
+
+int pt_cache_create_done (struct pt_cache *cache)
 {
     char tmp_path[1024];
     int err;
@@ -467,10 +526,7 @@ static int pt_cache_create_done (struct pt_cache *cache)
     return 0;
 }
 
-/**
- * Abort a failed cache update after cache_create
- */
-static void pt_cache_create_abort (struct pt_cache *cache)
+void pt_cache_create_abort (struct pt_cache *cache)
 {
     char tmp_path[1024];
     int err;
@@ -488,48 +544,6 @@ static void pt_cache_create_abort (struct pt_cache *cache)
     // remove .tmp
     if (unlink(tmp_path))
         PT_WARN_ERRNO("unlink %s", tmp_path);
-}
-
-int pt_cache_update_png (struct pt_cache *cache, struct pt_png_img *img, const struct pt_image_params *params)
-{
-    struct pt_cache_header header = {
-      .version = pt_cache_version,
-      .magic   = PT_CACHE_MAGIC,
-      .format  = PT_FORMAT_PNG,
-    };
-    int err;
-
-    if (cache->file) {
-      return -PT_ERR_CACHE_MODE;
-    }
-
-    // read img header
-    if ((err = pt_png_read_header(img, &header.png, &header.data_size)))
-        return err;
-
-    // save any params
-    if (params)
-        header.params = *params;
-
-    // create/open .tmp and write out header
-    if ((err = pt_cache_create(cache, &header)))
-        return err;
-
-    // decode to disk
-    if ((err = pt_png_decode(img, &cache->file->header.png, &cache->file->header.params, cache->file->data)))
-        goto error;
-
-    // done, commit .tmp
-    if ((err = pt_cache_create_done(cache)))
-        goto error;
-
-    return 0;
-
-error:
-    // cleanup .tmp
-    pt_cache_create_abort(cache);
-
-    return err;
 }
 
 int pt_cache_render_tile (struct pt_cache *cache, struct pt_tile *tile)
