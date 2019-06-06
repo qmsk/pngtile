@@ -96,28 +96,6 @@ int pt_image_info (struct pt_image *image, struct pt_image_info *info)
     return 0;
 }
 
-int pt_image_file_info (struct pt_image *image, const char *path, struct pt_file_info *info)
-{
-    struct stat st;
-    int err;
-
-    // verify that the path exists and looks like a valid file
-    if ((err = pt_sniff_image(path, &info->image.format)))
-        return err > 0 ? -PT_ERR_IMG_FORMAT : err;
-
-    if (stat(path, &st) < 0) {
-        return -PT_ERR_IMG_STAT;
-    }
-
-    // image file info
-    info->mtime = st.st_mtime;
-    info->bytes = st.st_size;
-
-    PT_DEBUG("%s: path=%s image bytes=%zu", image->cache_path, path, info->bytes);
-
-    return 0;
-}
-
 // Open source file
 static int pt_image_open_file (struct pt_image *image, const char *path, FILE **file_ptr)
 {
