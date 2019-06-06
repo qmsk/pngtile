@@ -57,38 +57,13 @@ struct pt_cache_file {
 };
 
 /**
- * Cache state
- */
-struct pt_cache {
-    /** Filesystem path to cache file */
-    char *path;
-
-    /** The mode we are operating in, bitmask of PT_IMG_* */
-    int mode;
-
-    /** Opened file */
-    int fd;
-
-    /** Size of the data segment in bytes, starting at PT_CACHE_HEADER_SIZE */
-    size_t data_size;
-
-    /** The mmap'd file */
-    struct pt_cache_file *file;
-};
-
-/**
  * Check if given file is a cache file.
  *
  * @return <0 on error
  * @return 0 if valid cache file
  * @return 1 if not a valid cache file
  */
-int pt_cache_check (const char *path);
-
-/**
- * Construct the image cache info object associated with the given image.
- */
-int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode);
+int pt_check_cache (const char *path);
 
 /**
  * Verify if the cached data eixsts, or has become stale compared to the given original file.
@@ -97,7 +72,7 @@ int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode);
  *
  * @return one of pt_cache_status; <0 on error, 0 if fresh, >0 otherwise
  */
-int pt_cache_status (struct pt_cache *cache, const char *img_path);
+int pt_stat_cache (const char *path, const char *img_path);
 
 /**
  * Get cached image info.
@@ -107,7 +82,32 @@ int pt_cache_status (struct pt_cache *cache, const char *img_path);
  * @return from pt_cache_header()
  * @return -PT_ERR_CACHE_STAT
  */
-int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info);
+int pt_read_cache_info (const char *path, struct pt_image_info *info);
+
+/**
+ * Cache state
+ */
+struct pt_cache {
+    /** Filesystem path to cache file */
+    char *path;
+
+    /** Opened file */
+    int fd;
+
+    /** Size of the data segment in bytes, starting at PT_CACHE_HEADER_SIZE */
+    size_t data_size;
+
+    /** The mmap'd file */
+    struct pt_cache_file *file;
+
+    /** Opened read-only? */
+    bool readonly;
+};
+
+/**
+ * Construct the image cache info object associated with the given image.
+ */
+int pt_cache_new (struct pt_cache **cache_ptr, const char *path);
 
 /**
  * Update the cache data from the given PNG image data

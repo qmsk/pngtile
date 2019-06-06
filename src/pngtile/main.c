@@ -286,19 +286,25 @@ int main (int argc, char **argv)
 
     for (int i = optind; i < argc; i++) {
         const char *img_path = argv[i];
+        char cache_path[1024];
 
         log_debug("Loading image from: %s...", img_path);
 
+        if ((err = pt_cache_path(img_path, cache_path, sizeof(cache_path)))) {
+          log_error("pt_cache_path: %s: %s", img_path, pt_strerror(err));
+          goto error;
+        }
+
         // open
-        if ((err = pt_image_new(&image, img_path, PT_OPEN_UPDATE))) {
-            log_errno("pt_image_new: %s: %s", img_path, pt_strerror(err));
+        if ((err = pt_image_new(&image, cache_path))) {
+            log_errno("pt_image_new: %s: %s", cache_path, pt_strerror(err));
             continue;
         }
 
-        log_info("Opened image at: %s", img_path);
+        log_info("Opened image from %s at %s", img_path, cache_path);
 
         // check if stale
-        if ((status = pt_image_status(image)) < 0) {
+        if ((status = pt_image_status(image, img_path)) < 0) {
             log_errno("pt_image_status: %s: %s", img_path, pt_strerror(status));
             goto error;
         }
@@ -323,7 +329,7 @@ int main (int argc, char **argv)
             if (!no_update) {
                 log_info("\tUpdating image cache...");
 
-                if ((err = pt_image_update(image, &update_params))) {
+                if ((err = pt_image_update(image, img_path, &update_params))) {
                     log_error("pt_image_update: %s: %s", img_path, pt_strerror(err));
                     goto error;
                 }
@@ -349,7 +355,7 @@ int main (int argc, char **argv)
         // show info
         struct pt_image_info info;
 
-        if ((err = pt_image_info(image, &info))) {
+        if ((err = pt_image_info(image, img_path, &info))) {
             log_warn_errno("pt_image_info: %s: %s", img_path, pt_strerror(err));
 
         } else {
@@ -384,7 +390,7 @@ int main (int argc, char **argv)
                 goto error;
 
         }
-        
+
         // cleanup
         pt_image_destroy(image);
 

@@ -20,10 +20,10 @@ struct pt_image;
 /** Bitmask for pt_image_open modes */
 enum pt_open_mode {
     /** Open cache for read*/
-    PT_OPEN_READ    = 0x00,
+    PT_OPEN_READ     = 0x01,
 
     /** Open cache for update */
-    PT_OPEN_UPDATE   = 0x01,
+    PT_OPEN_UPDATE   = 0x02,
 
     /** Accept stale cache */
     // TODO: PT_OPEN_STALE    = 0x02,
@@ -150,37 +150,41 @@ extern bool pt_log_warn;
 int pt_image_sniff (const char *path, enum pt_image_format *format);
 
 /**
+ * Build a filesystem path representing the appropriate path for an image's cache file, and store it in the given
+ * buffer.
+ *
+ * If this is a PT_IMAGE_CACHE file, then this is going to be identical to path..
+ */
+int pt_cache_path (const char *path, char *buf, size_t len);
+
+/**
  * Open a new pt_image for use.
  *
- * @param img_ptr returned pt_image handle * @param path filesystem path to .png file
- * @param mode combination of PT_OPEN_* flags
- * @return -PT_ERR_FORMAT if pt_image_sniff fails
+ * @param image_ptr returned pt_image handle
+ * @param cache_path filesystem path to .cache file
  */
-int pt_image_new (struct pt_image **image_ptr, const char *png_path, int cache_mode);
+int pt_image_new (struct pt_image **image_ptr, const char *cache_path);
 
 /**
- * Get the image's metadata.
- *
- * Opens the cache temporarily if not already open.
- *
- */
-int pt_image_info (struct pt_image *image, struct pt_image_info *info_ptr);
-
-/**
- * Check the given image's cache is stale - in other words, if the image needs to be update()'d.
+ * Check the given image's cache is missing or stale - in other words, if the cache needs to be update()'d.
  *
  * @return pt_cache_status, < 0 on error.
  */
-int pt_image_status (struct pt_image *image);
+int pt_image_status (struct pt_image *image, const char *path);
 
 /**
- * Update the given image's cache.
+ * Get the given source image's metadata from the cache file.
+ */
+int pt_image_info (struct pt_image *image, const char *path, struct pt_image_info *info_ptr);
+
+/**
+ * Update the cache from the given source image.
  *
- * Fails if not opened with PT_OPEN_UPDATE.
+ * Also opens the image.
  *
  * @param params optional parameters to use for the update process
  */
-int pt_image_update (struct pt_image *image, const struct pt_image_params *params);
+int pt_image_update (struct pt_image *image, const char *path, const struct pt_image_params *params);
 
 /**
  * Load the image's cache in read-only mode without trying to update it.
@@ -192,7 +196,9 @@ int pt_image_open (struct pt_image *image);
 /**
  * Render a PNG tile to a FILE*.
  *
- * The PNG data will be written to the given stream, which will be flushed, but not closed.
+ * The PNG data will be written to the given stream, which will be flushed, but must be fclose()'d' by the caller.
+ *
+ * The image must be open for read or update.
  *
  * Tile render operations are threadsafe as long as the pt_image is not modified during execution: call pt_image_load() first.
  */
@@ -201,9 +207,11 @@ int pt_image_tile_file (struct pt_image *image, const struct pt_tile_params *par
 /**
  * Render a PNG tile to memory.
  *
- * The PNG data will be written to a malloc'd buffer.
+ * The PNG data will be written to a malloc'd buffer, which must be free()'d by the caller.'
  *
- * Tile render operations are threadsafe as long as the pt_image is not modified during execution: call pt_image_load() first.
+ * The image must be open for read or update.
+ *
+ * Tile render operations are threadsafe as long as the pt_image is not modified during execution.: call pt_image_load() first.
  *
  * @param image render from image's cache
  * @param params tile parameters
@@ -235,12 +243,10 @@ enum pt_error {
 
     /** Generic error */
     PT_ERR = 1,
-
     PT_ERR_MEM,
-
     PT_ERR_PATH,
-    PT_ERR_OPEN_MODE,
 
+    PT_ERR_IMG_MODE,
     PT_ERR_IMG_STAT,
     PT_ERR_IMG_OPEN,
     PT_ERR_IMG_FORMAT,
@@ -250,6 +256,7 @@ enum pt_error {
     PT_ERR_PNG_CREATE,
     PT_ERR_PNG,
 
+    PT_ERR_CACHE_MODE,
     PT_ERR_CACHE_STAT,
     PT_ERR_CACHE_OPEN_READ,
     PT_ERR_CACHE_UNLINK_TMP,

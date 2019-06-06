@@ -9,12 +9,10 @@
 #include "pngtile.h"
 
 struct pt_image {
-    enum pt_image_format format;
-    
-    /** Path to .png */
-    char *path;
+    /** Path to cache file */
+    char *cache_path;
 
-    /** Cache object */
+    /** Cache file */
     struct pt_cache *cache;
 };
 

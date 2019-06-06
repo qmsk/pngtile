@@ -16,9 +16,28 @@ const uint16_t pt_cache_version = PT_CACHE_VERSION;
 const uint8_t pt_cache_magic[6] = PT_CACHE_MAGIC;
 
 /**
+ * Compute and return the full size of the .cache file
+ */
+static inline size_t sizeof_pt_cache_file (size_t data_size)
+{
+    assert(sizeof(struct pt_cache_file) == PT_CACHE_HEADER_SIZE);
+
+    return sizeof(struct pt_cache_file) + data_size;
+}
+
+int pt_cache_path (const char *path, char *buf, size_t len)
+{
+    if (pt_path_make_ext(buf, len, path, ".cache")) {
+        return -PT_ERR_PATH;
+    }
+
+    return 0;
+}
+
+/**
  * Open the cache file as an fd for reading
  */
-static int pt_cache_open_read_fd (const char *path, int *fd_ptr)
+static int pt_open_cache_read_fd (const char *path, int *fd_ptr)
 {
     PT_DEBUG("%s", path);
 
@@ -26,7 +45,7 @@ static int pt_cache_open_read_fd (const char *path, int *fd_ptr)
 
     // actual open()
     if ((fd = open(path, O_RDONLY)) < 0)
-        return -PT_ERR_OPEN_MODE;
+        return -PT_ERR_CACHE_OPEN_READ;
 
     // ok
     *fd_ptr = fd;
@@ -37,7 +56,7 @@ static int pt_cache_open_read_fd (const char *path, int *fd_ptr)
 /**
  * Read in the cache header from the open file
  */
-static int pt_cache_read_header (int fd, struct pt_cache_header *header)
+static int pt_cache_header_read (struct pt_cache_header *header, int fd)
 {
     size_t len = sizeof(*header);
     char *buf = (char *) header;
@@ -64,9 +83,38 @@ static int pt_cache_read_header (int fd, struct pt_cache_header *header)
 }
 
 /**
+ * Write out the cache header into the opened file
+ */
+static int pt_cache_header_write (const struct pt_cache_header *header, int fd)
+{
+    size_t len = sizeof(*header);
+    const char *buf = (const char *) header;
+
+    // seek to start
+    if (lseek(fd, 0, SEEK_SET) != 0)
+        return -PT_ERR_CACHE_SEEK;
+
+    // write out full header
+    while (len) {
+        ssize_t ret;
+
+        // try and write out the header
+        if ((ret = write(fd, buf, len)) <= 0)
+            return -PT_ERR_CACHE_WRITE;
+
+        // update offset
+        buf += ret;
+        len -= ret;
+    }
+
+    // done
+    return 0;
+}
+
+/**
  * Validate header: magic, version, format
  */
-static int pt_cache_check_header (const struct pt_cache_header *header)
+static int pt_cache_header_check (const struct pt_cache_header *header)
 {
   PT_DEBUG("magic=%6.6s version=%d format=%d", header->magic, header->version, header->format);
 
@@ -89,32 +137,114 @@ static int pt_cache_check_header (const struct pt_cache_header *header)
   return 0;
 }
 
-int pt_cache_check (const char *path)
+static int pt_read_cache_header (const char *path, struct pt_cache_header *header)
 {
   int fd;
-  struct pt_cache_header header;
-  int ret;
+  int err;
 
-  if ((ret = pt_cache_open_read_fd(path, &fd)))
-      return ret;
+  if ((err = pt_open_cache_read_fd(path, &fd)))
+      return err;
 
-  if ((ret = pt_cache_read_header(fd, &header)))
+  if ((err = pt_cache_header_read(header, fd)))
       goto error; // XXX: return 1 on EOF / short header?
-
-  if ((ret = pt_cache_check_header(&header))) {
-      ret = 1;
-      goto error;
-  }
 
 error:
   close(fd);
 
-  return ret;
+  return err;
 }
 
-int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode)
+int pt_check_cache (const char *path)
 {
-    PT_DEBUG("%s: mode=%d", path, mode);
+  struct pt_cache_header header;
+  int ret;
+
+  if ((ret = pt_read_cache_header(path, &header)))
+    return ret;
+
+  if ((ret = pt_cache_header_check(&header)))
+    return ret;
+
+  return 0;
+}
+
+int pt_stat_cache (const char *path, const char *img_path)
+{
+    PT_DEBUG("%s <=> %s", path, img_path);
+
+    struct pt_cache_header header;
+    struct stat st_img, st_cache;
+    int err = 0;
+
+    // test original file
+    if (stat(img_path, &st_img) < 0)
+        return -PT_ERR_IMG_STAT;
+
+    // test cache file
+    if (stat(path, &st_cache) < 0) {
+        // always stale if it doesn't exist yet
+        if (errno == ENOENT)
+            return PT_CACHE_NONE;
+        else
+            return -PT_ERR_CACHE_STAT;
+    }
+
+    // compare mtime
+    if (st_img.st_mtime > st_cache.st_mtime)
+        return PT_CACHE_STALE;
+
+    // read header
+    if ((err = pt_read_cache_header(path, &header))) {
+        return err;
+    }
+
+    // check version, magic, format
+    if ((err = pt_cache_header_check(&header)))
+        return PT_CACHE_INCOMPAT;
+
+    // ok, should be in order
+    return PT_CACHE_FRESH;
+}
+
+int pt_read_cache_info (const char *path, struct pt_image_info *info)
+{
+    struct pt_cache_header header;
+    int err = 0;
+    struct stat st;
+
+    if (stat(path, &st) < 0) {
+      return -PT_ERR_CACHE_STAT;
+    }
+
+    // cache file info
+    info->cache_mtime = st.st_mtime;
+    info->cache_bytes = st.st_size;
+    info->cache_blocks = st.st_blocks;
+
+    // read header
+    if ((err = pt_read_cache_header(path, &header)))
+        return err;
+
+    info->cache_format = header.format;
+    info->cache_version = header.version;
+
+    // image info
+    switch (header.format) {
+      case PT_FORMAT_CACHE:
+        return -PT_ERR_CACHE_FORMAT;
+
+      case PT_FORMAT_PNG:
+        pt_png_info(&header.png, info);
+        break;
+
+    }
+
+    return 0;
+}
+
+int pt_cache_new (struct pt_cache **cache_ptr, const char *path)
+{
+    PT_DEBUG("%s", path);
 
     struct pt_cache *cache;
     int err;
@@ -130,7 +260,6 @@ int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode)
 
     // init
     cache->fd = -1;
-    cache->mode = mode;
 
     // ok
     *cache_ptr = cache;
@@ -153,8 +282,8 @@ static void pt_cache_abort (struct pt_cache *cache)
     PT_DEBUG("%s", cache->path);
 
     if (cache->file != NULL) {
-        if (munmap(cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size))
-            PT_WARN_ERRNO("munmap %p, %zu", cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size);
+        if (munmap(cache->file, sizeof_pt_cache_file(cache->file->header.data_size)))
+            PT_WARN_ERRNO("munmap %p, %zu", cache->file, sizeof_pt_cache_file(cache->file->header.data_size));
 
         cache->file = NULL;
     }
@@ -167,105 +296,6 @@ static void pt_cache_abort (struct pt_cache *cache)
     }
 }
 
-/**
- * Read the header from the cache file, temporarily opening it if needed.
- *
- * Does not check if the header is valid; call pt_cache_check_header()!
- */
-static int pt_cache_header (struct pt_cache *cache, struct pt_cache_header *header)
-{
-    // already open?
-    if (cache->file) {
-        *header = cache->file->header;
-        return 0;
-    }
-
-    int fd;
-    int err = 0;
-
-    // temp. open
-    if ((err = pt_cache_open_read_fd(cache->path, &fd)))
-        return err;
-
-    // read header
-    if ((err = pt_cache_read_header(fd, header)))
-        goto error;
-
-error:
-    // close
-    close(fd);
-
-    PT_DEBUG("%s: %d", cache->path, err);
-
-    return err;
-}
-
-int pt_cache_status (struct pt_cache *cache, const char *img_path)
-{
-    PT_DEBUG("%s", cache->path);
-
-    struct pt_cache_header header;
-    struct stat st_img, st_cache;
-    int err = 0;
-
-    // test original file
-    if (stat(img_path, &st_img) < 0)
-        return -PT_ERR_IMG_STAT;
-
-    // test cache file
-    if (stat(cache->path, &st_cache) < 0) {
-        // always stale if it doesn't exist yet
-        if (errno == ENOENT)
-            return PT_CACHE_NONE;
-        else
-            return -PT_ERR_CACHE_STAT;
-    }
-
-    // compare mtime
-    if (st_img.st_mtime > st_cache.st_mtime)
-        return PT_CACHE_STALE;
-
-    // read header
-    if ((err = pt_cache_header(cache, &header))) {
-        return err;
-    }
-
-    // check version, magic, format
-    if ((err = pt_cache_check_header(&header)))
-        return PT_CACHE_INCOMPAT;
-
-    // ok, should be in order
-    return PT_CACHE_FRESH;
-}
-
-int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info)
-{
-    struct pt_cache_header header;
-    int err = 0;
-    struct stat st;
-
-    if (stat(cache->path, &st) < 0) {
-      return -PT_ERR_CACHE_STAT;
-    }
-
-    // cache file info
-    info->cache_mtime = st.st_mtime;
-    info->cache_bytes = st.st_size;
-    info->cache_blocks = st.st_blocks;
-
-    // read header
-    if ((err = pt_cache_header(cache, &header)))
-        return err;
-
-    info->cache_format = header.format;
-    info->cache_version = header.version;
-
-    // img info
-    pt_png_info(&header.png, info);
-
-    return 0;
-}
-
 static int pt_cache_tmp_name (struct pt_cache *cache, char tmp_path[], size_t tmp_len)
 {
     // get .tmp path
@@ -273,16 +303,6 @@ static int pt_cache_tmp_name (struct pt_cache *cache, char tmp_path[], size_t tm
         return -PT_ERR_PATH;
 
     return 0;
-}
-
-/**
- * Compute and return the full size of the .cache file
- */
-static size_t pt_cache_size (size_t data_size)
-{
-    assert(sizeof(struct pt_cache_file) == PT_CACHE_HEADER_SIZE);
-
-    return sizeof(struct pt_cache_file) + data_size;
 }
 
 /**
@@ -314,9 +334,9 @@ static int pt_cache_open_tmp_fd (struct pt_cache *cache, int *fd_ptr)
 
 
 /**
- * Mmap the pt_cache_file using pt_cache_size(data_size)
+ * Mmap the pt_cache_file using sizeof_pt_cache_file(data_size)
  */
-static int pt_cache_open_mmap (struct pt_cache *cache, struct pt_cache_file **file_ptr, size_t data_size, bool readonly)
+static int pt_cache_open_mmap (struct pt_cache *cache, size_t data_size, bool readonly)
 {
     int prot = 0;
     void *addr;
@@ -325,17 +345,16 @@ static int pt_cache_open_mmap (struct pt_cache *cache, struct pt_cache_file **fi
     prot |= PROT_READ;
 
     if (!readonly) {
-        assert(cache->mode & PT_OPEN_UPDATE);
-
         prot |= PROT_WRITE;
     }
 
     // mmap() the full file including header
-    if ((addr = mmap(NULL, pt_cache_size(data_size), prot, MAP_SHARED, cache->fd, 0)) == MAP_FAILED)
+    if ((addr = mmap(NULL, sizeof_pt_cache_file(data_size), prot, MAP_SHARED, cache->fd, 0)) == MAP_FAILED)
         return -PT_ERR_CACHE_MMAP;
 
     // ok
-    *file_ptr = addr;
+    cache->file = addr;
+    cache->readonly = readonly;
 
     return 0;
 }
@@ -351,19 +370,21 @@ int pt_cache_open (struct pt_cache *cache)
     if (cache->file)
         return 0;
 
+    PT_DEBUG("%s", cache->path);
+
     // open the .cache in readonly mode
-    if ((err = pt_cache_open_read_fd(cache->path, &cache->fd)))
+    if ((err = pt_open_cache_read_fd(cache->path, &cache->fd)))
         return err;
 
     // read in header
-    if ((err = pt_cache_read_header(cache->fd, &header)))
+    if ((err = pt_cache_header_read(&header, cache->fd)))
         goto error;
 
-    if ((err = pt_cache_check_header(&header)))
+    if ((err = pt_cache_header_check(&header)))
         goto error;
 
     // mmap the header + data
-    if ((err = pt_cache_open_mmap(cache, &cache->file, header.data_size, true)))
+    if ((err = pt_cache_open_mmap(cache, header.data_size, true)))
         goto error;
 
     // done
@@ -377,59 +398,34 @@ error:
 }
 
 /**
- * Write out the cache header into the opened file
- */
-static int pt_cache_write_header (struct pt_cache *cache, const struct pt_cache_header *header)
-{
-    size_t len = sizeof(*header);
-    const char *buf = (const char *) header;
-
-    // seek to start
-    if (lseek(cache->fd, 0, SEEK_SET) != 0)
-        return -PT_ERR_CACHE_SEEK;
-
-    // write out full header
-    while (len) {
-        ssize_t ret;
-
-        // try and write out the header
-        if ((ret = write(cache->fd, buf, len)) <= 0)
-            return -PT_ERR_CACHE_WRITE;
-
-        // update offset
-        buf += ret;
-        len -= ret;
-    }
-
-    // done
-    return 0;
-}
-
-/**
  * Create a new .tmp cache file, open it, and write out the header.
  */
 static int pt_cache_create (struct pt_cache *cache, struct pt_cache_header *header)
 {
     int err;
 
-    assert(cache->mode & PT_OPEN_UPDATE);
+    if (cache->file) {
+      return -PT_ERR_CACHE_MODE;
+    }
+
+    PT_DEBUG("%s: data_size=%zu", cache->path, header->data_size);
 
     // open as .tmp
     if ((err = pt_cache_open_tmp_fd(cache, &cache->fd)))
         return err;
 
     // write header
-    if ((err = pt_cache_write_header(cache, header)))
+    if ((err = pt_cache_header_write(header, cache->fd)))
         goto error;
 
     // grow file
-    if (ftruncate(cache->fd, pt_cache_size(header->data_size)) < 0) {
+    if (ftruncate(cache->fd, sizeof_pt_cache_file(header->data_size)) < 0) {
         err = -PT_ERR_CACHE_TRUNC;
         goto error;
       }
 
     // mmap header and data
-    if ((err = pt_cache_open_mmap(cache, &cache->file, header->data_size, false)))
+    if ((err = pt_cache_open_mmap(cache, header->data_size, false)))
       goto error;
 
     // done
@@ -494,13 +490,9 @@ int pt_cache_update_png (struct pt_cache *cache, struct pt_png_img *img, const s
     };
     int err;
 
-    // check mode
-    if (!(cache->mode & PT_OPEN_UPDATE))
-        return -PT_ERR_OPEN_MODE;
-
-    // close if open
-    if ((err = pt_cache_close(cache)))
-        return err;
+    if (cache->file) {
+      return -PT_ERR_CACHE_MODE;
+    }
 
     // read img header
     if ((err = pt_png_read_header(img, &header.png, &header.data_size)))
@@ -535,13 +527,13 @@ int pt_cache_render_tile (struct pt_cache *cache, struct pt_tile *tile)
 {
     int err;
 
+    if (!cache->file) {
+      return -PT_ERR_CACHE_MODE;
+    }
+
     // validate params
     if (!tile->params.width || !tile->params.height)
         return -PT_ERR_TILE_DIM;
-
-    // ensure open
-    if ((err = pt_cache_open(cache)))
-        return err;
 
     // render
     if ((err = pt_png_tile(&cache->file->header.png, cache->file->data, tile)))
@@ -552,6 +544,8 @@ int pt_cache_render_tile (struct pt_cache *cache, struct pt_tile *tile)
 
 int pt_cache_close (struct pt_cache *cache)
 {
+    PT_DEBUG("%s", cache->path);
+
     if (cache->file != NULL) {
         if (munmap(cache->file, sizeof(struct pt_cache_file) + cache->file->header.data_size))
             return -PT_ERR_CACHE_MUNMAP;

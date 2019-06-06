@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-static int pt_image_alloc (struct pt_image **image_ptr, const char *path, enum pt_image_format format)
+static int pt_image_alloc (struct pt_image **image_ptr, const char *cache_path)
 {
     struct pt_image *image;
     int err = 0;
@@ -21,9 +21,7 @@ static int pt_image_alloc (struct pt_image **image_ptr, const char *path, enum p
         return -PT_ERR_MEM;
     }
 
-    image->format = format;
-
-    if ((image->path = strdup(path)) == NULL) {
+    if ((image->cache_path = strdup(cache_path)) == NULL) {
         err = -PT_ERR_MEM;
         goto error;
     }
@@ -39,21 +37,6 @@ error:
     return err;
 }
 
-/**
- * Build a filesystem path representing the appropriate path for this image's cache entry, and store it in the given
- * buffer.
- *
- * If this is a PT_IMAGE_CACHE, then this is going to be identical to ->path..
- */
-static int pt_image_cache_path (struct pt_image *image, char *buf, size_t len)
-{
-    if (pt_path_make_ext(buf, len, image->path, ".cache")) {
-        return -PT_ERR_PATH;
-    }
-
-    return 0;
-}
-
 int pt_image_sniff (const char *path, enum pt_image_format *format)
 {
   const char *ext = pt_path_ext(path);
@@ -63,7 +46,7 @@ int pt_image_sniff (const char *path, enum pt_image_format *format)
   if (strcmp(ext, ".cache") == 0) {
     *format = PT_FORMAT_CACHE;
 
-    return pt_cache_check(path);
+    return pt_check_cache(path);
 
   } else if (strcmp(ext, ".png") == 0) {
     *format = PT_FORMAT_PNG;
@@ -75,54 +58,68 @@ int pt_image_sniff (const char *path, enum pt_image_format *format)
   }
 }
 
-int pt_image_new (struct pt_image **image_ptr, const char *path, int cache_mode)
+int pt_image_new (struct pt_image **image_ptr, const char *cache_path)
 {
-    PT_DEBUG("%s: cache_mode=%d", path, cache_mode);
+    PT_DEBUG("%s", cache_path);
 
     struct pt_image *image;
-    char cache_path[1024];
-    enum pt_image_format format;
     int err;
 
-    // verify that the path exists and looks like a valid file
-    if ((err = pt_image_sniff(path, &format)))
-        return err > 0 ? -PT_ERR_IMG_FORMAT : err;
-
     // alloc
-    if ((err = pt_image_alloc(&image, path, format)))
+    if ((err = pt_image_alloc(&image, cache_path)))
         return err;
-
-    // compute cache file path
-    if ((err = pt_image_cache_path(image, cache_path, sizeof(cache_path))))
-        goto error;
-
-    // create the cache object for this image (doesn't yet open it)
-    if ((err = pt_cache_new(&image->cache, cache_path, cache_mode)))
-        goto error;
 
     // ok, ready for access
     *image_ptr = image;
 
     return 0;
-
-error:
-    pt_image_destroy(image);
-
-    return err;
 }
 
-int pt_image_status (struct pt_image *image)
+int pt_image_status (struct pt_image *image, const char *path)
 {
-    return pt_cache_status(image->cache, image->path);
+    PT_DEBUG("%s: path=%s", image->cache_path, path);
+
+    return pt_stat_cache(image->cache_path, path);
 }
 
-// Open PNG file
-static int pt_image_open_file (struct pt_image *image, FILE **file_ptr)
+int pt_image_info (struct pt_image *image, const char *path, struct pt_image_info *info)
+{
+    struct stat st;
+    int err;
+
+    // update info from cache
+    if ((err = pt_read_cache_info(image->cache_path, info))) {
+      return err;
+    }
+
+    PT_DEBUG("%s: cache version=%d width=%d height=%d", image->cache_path, info->cache_version, info->image_width, info->image_height);
+
+    if (path) {
+      // verify that the path exists and looks like a valid file
+      if ((err = pt_image_sniff(path, &info->image_format)))
+          return err > 0 ? -PT_ERR_IMG_FORMAT : err;
+
+      if (stat(path, &st) < 0) {
+          return -PT_ERR_IMG_STAT;
+      }
+
+      // image file info
+      info->image_mtime = st.st_mtime;
+      info->image_bytes = st.st_size;
+
+      PT_DEBUG("%s: path=%s image bytes=%zu", image->cache_path, path, info->image_bytes);
+    }
+
+    return 0;
+}
+
+// Open source file
+static int pt_image_open_file (struct pt_image *image, const char *path, FILE **file_ptr)
 {
     FILE *fp;
 
     // open
-    if ((fp = fopen(image->path, "rb")) == NULL)
+    if ((fp = fopen(path, "rb")) == NULL)
         return -PT_ERR_IMG_OPEN;
 
     // ok
@@ -134,16 +131,16 @@ static int pt_image_open_file (struct pt_image *image, FILE **file_ptr)
 /**
  * Open the PNG image, and write out to the cache
  */
-int pt_image_update_png (struct pt_image *image, const struct pt_image_params *params)
+int pt_image_update_png (struct pt_image *image, const char *path, const struct pt_image_params *params)
 {
-    PT_DEBUG("%s: params=%p", image->path, params);
+    PT_DEBUG("%s: path=%s params=%p", image->cache_path, path, params);
 
     FILE *file;
     struct pt_png_img png_img;
     int err = 0;
 
     // open .png file
-    if ((err = pt_image_open_file(image, &file)))
+    if ((err = pt_image_open_file(image, path, &file)))
         return err;
 
     if ((err = pt_png_open(&png_img, file)))
@@ -163,62 +160,59 @@ error:
 /**
  * Open the PNG image, and write out to the cache
  */
-int pt_image_update (struct pt_image *image, const struct pt_image_params *params)
+int pt_image_update (struct pt_image *image, const char *path, const struct pt_image_params *params)
 {
-    PT_DEBUG("%s: params=%p", image->path, params);
+    enum pt_image_format format;
+    int err;
 
-    // pre-check enabled
-    if (!(image->cache->mode & PT_OPEN_UPDATE))
-        return -PT_ERR_OPEN_MODE;
+    if (image->cache)
+      return -PT_ERR_IMG_MODE;
 
-    switch (image->format) {
+    PT_DEBUG("%s: path=%s params=%p", image->cache_path, path, params);
+
+    // verify that the path exists and looks like a valid file
+    if ((err = pt_image_sniff(path, &format)))
+        return err > 0 ? -PT_ERR_IMG_FORMAT : err;
+
+    // create the cache object for this image (doesn't yet open it)
+    if ((err = pt_cache_new(&image->cache, image->cache_path)))
+        return err;
+
+    switch (format) {
       case PT_FORMAT_CACHE:
         // can't update a .cache image
         return -PT_ERR_IMG_FORMAT_CACHE;
 
       case PT_FORMAT_PNG:
-        return pt_image_update_png(image, params);
+        return pt_image_update_png(image, path, params);
 
       default:
         return -PT_ERR_IMG_FORMAT;
     }
 }
 
-int pt_image_info (struct pt_image *image, struct pt_image_info *info)
-{
-    struct stat st;
-    int err;
-
-    info->image_format = image->format;
-
-    if (stat(image->path, &st) < 0) {
-        return -PT_ERR_IMG_STAT;
-    }
-
-    // image file info
-    info->image_mtime = st.st_mtime;
-    info->image_bytes = st.st_size;
-
-    // update info from cache
-    if ((err = pt_cache_info(image->cache, info))) {
-      return err;
-    }
-
-    PT_DEBUG("%s: image width=%d height=%d", image->path, info->image_width, info->image_height);
-
-    return 0;
-}
-
 int pt_image_open (struct pt_image *image)
 {
-    PT_DEBUG("%s", image->path);
+    int err;
+
+    if (image->cache)
+      return -PT_ERR_IMG_MODE;
+
+    PT_DEBUG("%s", image->cache_path);
+
+    // create the cache object for this image (doesn't yet open it)
+    if ((err = pt_cache_new(&image->cache, image->cache_path)))
+        return err;
 
     return pt_cache_open(image->cache);
 }
 
 int pt_image_tile_file (struct pt_image *image, const struct pt_tile_params *params, FILE *out)
 {
-    PT_DEBUG("%s: width=%u height=%u x=%u y=%u zoom=%d", image->path, params->width, params->height, params->x, params->y, params->zoom);
+    if (!image->cache)
+      return -PT_ERR_IMG_MODE;
+
+    PT_DEBUG("%s: width=%u height=%u x=%u y=%u zoom=%d", image->cache_path, params->width, params->height, params->x, params->y, params->zoom);
 
     struct pt_tile tile;
     int err;
@@ -242,7 +236,10 @@ error:
 
 int pt_image_tile_mem (struct pt_image *image, const struct pt_tile_params *params, char **buf_ptr, size_t *len_ptr)
 {
-    PT_DEBUG("%s: width=%u height=%u x=%u y=%u zoom=%d", image->path, params->width, params->height, params->x, params->y, params->zoom);
+    if (!image->cache)
+      return -PT_ERR_IMG_MODE;
+
+    PT_DEBUG("%s: width=%u height=%u x=%u y=%u zoom=%d", image->cache_path, params->width, params->height, params->x, params->y, params->zoom);
 
     struct pt_tile tile;
     int err;
@@ -269,24 +266,29 @@ error:
 
 int pt_image_close (struct pt_image *image)
 {
-  PT_DEBUG("%s", image->path);
+  PT_DEBUG("%s", image->cache_path);
 
   int err;
 
   if (image->cache && (err = pt_cache_close(image->cache)))
     return err;
 
+  if (image->cache) {
+    pt_cache_destroy(image->cache);
+
+    image->cache = NULL;
+  }
+
   return 0;
 }
 
 void pt_image_destroy (struct pt_image *image)
 {
-    PT_DEBUG("%s", image->path);
-
-    free(image->path);
+    PT_DEBUG("%s", image->cache_path);
 
     if (image->cache)
         pt_cache_destroy(image->cache);
 
+    free(image->cache_path);
     free(image);
 }
