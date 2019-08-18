@@ -20,10 +20,10 @@ struct pt_image;
 /** Bitmask for pt_image_open modes */
 enum pt_open_mode {
     /** Open cache for read*/
-    PT_OPEN_READ    = 0x00,
+    PT_OPEN_READ     = 0x01,
 
     /** Open cache for update */
-    PT_OPEN_UPDATE   = 0x01,
+    PT_OPEN_UPDATE   = 0x02,
 
     /** Accept stale cache */
     // TODO: PT_OPEN_STALE    = 0x02,
@@ -54,35 +54,31 @@ enum pt_image_format {
     PT_FORMAT_PNG,
 };
 
-/** Metadata info for image. Values will be set to zero if not available */
+/** Metadata for cache file */
+struct pt_cache_info {
+  /** Last update of cache file */
+  time_t mtime;
+
+  /** Size of cache file in bytes */
+  size_t bytes;
+
+  /** Size of cache file in blocks (for sparse cache files) - 512 bytes / block? */
+  size_t blocks;
+
+  /** Cache format version or -err */
+  int version;
+};
+
+/** Common metadata info for image/cache file */
 struct pt_image_info {
-    enum pt_image_format image_format;
+  /** Image format */
+  enum pt_image_format format;
 
-    /** Dimensions of image. Only available if the cache is open */
-    size_t image_width, image_height;
+  /** Dimensions of image */
+  size_t width, height;
 
-    /** Bits per pixel */
-    size_t image_bpp;
-
-    /** Last update of image file */
-    time_t image_mtime;
-
-    /** Size of image file in bytes */
-    size_t image_bytes;
-
-    /** Cache format version or -err */
-    int cache_version;
-
-    enum pt_image_format cache_format;
-
-    /** Last update of cache file */
-    time_t cache_mtime;
-
-    /** Size of cache file in bytes */
-    size_t cache_bytes;
-
-    /** Size of cache file in blocks (for sparse cache files) - 512 bytes / block? */
-    size_t cache_blocks;
+  /** Bits per pixel */
+  size_t bpp;
 };
 
 /**
@@ -108,6 +104,17 @@ struct pt_image_params {
 
     /** Don't write out any contiguous regions of this color. Left-aligned in whatever format the source image is in */
     pt_image_pixel background_pixel;
+};
+
+/**
+ * Multi-part image update.
+ */
+struct pt_image_parts {
+  enum pt_image_format format;
+
+  unsigned int rows, cols;
+
+  const char **paths;
 };
 
 /**
@@ -141,46 +148,68 @@ extern bool pt_log_warn;
 /**
  * Test if the given file looks like something that you can open.
  *
- * No point calling this before pt_image_new, which already calls this.
- *
  * @param format return detected format if 0
  * @return 0 if ok
  * @return 1 if unknown
  */
-int pt_image_sniff (const char *path, enum pt_image_format *format);
+int pt_sniff_image (const char *path, enum pt_image_format *format);
+
+/**
+ * Read basic image metadata from source file.
+ *
+ * @param info return detected format + metadata
+ * @return 0 if ok
+ * @return 1 if unknown format
+ */
+int pt_read_image_info (const char *path, struct pt_image_info *info);
+
+/**
+ * Build a filesystem path representing the appropriate path for an image's cache file, and store it in the given
+ * buffer.
+ *
+ * If this is a PT_IMAGE_CACHE file, then this is going to be identical to path..
+ */
+int pt_cache_path (const char *path, char *buf, size_t len);
 
 /**
  * Open a new pt_image for use.
  *
- * @param img_ptr returned pt_image handle * @param path filesystem path to .png file
- * @param mode combination of PT_OPEN_* flags
- * @return -PT_ERR_FORMAT if pt_image_sniff fails
+ * @param image_ptr returned pt_image handle
+ * @param cache_path filesystem path to .cache file
  */
-int pt_image_new (struct pt_image **image_ptr, const char *png_path, int cache_mode);
+int pt_image_new (struct pt_image **image_ptr, const char *cache_path);
 
 /**
- * Get the image's metadata.
- *
- * Opens the cache temporarily if not already open.
- *
- */
-int pt_image_info (struct pt_image *image, struct pt_image_info *info_ptr);
-
-/**
- * Check the given image's cache is stale - in other words, if the image needs to be update()'d.
+ * Check the given image's cache is missing or stale - in other words, if the cache needs to be update()'d.
  *
  * @return pt_cache_status, < 0 on error.
  */
-int pt_image_status (struct pt_image *image);
+int pt_image_status (struct pt_image *image, const char *path);
 
 /**
- * Update the given image's cache.
+ * Get the cache metadata.
+ */
+int pt_image_info (struct pt_image *image, struct pt_cache_info *cache_info, struct pt_image_info *info);
+
+/**
+ * Update the cache from the given source image.
  *
- * Fails if not opened with PT_OPEN_UPDATE.
+ * Also opens the image.
  *
+ * @param path path to source image file
  * @param params optional parameters to use for the update process
  */
-int pt_image_update (struct pt_image *image, const struct pt_image_params *params);
+int pt_image_update (struct pt_image *image, const char *path, const struct pt_image_params *params);
+
+/**
+ * Update the cache from multiple tiled source images.
+ *
+ * Also opens the image.
+ *
+ * @param path paths to source image files, all of the same format
+ * @param params optional parameters to use for the update process
+ */
+int pt_image_update_parts (struct pt_image *image, const struct pt_image_parts *parts, const struct pt_image_params *params);
 
 /**
  * Load the image's cache in read-only mode without trying to update it.
@@ -192,7 +221,9 @@ int pt_image_open (struct pt_image *image);
 /**
  * Render a PNG tile to a FILE*.
  *
- * The PNG data will be written to the given stream, which will be flushed, but not closed.
+ * The PNG data will be written to the given stream, which will be flushed, but must be fclose()'d' by the caller.
+ *
+ * The image must be open for read or update.
  *
  * Tile render operations are threadsafe as long as the pt_image is not modified during execution: call pt_image_load() first.
  */
@@ -201,9 +232,11 @@ int pt_image_tile_file (struct pt_image *image, const struct pt_tile_params *par
 /**
  * Render a PNG tile to memory.
  *
- * The PNG data will be written to a malloc'd buffer.
+ * The PNG data will be written to a malloc'd buffer, which must be free()'d by the caller.'
  *
- * Tile render operations are threadsafe as long as the pt_image is not modified during execution: call pt_image_load() first.
+ * The image must be open for read or update.
+ *
+ * Tile render operations are threadsafe as long as the pt_image is not modified during execution.: call pt_image_load() first.
  *
  * @param image render from image's cache
  * @param params tile parameters
@@ -235,12 +268,10 @@ enum pt_error {
 
     /** Generic error */
     PT_ERR = 1,
-
     PT_ERR_MEM,
-
     PT_ERR_PATH,
-    PT_ERR_OPEN_MODE,
 
+    PT_ERR_IMG_MODE,
     PT_ERR_IMG_STAT,
     PT_ERR_IMG_OPEN,
     PT_ERR_IMG_FORMAT,
@@ -249,7 +280,9 @@ enum pt_error {
 
     PT_ERR_PNG_CREATE,
     PT_ERR_PNG,
+    PT_ERR_PNG_FORMAT,
 
+    PT_ERR_CACHE_MODE,
     PT_ERR_CACHE_STAT,
     PT_ERR_CACHE_OPEN_READ,
     PT_ERR_CACHE_UNLINK_TMP,

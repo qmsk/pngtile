@@ -57,14 +57,41 @@ struct pt_cache_file {
 };
 
 /**
+ * Check if given file is a cache file.
+ *
+ * @return <0 on error
+ * @return 0 if valid cache file
+ * @return 1 if not a valid cache file
+ */
+int pt_sniff_cache (const char *path);
+
+/**
+ * Verify if the cached data eixsts, or has become stale compared to the given original file.
+ *
+ * This will stat both the image file and cache file. This will also temporarily open the cache file to read the header version, if not already opened.
+ *
+ * @return one of pt_cache_status; <0 on error, 0 if fresh, >0 otherwise
+ */
+int pt_stat_cache (const char *path, const char *img_path);
+
+/**
+ * Get cached image info.
+ *
+ * Opens the cache temporarily if not already opened.
+ *
+ * @param cache_info optional
+ * @param info returned info
+ * @return from pt_cache_header()
+ * @return -PT_ERR_CACHE_STAT
+ */
+ int pt_read_cache_info (const char *path, struct pt_cache_info *cache_info, struct pt_image_info *info);
+
+/**
  * Cache state
  */
 struct pt_cache {
     /** Filesystem path to cache file */
     char *path;
-
-    /** The mode we are operating in, bitmask of PT_IMG_* */
-    int mode;
 
     /** Opened file */
     int fd;
@@ -74,45 +101,40 @@ struct pt_cache {
 
     /** The mmap'd file */
     struct pt_cache_file *file;
-};
 
-/**
- * Check if given file is a cache file.
- *
- * @return <0 on error
- * @return 0 if valid cache file
- * @return 1 if not a valid cache file
- */
-int pt_cache_check (const char *path);
+    /** Opened read-only? */
+    bool readonly;
+};
 
 /**
  * Construct the image cache info object associated with the given image.
  */
-int pt_cache_new (struct pt_cache **cache_ptr, const char *path, int mode);
+int pt_cache_new (struct pt_cache **cache_ptr, const char *path);
 
 /**
- * Verify if the cached data eixsts, or has become stale compared to the given original file.
- *
- * This will stat both the image file and cache file. This will also temporarily open the cache file to read the header version, if not already opened.
- *
- * @return one of pt_cache_status; <0 on error, 0 if fresh, >0 otherwise
+ * initialize new cache file for PNG header.
  */
-int pt_cache_status (struct pt_cache *cache, const char *img_path);
-
-/**
- * Get cached image info.
- *
- * Opens the cache temporarily if not already opened.
- *
- * @return from pt_cache_header()
- * @return -PT_ERR_CACHE_STAT
- */
-int pt_cache_info (struct pt_cache *cache, struct pt_image_info *info);
+int pt_cache_create_png (struct pt_cache *cache, const struct pt_png_header *png_header, const struct pt_image_params *params);
 
 /**
  * Update the cache data from the given PNG image data
  */
-int pt_cache_update_png (struct pt_cache *cache, struct pt_png_img *img, const struct pt_image_params *params);
+int pt_cache_update_png (struct pt_cache *cache, struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params);
+
+/**
+ * Update partial cache data from the given PNG image data
+ */
+int pt_cache_update_png_part (struct pt_cache *cache, struct pt_png_img *img, const struct pt_png_header *header, const struct pt_image_params *params, unsigned row, unsigned col);
+
+/**
+ * Rename the opened .tmp to .cache
+ */
+int pt_cache_create_done (struct pt_cache *cache);
+
+/**
+ * Abort a failed cache update after cache_create
+ */
+void pt_cache_create_abort (struct pt_cache *cache);
 
 /**
  * Open the existing .cache for use. If already opened, does nothing.

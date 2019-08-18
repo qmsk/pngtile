@@ -3,31 +3,33 @@ package pngtile
 /*
 #include <stdlib.h>
 #include "pngtile.h"
+
+
+static char** new_strarray(int size) {
+        return calloc(sizeof(char *), size);
+}
+
+static void set_strarray(char **a, int n, char *s) {
+        a[n] = s;
+}
+
+static void free_strarray(char **a, int size) {
+        for (int i = 0; i < size; i++)
+                free(a[i]);
+        free(a);
+}
 */
 import "C"
 import "unsafe"
 
-func imageSniff(path string) (ImageFormat, bool, error) {
-	var c_image_format C.enum_pt_image_format
-	var c_path = C.CString(path)
-	defer C.free(unsafe.Pointer(c_path))
-
-	if ret, err := C.pt_image_sniff(c_path, &c_image_format); ret < 0 {
-		return ImageFormat(ret), false, makeError("pt_image_sniff", ret, err)
-	} else {
-		return ImageFormat(c_image_format), ret == 0, nil
-	}
-}
-
 // mode: OPEN_*
-func imageOpen(path string, mode OpenMode) (*Image, error) {
+func imageOpen(cachePath string) (*Image, error) {
 	var image Image
 
-	var c_path = C.CString(path)
-	defer C.free(unsafe.Pointer(c_path))
-	var c_mode = C.int(mode)
+	var c_cache_path = C.CString(cachePath)
+	defer C.free(unsafe.Pointer(c_cache_path))
 
-	if ret, err := C.pt_image_new(&image.pt_image, c_path, c_mode); ret < 0 {
+	if ret, err := C.pt_image_new(&image.pt_image, c_cache_path); ret < 0 {
 		return nil, makeError("pt_image_new", ret, err)
 	}
 
@@ -39,12 +41,26 @@ type Image struct {
 }
 
 // return: CACHE_*
-func (image *Image) Status() (CacheStatus, error) {
-	if ret, err := C.pt_image_status(image.pt_image); ret < 0 {
+func (image *Image) Status(path string) (CacheStatus, error) {
+	var c_path = C.CString(path)
+	defer C.free(unsafe.Pointer(c_path))
+
+	if ret, err := C.pt_image_status(image.pt_image, c_path); ret < 0 {
 		return CACHE_ERROR, makeError("pt_image_status", ret, err)
 	} else {
 		return CacheStatus(ret), nil
 	}
+}
+
+func (image *Image) Info() (ImageInfo, error) {
+	var image_info C.struct_pt_image_info
+	var cache_info C.struct_pt_cache_info
+
+	if ret, err := C.pt_image_info(image.pt_image, &cache_info, &image_info); ret < 0 {
+		return ImageInfo{}, makeError("pt_image_open", ret, err)
+	}
+
+	return makeImageCacheInfo(&cache_info, &image_info), nil
 }
 
 // Open image cache in read-only mode
@@ -57,24 +73,44 @@ func (image *Image) Open() error {
 }
 
 // Open image cache in update mode,
-func (image *Image) Update(params ImageParams) error {
+func (image *Image) Update(path string, params ImageParams) error {
 	var image_params = params.c_struct()
+	var c_path = C.CString(path)
+	defer C.free(unsafe.Pointer(c_path))
 
-	if ret, err := C.pt_image_update(image.pt_image, &image_params); ret < 0 {
+	if ret, err := C.pt_image_update(image.pt_image, c_path, &image_params); ret < 0 {
 		return makeError("pt_image_update", ret, err)
 	}
 
 	return nil
 }
 
-func (image *Image) Info() (ImageInfo, error) {
-	var image_info C.struct_pt_image_info
+// Open image cache in update mode,
+func (image *Image) UpdateParts(format ImageFormat, paths [][]string, params ImageParams) error {
+	var image_params = params.c_struct()
 
-	if ret, err := C.pt_image_info(image.pt_image, &image_info); ret < 0 {
-		return ImageInfo{}, makeError("pt_image_open", ret, err)
+	var c_paths_count = C.int(len(paths) * len(paths[0]))
+	var c_paths = C.new_strarray(c_paths_count)
+	defer C.free_strarray(c_paths, c_paths_count)
+
+	var c_parts = C.struct_pt_image_parts{
+		format: uint32(format),
+		rows:   C.uint(len(paths)),
+		cols:   C.uint(len(paths[0])),
+		paths:  c_paths,
 	}
 
-	return makeImageInfo(&image_info), nil
+	for row, rowPaths := range paths {
+		for col, path := range rowPaths {
+			C.set_strarray(c_paths, C.int(row*len(rowPaths)+col), C.CString(path))
+		}
+	}
+
+	if ret, err := C.pt_image_update_parts(image.pt_image, &c_parts, &image_params); ret < 0 {
+		return makeError("pt_image_update", ret, err)
+	}
+
+	return nil
 }
 
 // Render tile to PNG image

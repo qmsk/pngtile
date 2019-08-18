@@ -28,13 +28,13 @@ func (server *Server) HandleImage(r *http.Request, name string) (httpResponse, e
 		return renderResponse(r, server.templates.imageTemplate, ImageResponse{
 			Name: name,
 			Config: ImageConfig{
-				URL:          server.URL(name + "." + imageInfo.CacheFormat.String()),
+				URL:          server.URL(name + "." + imageInfo.ImageFormat.String()),
 				ModifiedTime: 0, // TODO: caching
 				TileURL:      TileURLTemplate,
 				TileSize:     TileSize,
 				TileZoom:     TileZoomMax,
 				ViewURL:      ViewURLTemplate,
-				ImageFormat:  imageInfo.CacheFormat.String(),
+				ImageFormat:  imageInfo.ImageFormat.String(),
 				ImageWidth:   imageInfo.ImageWidth,
 				ImageHeight:  imageInfo.ImageHeight,
 			},

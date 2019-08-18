@@ -7,10 +7,9 @@ const char *error_names[PT_ERR_MAX] = {
     [PT_SUCCESS]                = "Success",
     [PT_ERR]                    = "Unspecified error",
     [PT_ERR_MEM]                = "malloc()",
+    [PT_ERR_PATH]               = "Invalid path",
 
-    [PT_ERR_PATH]               = "path",
-    [PT_ERR_OPEN_MODE]          = "open_mode",
-
+    [PT_ERR_IMG_MODE]             = "Invalid image state (open/close)",
     [PT_ERR_IMG_STAT]             = "stat(.png)",
     [PT_ERR_IMG_OPEN]             = "open(.png)",
     [PT_ERR_IMG_FORMAT]           = "Unknown image format",
@@ -19,7 +18,9 @@ const char *error_names[PT_ERR_MAX] = {
 
     [PT_ERR_PNG_CREATE]         = "png_create()",
     [PT_ERR_PNG]                = "png_*()",
+    [PT_ERR_PNG_FORMAT]         = "Invalid PNG format",
 
+    [PT_ERR_CACHE_MODE]         = "Invalid cache state",
     [PT_ERR_CACHE_STAT]         = "stat(.cache)",
     [PT_ERR_CACHE_OPEN_READ]    = "open(.cache)",
     [PT_ERR_CACHE_UNLINK_TMP]   = "unlink(tmp)",

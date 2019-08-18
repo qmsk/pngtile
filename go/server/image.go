@@ -48,7 +48,7 @@ func (server *Server) Images(name string) ([]string, error) {
 		var names = make([]string, 0)
 
 		for _, scanImage := range scanImages {
-			var name = scanImage.Path
+			var name = scanImage.CachePath
 
 			// relative to server path
 			name = strings.TrimPrefix(name, server.path)
@@ -72,7 +72,7 @@ type Image struct {
 func (server *Server) openImage(name string) (*Image, error) {
 	if path, err := server.Path(name, ".cache"); err != nil {
 		return nil, err
-	} else if pngtileImage, err := pngtile.OpenImage(path, pngtile.OPEN_READ); err != nil {
+	} else if pngtileImage, err := pngtile.OpenImage(path); err != nil {
 		return nil, err
 	} else if err := pngtileImage.Open(); err != nil {
 		return nil, err
